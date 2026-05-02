@@ -1,0 +1,235 @@
+export function parseJsonValue(value, label = 'JSON value') {
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    throw new Error(`Invalid ${label}: ${error.message}`);
+  }
+}
+
+export function getFrameCollection(doc, level = 'micro') {
+  const frames = doc.frames?.[level];
+  if (!Array.isArray(frames)) {
+    throw new Error(`Unknown frame level '${level}'. Expected one of: micro, meso, macro.`);
+  }
+  return frames;
+}
+
+export function getConceptCollection(doc, level = 'atomic') {
+  const concepts = doc.concepts?.[level];
+  if (!Array.isArray(concepts)) {
+    throw new Error(`Unknown concept level '${level}'. Expected one of: atomic, clustered.`);
+  }
+  return concepts;
+}
+
+export function upsertConcept(doc, { level = 'atomic', id, label, description, aliases, firstSeenAt, speakers, stats, parentIds }) {
+  if (!id) throw new Error('concept id is required');
+  if (!label) throw new Error('concept label is required');
+
+  const concepts = getConceptCollection(doc, level);
+  const existing = concepts.find((concept) => concept.id === id);
+  const next = {
+    id,
+    label,
+    ...(description != null ? { description } : {}),
+    ...(aliases != null ? { aliases } : {}),
+    ...(typeof firstSeenAt === 'number' ? { firstSeenAt } : {}),
+    ...(speakers != null ? { speakers } : {}),
+    ...(stats != null ? { stats } : {}),
+    ...(parentIds != null ? { parentIds } : {}),
+  };
+
+  if (existing) {
+    Object.assign(existing, next);
+    return existing;
+  }
+
+  concepts.push(next);
+  return next;
+}
+
+export function upsertRelation(doc, { id, from, to, type, label, description, meta }) {
+  if (!id) throw new Error('relation id is required');
+  if (!from) throw new Error('relation from is required');
+  if (!to) throw new Error('relation to is required');
+  if (!type) throw new Error('relation type is required');
+
+  const relations = doc.relations ?? (doc.relations = []);
+  const existing = relations.find((relation) => relation.id === id);
+  const next = {
+    id,
+    from,
+    to,
+    type,
+    ...(label != null ? { label } : {}),
+    ...(description != null ? { description } : {}),
+    ...(meta != null ? { meta } : {}),
+  };
+
+  if (existing) {
+    Object.assign(existing, next);
+    return existing;
+  }
+
+  relations.push(next);
+  return next;
+}
+
+export function setFrameActivations(doc, { level = 'micro', index, foregroundConcepts, backgroundConcepts, activeRelations, summary }) {
+  if (!Number.isInteger(index) || index < 0) {
+    throw new Error('frame index must be a non-negative integer');
+  }
+
+  const frames = getFrameCollection(doc, level);
+  const frame = frames[index];
+  if (!frame) throw new Error(`No frame found at ${level}[${index}]`);
+
+  if (foregroundConcepts != null) frame.foregroundConcepts = foregroundConcepts;
+  if (backgroundConcepts != null) frame.backgroundConcepts = backgroundConcepts;
+  if (activeRelations != null) frame.activeRelations = activeRelations;
+  if (summary != null) frame.summary = summary;
+
+  return frame;
+}
+
+function mergeActivationLists(frames, key) {
+  const merged = new Map();
+
+  for (const frame of frames) {
+    for (const item of frame[key] ?? []) {
+      const current = merged.get(item.id) ?? { ...item, weight: 0 };
+      current.weight = Math.max(current.weight ?? 0, item.weight ?? 0);
+      if (item.mode && !current.mode) current.mode = item.mode;
+      merged.set(item.id, current);
+    }
+  }
+
+  return Array.from(merged.values()).sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+}
+
+export function mergeFrames(doc, { fromLevel = 'micro', toLevel = 'meso', startIndex, endIndex, summary, title }) {
+  if (!Number.isInteger(startIndex) || !Number.isInteger(endIndex) || startIndex < 0 || endIndex < startIndex) {
+    throw new Error('startIndex/endIndex must be non-negative integers with endIndex >= startIndex');
+  }
+
+  const sourceFrames = getFrameCollection(doc, fromLevel);
+  const targetFrames = getFrameCollection(doc, toLevel);
+  const slice = sourceFrames.slice(startIndex, endIndex + 1);
+  if (slice.length === 0) throw new Error(`No frames found in ${fromLevel}[${startIndex}..${endIndex}]`);
+
+  const speakerSet = new Set(slice.flatMap((frame) => frame.speakers ?? []));
+  const sourceSegmentIds = slice.flatMap((frame) => frame.sourceSegmentIds ?? []);
+  const mergedFrame = {
+    id: `${toLevel}-${targetFrames.length + 1}`,
+    t: slice[0].t,
+    span: {
+      start: slice[0].span.start,
+      end: slice[slice.length - 1].span.end,
+    },
+    speakers: Array.from(speakerSet),
+    foregroundConcepts: mergeActivationLists(slice, 'foregroundConcepts'),
+    backgroundConcepts: mergeActivationLists(slice, 'backgroundConcepts'),
+    activeRelations: mergeActivationLists(slice, 'activeRelations'),
+    summary: summary ?? slice.map((frame) => frame.summary).filter(Boolean).join(' '),
+    title: title ?? undefined,
+    sourceFrameRefs: slice.map((_, index) => ({ level: fromLevel, index: startIndex + index })),
+    sourceSegmentIds,
+  };
+
+  targetFrames.push(mergedFrame);
+  return mergedFrame;
+}
+
+export function listFrames(doc, { level = 'micro', offset = 0, limit = 10 } = {}) {
+  const frames = getFrameCollection(doc, level);
+  return frames.slice(offset, offset + limit).map((frame, index) => ({
+    index: offset + index,
+    id: frame.id,
+    t: frame.t,
+    span: frame.span,
+    title: frame.title,
+    summary: frame.summary,
+    foregroundConcepts: frame.foregroundConcepts ?? [],
+    activeRelations: frame.activeRelations ?? [],
+  }));
+}
+
+export function getFrame(doc, { level = 'micro', index }) {
+  if (!Number.isInteger(index) || index < 0) {
+    throw new Error('frame index must be a non-negative integer');
+  }
+  const frames = getFrameCollection(doc, level);
+  const frame = frames[index];
+  if (!frame) throw new Error(`No frame found at ${level}[${index}]`);
+  return frame;
+}
+
+export function listConcepts(doc, { level = 'atomic' } = {}) {
+  const concepts = getConceptCollection(doc, level);
+  return concepts.map((concept) => ({
+    id: concept.id,
+    label: concept.label,
+    firstSeenAt: concept.firstSeenAt,
+    stats: concept.stats,
+    parentIds: concept.parentIds,
+  }));
+}
+
+export function getConcept(doc, { level = 'atomic', id }) {
+  if (!id) throw new Error('concept id is required');
+  const concepts = getConceptCollection(doc, level);
+  const concept = concepts.find((item) => item.id === id);
+  if (!concept) throw new Error(`No concept found with id '${id}' in ${level} concepts`);
+  return concept;
+}
+
+export function recomputeConceptStats(doc) {
+  const allConcepts = [
+    ...(doc.concepts?.atomic ?? []),
+    ...(doc.concepts?.clustered ?? []),
+  ];
+  const conceptMap = new Map(allConcepts.map((concept) => [concept.id, concept]));
+  const aggregates = new Map();
+
+  for (const concept of allConcepts) {
+    aggregates.set(concept.id, {
+      recurrenceCount: 0,
+      totalActivation: 0,
+      peakActivation: 0,
+      firstFrameT: null,
+      lastFrameT: null,
+    });
+  }
+
+  for (const frameLevel of ['micro', 'meso', 'macro']) {
+    for (const frame of doc.frames?.[frameLevel] ?? []) {
+      for (const bucketName of ['foregroundConcepts', 'backgroundConcepts']) {
+        for (const activation of frame[bucketName] ?? []) {
+          const agg = aggregates.get(activation.id);
+          if (!agg) continue;
+          agg.recurrenceCount += 1;
+          agg.totalActivation += activation.weight ?? 0;
+          agg.peakActivation = Math.max(agg.peakActivation, activation.weight ?? 0);
+          agg.firstFrameT = agg.firstFrameT == null ? frame.t : Math.min(agg.firstFrameT, frame.t);
+          agg.lastFrameT = agg.lastFrameT == null ? frame.t : Math.max(agg.lastFrameT, frame.t);
+        }
+      }
+    }
+  }
+
+  for (const [conceptId, agg] of aggregates.entries()) {
+    const concept = conceptMap.get(conceptId);
+    const persistence = agg.firstFrameT == null || agg.lastFrameT == null
+      ? 0
+      : agg.lastFrameT - agg.firstFrameT;
+
+    concept.stats = {
+      recurrenceCount: agg.recurrenceCount,
+      totalActivation: Number(agg.totalActivation.toFixed(4)),
+      peakActivation: Number(agg.peakActivation.toFixed(4)),
+      persistence,
+    };
+  }
+
+  return doc;
+}

@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "kind": "mindgraph.document",
+  "transcript": {
+    "title": "Awakening Sample",
+    "source": "examples/awakening.sample.transcript.txt",
+    "speakers": [
+      "John Vervaeke"
+    ],
+    "segments": [
+      {
+        "id": "seg-1",
+        "start": 0,
+        "end": 18,
+        "speaker": "John Vervaeke",
+        "text": "Welcome to Awakening from the Meaning Crisis."
+      },
+      {
+        "id": "seg-2",
+        "start": 18,
+        "end": 42,
+        "speaker": "John Vervaeke",
+        "text": "We are going to examine why people experience a loss of meaning."
+      },
+      {
+        "id": "seg-3",
+        "start": 42,
+        "end": 65,
+        "speaker": "John Vervaeke",
+        "text": "One of the guiding questions is how wisdom might respond to the meaning crisis."
+      },
+      {
+        "id": "seg-4",
+        "start": 65,
+        "end": 95,
+        "speaker": "John Vervaeke",
+        "text": "We need to understand the historical and cognitive dimensions together."
+      }
+    ]
+  },
+  "concepts": {
+    "atomic": [],
+    "clustered": []
+  },
+  "relations": [],
+  "frames": {
+    "micro": [
+      {
+        "t": 0,
+        "span": {
+          "start": 0,
+          "end": 18
+        },
+        "speakers": [
+          "John Vervaeke"
+        ],
+        "foregroundConcepts": [],
+        "backgroundConcepts": [],
+        "activeRelations": [],
+        "summary": "Welcome to Awakening from the Meaning Crisis.",
+        "sourceSegmentIds": [
+          "seg-1"
+        ]
+      },
+      {
+        "t": 18,
+        "span": {
+          "start": 18,
+          "end": 42
+        },
+        "speakers": [
+          "John Vervaeke"
+        ],
+        "foregroundConcepts": [],
+        "backgroundConcepts": [],
+        "activeRelations": [],
+        "summary": "We are going to examine why people experience a loss of meaning.",
+        "sourceSegmentIds": [
+          "seg-2"
+        ]
+      },
+      {
+        "t": 42,
+        "span": {
+          "start": 42,
+          "end": 65
+        },
+        "speakers": [
+          "John Vervaeke"
+        ],
+        "foregroundConcepts": [],
+        "backgroundConcepts": [],
+        "activeRelations": [],
+        "summary": "One of the guiding questions is how wisdom might respond to the meaning crisis.",
+        "sourceSegmentIds": [
+          "seg-3"
+        ]
+      },
+      {
+        "t": 65,
+        "span": {
+          "start": 65,
+          "end": 95
+        },
+        "speakers": [
+          "John Vervaeke"
+        ],
+        "foregroundConcepts": [],
+        "backgroundConcepts": [],
+        "activeRelations": [],
+        "summary": "We need to understand the historical and cognitive dimensions together.",
+        "sourceSegmentIds": [
+          "seg-4"
+        ]
+      }
+    ],
+    "meso": [
+      {
+        "id": "meso-1",
+        "t": 0,
+        "span": {
+          "start": 0,
+          "end": 42
+        },
+        "speakers": [
+          "John Vervaeke"
+        ],
+        "foregroundConcepts": [],
+        "backgroundConcepts": [],
+        "activeRelations": [],
+        "summary": "Welcome to Awakening from the Meaning Crisis. We are going to examine why people experience a loss of meaning.",
+        "title": "Meso Window 1",
+        "sourceFrameRefs": [
+          {
+            "level": "micro",
+            "index": 0
+          },
+          {
+            "level": "micro",
+            "index": 1
+          }
+        ],
+        "sourceSegmentIds": [
+          "seg-1",
+          "seg-2"
+        ]
+      },
+      {
+        "id": "meso-2",
+        "t": 42,
+        "span": {
+          "start": 42,
+          "end": 95
+        },
+        "speakers": [
+          "John Vervaeke"
+        ],
+        "foregroundConcepts": [],
+        "backgroundConcepts": [],
+        "activeRelations": [],
+        "summary": "One of the guiding questions is how wisdom might respond to the meaning crisis. We need to understand the historical and cognitive dimensions together.",
+        "title": "Meso Window 2",
+        "sourceFrameRefs": [
+          {
+            "level": "micro",
+            "index": 2
+          },
+          {
+            "level": "micro",
+            "index": 3
+          }
+        ],
+        "sourceSegmentIds": [
+          "seg-3",
+          "seg-4"
+        ]
+      }
+    ],
+    "macro": []
+  },
+  "meta": {
+    "createdBy": "mindgraph ingest transcript",
+    "transcriptFormat": "timestamped-lines",
+    "levels": [
+      "micro",
+      "meso",
+      "macro"
+    ],
+    "build": {
+      "mode": "staged",
+      "outputPath": "examples/out/build-sample.mindgraph.json",
+      "createdAt": "2026-05-02T05:47:27.649Z",
+      "stages": [
+        {
+          "name": "ingest",
+          "status": "completed",
+          "notes": "Transcript parsed into transcript.segments and frames.micro."
+        },
+        {
+          "name": "coarse-coalesce",
+          "status": "completed",
+          "notes": "Generated 2 coarse meso windows from micro frames."
+        },
+        {
+          "name": "concept-annotation",
+          "status": "pending",
+          "notes": "Use concept upsert, frame set-activations, and relation upsert to add semantic structure."
+        },
+        {
+          "name": "macro-structure",
+          "status": "pending",
+          "notes": "Merge meso windows into macro phases once semantic themes are clearer."
+        }
+      ],
+      "suggestedNextCommands": [
+        "mindgraph frame list examples/out/build-sample.mindgraph.json --level micro --offset 0 --limit 10",
+        "mindgraph frame list examples/out/build-sample.mindgraph.json --level meso --offset 0 --limit 10",
+        "mindgraph concept upsert examples/out/build-sample.mindgraph.json --id <concept-id> --label \"<Label>\"",
+        "mindgraph frame set-activations examples/out/build-sample.mindgraph.json --level micro --index <n> --foreground-json '[{\"id\":\"<concept-id>\",\"weight\":0.9,\"mode\":\"explicit\"}]'",
+        "mindgraph stats recompute examples/out/build-sample.mindgraph.json"
+      ]
+    }
+  }
+}

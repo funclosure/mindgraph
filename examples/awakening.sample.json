@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "kind": "mindgraph.document",
+  "transcript": {
+    "title": "Awakening from the Meaning Crisis — Episode 1",
+    "source": "transcript://replace-me",
+    "speakers": [
+      "John Vervaeke"
+    ]
+  },
+  "concepts": [
+    {
+      "id": "meaning-crisis",
+      "label": "Meaning Crisis",
+      "aliases": [
+        "the meaning crisis"
+      ],
+      "description": "The central problem-space under discussion.",
+      "firstSeenAt": 0,
+      "speakers": [
+        "John Vervaeke"
+      ]
+    }
+  ],
+  "relations": [],
+  "frames": [
+    {
+      "t": 0,
+      "span": {
+        "start": 0,
+        "end": 30
+      },
+      "speakers": [
+        "John Vervaeke"
+      ],
+      "foregroundConcepts": [
+        {
+          "id": "meaning-crisis",
+          "weight": 1
+        }
+      ],
+      "backgroundConcepts": [],
+      "activeRelations": [],
+      "summary": "Opening frame introducing the main topic."
+    }
+  ],
+  "meta": {
+    "createdBy": "mindgraph init"
+  }
+}
