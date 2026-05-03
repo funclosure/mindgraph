@@ -154,6 +154,39 @@ mindgraph frame list ./episode-01.mindgraph.json --level meso --offset 0 --limit
 mindgraph concept upsert ./episode-01.mindgraph.json --id meaning-crisis --label "Meaning Crisis"
 ```
 
+## Minimal UI shell
+
+There is now a small graph-first UI shell wired to the real episode 1 document and the new view-model layer.
+
+Run it with:
+
+```bash
+npm run ui:dev
+```
+
+Then open:
+
+```text
+http://127.0.0.1:4173
+```
+
+Current shell capabilities:
+- loads `examples/out/episode-1-built.mindgraph.json`
+- builds the real `MindgraphViewModel`
+- computes a derived graph render-state for overview / region / local visibility
+- renders a deterministic clustered graph canvas
+- supports graph zoom, wheel zoom, and drag pan
+- renders micro / meso / macro timeline tracks
+- supports playhead scrubbing and simple playback
+- supports concept selection and frame selection
+- shows concept and frame inspector grounding from transcript data
+
+Syntax check:
+
+```bash
+npm run ui:check
+```
+
 ## Next likely commands
 
 - `mindgraph extract concepts ...`
