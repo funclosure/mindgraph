@@ -1,4 +1,3 @@
-import cytoscape from '../node_modules/cytoscape/dist/cytoscape.esm.mjs';
 import {
   buildConceptInspectorVM,
   buildFrameInspectorVM,
@@ -6,505 +5,746 @@ import {
 } from '../src/view-model/buildMindgraphViewModel.js';
 import { buildGraphRenderState } from '../src/view-model/buildGraphRenderState.js';
 
-const DEFAULT_DOCUMENT_PATH = '../examples/out/episode-1-built.mindgraph.json';
-const CLUSTER_COLORS = ['#b89461', '#7da0ad', '#b89461', '#b89461', '#7da0ad', '#b89461', '#8f7b61'];
+const DOC_PATH = '../examples/out/episode-1-built.mindgraph.json';
+const CANVAS_W = 1280;
+const CANVAS_H = 800;
+
+// Hand-placed cluster anchors, taken from the cytoscape spike but rescaled
+// to the larger 1280x800 canvas so each cluster has room to breathe.
 const PROTOTYPE_CLUSTER_LAYOUT = {
-  'cultural-convergences': { x: 200, y: 180, radius: 118 },
-  'meaning-crisis-core': { x: 485, y: 295, radius: 108 },
-  'transformative-consciousness': { x: 735, y: 180, radius: 104 },
-  'expanded-epistemology': { x: 220, y: 455, radius: 108 },
-  'evolutionary-cognitive-origins': { x: 760, y: 445, radius: 112 },
-  'cultural-pathologies': { x: 525, y: 86, radius: 32 },
-  'wisdom-response': { x: 410, y: 475, radius: 24 },
+  'cultural-convergences':          { x: 285,  y: 245, radius: 152 },
+  'meaning-crisis-core':            { x: 640,  y: 400, radius: 142 },
+  'transformative-consciousness':   { x: 1000, y: 245, radius: 138 },
+  'expanded-epistemology':          { x: 295,  y: 590, radius: 142 },
+  'evolutionary-cognitive-origins': { x: 1015, y: 590, radius: 145 },
+  'cultural-pathologies':           { x: 705,  y: 110, radius: 42 },
+  'wisdom-response':                { x: 540,  y: 615, radius: 32 },
 };
-const GRAPH_CAMERA_PADDING = 80;
+
+// Mockup uses gold for most clusters and a single blue cluster as a different
+// categorical state. Match that.
+const CLUSTER_COLORS = {
+  'cultural-convergences':          '#b89461',
+  'meaning-crisis-core':            '#c79f6a',
+  'transformative-consciousness':   '#b89461',
+  'expanded-epistemology':          '#7da0ad',
+  'evolutionary-cognitive-origins': '#b89461',
+  'cultural-pathologies':           '#8f7b61',
+  'wisdom-response':                '#7da0ad',
+};
+
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+
+// ---------------------------------------------------------------------------
+// Single source of truth
+// ---------------------------------------------------------------------------
 
 const state = {
   document: undefined,
   viewModel: undefined,
-  playheadTime: 0,
-  activeLevel: 'macro',
+  layout: undefined,
+  graphRenderState: undefined,
   selectedConceptId: undefined,
   selectedFrameRef: undefined,
+  playheadTime: 0,
+  activeLevel: 'macro',
   isPlaying: false,
-  timerId: undefined,
-  graphZoom: 1,
-  graphPan: { x: 0, y: 0 },
-  graphHasMounted: false,
-  uiMounted: false,
-  lastAutoFocusKey: undefined,
-  cy: undefined,
-  graphLayout: undefined,
-  graphRenderState: undefined,
-  overlayCanvas: undefined,
-  overlayCtx: undefined,
-  overlayRaf: undefined,
-  debugInfo: {},
-  renderQueued: false,
-  lastRuntimeError: undefined,
+  camera: { zoom: 1, pan: { x: 0, y: 0 } },
+  drawScheduled: false,
 };
 
-const appEl = document.getElementById('app');
-
-window.addEventListener('error', (event) => {
-  state.lastRuntimeError = event.error?.stack || event.message || 'Unknown window error';
-  syncRuntimeErrorPanel();
-});
-window.addEventListener('unhandledrejection', (event) => {
-  state.lastRuntimeError = event.reason?.stack || String(event.reason);
-  syncRuntimeErrorPanel();
-});
+// ---------------------------------------------------------------------------
+// Bootstrap
+// ---------------------------------------------------------------------------
 
 bootstrap().catch((error) => {
   console.error(error);
-  state.lastRuntimeError = error?.stack || String(error);
-  appEl.innerHTML = `<div class="error-state">Couldn’t load the mindgraph UI shell.<br /><span class="muted">${escapeHtml(error.message || String(error))}</span></div>`;
 });
 
 async function bootstrap() {
-  const response = await fetch(DEFAULT_DOCUMENT_PATH);
-  if (!response.ok) throw new Error(`HTTP ${response.status} while loading ${DEFAULT_DOCUMENT_PATH}`);
+  const response = await fetch(DOC_PATH);
+  if (!response.ok) throw new Error(`HTTP ${response.status} loading ${DOC_PATH}`);
   state.document = await response.json();
   state.viewModel = buildMindgraphViewModel(state.document);
-  state.playheadTime = state.viewModel.frames.macro[0]?.span.start ?? state.viewModel.frames.meso[0]?.span.start ?? 0;
+  state.layout = computeLayout(state.viewModel);
+  state.playheadTime =
+    state.viewModel.frames.macro[0]?.span.start ??
+    state.viewModel.frames.meso[0]?.span.start ??
+    0;
+  applyDpr();
+  fitCameraToLayout();
+  render();
+
+  console.info('mindgraph canvas POC ready', {
+    clusters: state.layout.clusters.map((c) => ({ id: c.id, label: c.label, hasAnchor: !!PROTOTYPE_CLUSTER_LAYOUT[c.id] })),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Render orchestrator
+// ---------------------------------------------------------------------------
+
+function render() {
+  if (!state.viewModel) return;
+  state.graphRenderState = computeGraphRenderState();
+  updateTopbar();
+  updateInspectorPanel();
+  updateTimelinePanel();
+  scheduleDraw();
+  bindEvents();
+}
+
+function scheduleDraw() {
+  if (state.drawScheduled) return;
+  state.drawScheduled = true;
+  requestAnimationFrame(() => {
+    state.drawScheduled = false;
+    drawAll();
+  });
+}
+
+function drawAll() {
+  draw(state.viewModel, state.layout, state.graphRenderState);
+}
+
+// ---------------------------------------------------------------------------
+// Sub-render stubs (wired progressively in later tasks)
+// ---------------------------------------------------------------------------
+
+function computeGraphRenderState() {
+  return buildGraphRenderState(state.viewModel, {
+    selectedConceptId: state.selectedConceptId,
+    selectedFrameRef: state.selectedFrameRef,
+    playheadTime: state.playheadTime,
+    activeLevel: state.activeLevel,
+    zoomLevel: state.camera.zoom,
+  });
+}
+
+function updateTopbar() {
+  const titleEl = document.getElementById('topbar-title');
+  const statusEl = document.getElementById('topbar-status');
+  const vm = state.viewModel;
+  if (titleEl) titleEl.innerHTML =
+    `<h1>${escapeHtml(vm.documentMeta.title)}</h1>` +
+    `<p class="muted">${escapeHtml((state.document.transcript?.speakers || []).join(', ') || 'Unknown speaker')} · ${formatTime(vm.documentMeta.durationSeconds)} total · ${vm.documentMeta.counts.atomicConcepts} atomic concepts</p>`;
+  if (statusEl) {
+    const grs = state.graphRenderState;
+    const activeFrame = vm.selectors.getActiveFrameAtTime(state.activeLevel, state.playheadTime);
+    const viewportMode = grs?.viewportMode ?? 'overview';
+    const focusMode = grs?.focusMode ?? 'playhead';
+    let contextLabel;
+    if (state.selectedConceptId) {
+      const concept = vm.concepts.byId?.[state.selectedConceptId];
+      contextLabel = concept ? concept.label : state.selectedConceptId;
+    } else if (state.selectedFrameRef) {
+      contextLabel = `${state.selectedFrameRef.level} ${state.selectedFrameRef.index + 1}`;
+    } else {
+      contextLabel = activeFrame ? `${state.activeLevel} ${activeFrame.ref.index + 1}` : `${state.activeLevel} —`;
+    }
+    const liveOrFrame = state.selectedFrameRef ? 'Frame' : state.selectedConceptId ? 'Concept' : 'Live';
+    statusEl.textContent = `${liveOrFrame} · ${contextLabel} · ${viewportMode} · ${focusMode}`;
+  }
+}
+
+function updateInspectorPanel() {
+  const el = document.getElementById('inspector-panel');
+  if (!el) return;
+  el.innerHTML = renderInspector(state.viewModel);
+}
+
+function updateTimelinePanel() {
+  const el = document.getElementById('timeline-panel');
+  if (!el) return;
+  const activeFrames = state.viewModel.selectors.getActiveFramesAtTime(state.playheadTime);
+  el.innerHTML = renderTimeline(state.viewModel, activeFrames, state.graphRenderState ?? { viewportMode: 'overview', focusMode: 'none' });
+}
+
+function bindEvents() {
+  const range = document.querySelector('[data-action="scrub-playhead"]');
+  if (range) {
+    range.addEventListener('input', (e) => {
+      state.playheadTime = Number(e.target.value);
+      render();
+    });
+  }
+  document.querySelectorAll('[data-action="set-level"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.activeLevel = btn.dataset.level;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-action="select-frame"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.selectedFrameRef = { level: btn.dataset.level, index: Number(btn.dataset.index) };
+      state.selectedConceptId = undefined;
+      const frame = state.viewModel.selectors.getFrame(state.selectedFrameRef);
+      if (frame) state.playheadTime = frame.span.start;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-action="select-concept"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.selectedConceptId = btn.dataset.conceptId;
+      state.selectedFrameRef = undefined;
+      render();
+    });
+  });
+
+  // Toolbar camera buttons — static DOM, bind once only.
+  const toolbar = document.querySelector('.graph-toolbar');
+  if (toolbar && !toolbar.dataset.boundCameraEvents) {
+    toolbar.dataset.boundCameraEvents = '1';
+    document.querySelector('[data-action="zoom-in"]')?.addEventListener('click', () => {
+      zoomAroundCenter(1.2);
+    });
+    document.querySelector('[data-action="zoom-out"]')?.addEventListener('click', () => {
+      zoomAroundCenter(1 / 1.2);
+    });
+    document.querySelector('[data-action="fit"]')?.addEventListener('click', () => {
+      fitCameraToLayout();
+      render();
+    });
+    document.querySelector('[data-action="reset-camera"]')?.addEventListener('click', () => {
+      state.selectedConceptId = undefined;
+      state.selectedFrameRef = undefined;
+      fitCameraToLayout();
+      render();
+    });
+  }
+
+  // Canvas wheel + drag — bind once only.
+  const canvasEl = document.getElementById('stage');
+  if (canvasEl && !canvasEl.dataset.boundCameraEvents) {
+    canvasEl.dataset.boundCameraEvents = '1';
+
+    canvasEl.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = canvasEl.getBoundingClientRect();
+      const point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      zoomAround(point, factor);
+      render();
+    }, { passive: false });
+
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    canvasEl.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      canvasEl.setPointerCapture(e.pointerId);
+      canvasEl.style.cursor = 'grabbing';
+    });
+    canvasEl.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      state.camera.pan.x += e.clientX - lastX;
+      state.camera.pan.y += e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      scheduleDraw();
+    });
+    canvasEl.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      try { canvasEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      canvasEl.style.cursor = 'grab';
+      render();
+    });
+    canvasEl.style.cursor = 'grab';
+
+    let downAt = null;
+    canvasEl.addEventListener('pointerdown', (e) => {
+      downAt = { x: e.clientX, y: e.clientY };
+    });
+    canvasEl.addEventListener('click', (e) => {
+      // Suppress click if the pointer moved more than a few px (= drag, not click).
+      if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) {
+        downAt = null;
+        return;
+      }
+      downAt = null;
+      const rect = canvasEl.getBoundingClientRect();
+      const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const world = screenToWorld(screen);
+      const hit = hitTestAt(world);
+      if (hit && hit.kind === 'concept') {
+        state.selectedConceptId = hit.id;
+        state.selectedFrameRef = undefined;
+      } else if (hit && hit.kind === 'cluster') {
+        state.selectedConceptId = hit.id;
+        state.selectedFrameRef = undefined;
+      } else {
+        state.selectedConceptId = undefined;
+        state.selectedFrameRef = undefined;
+      }
+      render();
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Layout
+// ---------------------------------------------------------------------------
+
+function applyDpr() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = CANVAS_W * dpr;
+  canvas.height = CANVAS_H * dpr;
+  canvas.style.width = `${CANVAS_W}px`;
+  canvas.style.height = `${CANVAS_H}px`;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function computeLayout(vm) {
+  const clusters = vm.concepts.clustered.map((cluster) => {
+    const proto = PROTOTYPE_CLUSTER_LAYOUT[cluster.id] ?? { x: 640, y: 400, radius: 80 };
+    return {
+      id: cluster.id,
+      label: cluster.label,
+      x: proto.x,
+      y: proto.y,
+      radius: proto.radius,
+      color: CLUSTER_COLORS[cluster.id] ?? '#b89461',
+    };
+  });
+
+  const nodes = {};
+  for (const cluster of clusters) {
+    nodes[cluster.id] = { x: cluster.x, y: cluster.y };
+    const children = vm.selectors.getClusterChildren(cluster.id);
+    if (!children.length) continue;
+    const startAngle = deterministicAngle(cluster.id);
+    const baseRing = Math.max(28, cluster.radius - 38);
+    children.forEach((child, idx) => {
+      const angle = startAngle + (Math.PI * 2 * idx) / children.length;
+      const ringScale = 0.55 + seededUnit(`${cluster.id}:${child.id}`) * 0.32;
+      nodes[child.id] = {
+        x: cluster.x + Math.cos(angle) * baseRing * ringScale,
+        y: cluster.y + Math.sin(angle) * baseRing * ringScale,
+      };
+    });
+  }
+
+  return { clusters, nodes };
+}
+
+// ---------------------------------------------------------------------------
+// Draw
+// ---------------------------------------------------------------------------
+
+function draw(vm, layout, grs) {
+  ctx.save();
+  ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+  drawBackground();
+  ctx.restore();
+
+  ctx.save();
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.translate(state.camera.pan.x, state.camera.pan.y);
+  ctx.scale(state.camera.zoom, state.camera.zoom);
+
+  drawClusterBodies(layout, grs);
+  drawEdges(vm, layout, grs);
+  drawAtomicNodes(vm, layout, grs);
+  drawClusterLabels(layout, grs);
+  drawAtomicLabels(vm, layout, grs);
+
+  ctx.restore();
+}
+
+function screenToWorld(point) {
+  return {
+    x: (point.x - state.camera.pan.x) / state.camera.zoom,
+    y: (point.y - state.camera.pan.y) / state.camera.zoom,
+  };
+}
+
+function worldToScreen(point) {
+  return {
+    x: point.x * state.camera.zoom + state.camera.pan.x,
+    y: point.y * state.camera.zoom + state.camera.pan.y,
+  };
+}
+
+function hitTestAt(worldPoint) {
+  // Atomic nodes win first (smaller hit zones, drawn on top conceptually).
+  for (const node of state.viewModel.graph.nodes) {
+    if (node.level === 'clustered') continue;
+    const pos = state.layout.nodes[node.id];
+    if (!pos) continue;
+    const radius = 6 + (node.visualWeight ?? 0.5) * 1.8;
+    const dx = worldPoint.x - pos.x;
+    const dy = worldPoint.y - pos.y;
+    if (dx * dx + dy * dy <= radius * radius) {
+      return { kind: 'concept', id: node.id };
+    }
+  }
+  // Cluster regions next.
+  for (const cluster of state.layout.clusters) {
+    const dx = worldPoint.x - cluster.x;
+    const dy = worldPoint.y - cluster.y;
+    if (dx * dx + dy * dy <= cluster.radius * cluster.radius) {
+      return { kind: 'cluster', id: cluster.id };
+    }
+  }
+  return null;
+}
+
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function zoomAround(screenPoint, factor) {
+  const before = screenToWorld(screenPoint);
+  state.camera.zoom = clamp(state.camera.zoom * factor, 0.2, 4);
+  const after = screenToWorld(screenPoint);
+  state.camera.pan.x += (after.x - before.x) * state.camera.zoom;
+  state.camera.pan.y += (after.y - before.y) * state.camera.zoom;
+}
+
+function zoomAroundCenter(factor) {
+  const cx = CANVAS_W / 2;
+  const cy = CANVAS_H / 2;
+  zoomAround({ x: cx, y: cy }, factor);
   render();
 }
 
-function render() {
-  const vm = state.viewModel;
-  if (!vm) return;
-
-  snapshotGraphCamera();
-
-  const activeFrames = vm.selectors.getActiveFramesAtTime(state.playheadTime);
-  const activeFrame = activeFrames[state.activeLevel] ?? vm.frames[state.activeLevel][0];
-  state.graphLayout = buildGraphLayout(vm);
-  state.graphRenderState = buildGraphRenderState(vm, {
-    selectedConceptId: state.selectedConceptId,
-    selectedFrameRef: state.selectedFrameRef,
-    playheadTime: state.playheadTime,
-    activeLevel: state.activeLevel,
-    zoomLevel: state.graphZoom,
-  });
-
-  if (!state.uiMounted) {
-    renderAppShell();
-    state.uiMounted = true;
+function fitCameraToLayout(padding = 60) {
+  const clusters = state.layout.clusters;
+  if (!clusters.length) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const c of clusters) {
+    minX = Math.min(minX, c.x - c.radius);
+    minY = Math.min(minY, c.y - c.radius);
+    maxX = Math.max(maxX, c.x + c.radius);
+    maxY = Math.max(maxY, c.y + c.radius);
   }
-
-  updateAppShell({
-    vm,
-    activeFrames,
-    activeFrame,
-    inspectorHtml: renderInspector(vm),
-    timelineHtml: renderTimeline(vm, activeFrames, state.graphRenderState),
-  });
-
-  bindEvents();
-  mountGraph();
+  const worldW = maxX - minX;
+  const worldH = maxY - minY;
+  const screenW = CANVAS_W - padding * 2;
+  const screenH = CANVAS_H - padding * 2;
+  const zoom = Math.min(screenW / worldW, screenH / worldH);
+  state.camera.zoom = zoom;
+  state.camera.pan.x = padding - minX * zoom + (screenW - worldW * zoom) / 2;
+  state.camera.pan.y = padding - minY * zoom + (screenH - worldH * zoom) / 2;
 }
 
-function refreshChromeOnly() {
-  const vm = state.viewModel;
-  if (!vm) return;
-  const activeFrames = vm.selectors.getActiveFramesAtTime(state.playheadTime);
-  const activeFrame = activeFrames[state.activeLevel] ?? vm.frames[state.activeLevel][0];
-  state.graphRenderState = buildGraphRenderState(vm, {
-    selectedConceptId: state.selectedConceptId,
-    selectedFrameRef: state.selectedFrameRef,
-    playheadTime: state.playheadTime,
-    activeLevel: state.activeLevel,
-    zoomLevel: state.graphZoom,
-  });
-  updateAppShell({
-    vm,
-    activeFrames,
-    activeFrame,
-    inspectorHtml: renderInspector(vm),
-    timelineHtml: renderTimeline(vm, activeFrames, state.graphRenderState),
-  });
-  bindEvents();
+function drawBackground() {
+  const bg = ctx.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, 80, CANVAS_W / 2, CANVAS_H / 2, 760);
+  bg.addColorStop(0, '#1c1916');
+  bg.addColorStop(1, '#0f0e0d');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 }
 
-function renderAppShell() {
-  appEl.innerHTML = `
-    <div class="workspace">
-      <header class="topbar">
-        <div class="topbar__title" id="topbar-title"></div>
-        <div class="topbar__controls">
-          <div class="topbar__meta" id="topbar-meta"></div>
+function drawClusterBodies(layout, grs) {
+  const dimmedRegions = new Set(grs?.dimmedRegionIds ?? []);
+  const emphasisByRegion = grs?.regionEmphasis ?? {};
+  for (const cluster of layout.clusters) {
+    const emphasis = emphasisByRegion[cluster.id] ?? 0.35;
+    const isDimmed = dimmedRegions.has(cluster.id);
+    const fillAlpha = isDimmed ? 0.06 : 0.10 + emphasis * 0.14;
+    const strokeAlpha = isDimmed ? 0.16 : 0.28 + emphasis * 0.22;
+
+    ctx.beginPath();
+    ctx.fillStyle = hexToRgba(cluster.color, fillAlpha);
+    ctx.strokeStyle = hexToRgba(cluster.color, strokeAlpha);
+    ctx.lineWidth = 1.2;
+    ctx.arc(cluster.x, cluster.y, cluster.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.arc(cluster.x, cluster.y, cluster.radius - 7, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawEdges(vm, layout, grs) {
+  const visible = grs?.visibleEdgeIds ? new Set(grs.visibleEdgeIds) : null;
+  const activeEdge = new Set(grs?.activeEdgeIds ?? []);
+  const activeNode = new Set(grs?.activeNodeIds ?? []);
+  const selectedNode = new Set(grs?.selectedNodeIds ?? []);
+
+  ctx.lineCap = 'round';
+  for (const edge of vm.graph.edges) {
+    if (visible && !visible.has(edge.id)) continue;
+    const from = layout.nodes[edge.from];
+    const to = layout.nodes[edge.to];
+    if (!from || !to) continue;
+
+    const sameCluster = sharedCluster(vm, edge.from, edge.to);
+    const isActive = activeEdge.has(edge.id) || (activeNode.has(edge.from) && activeNode.has(edge.to));
+    const touchesSelection = selectedNode.has(edge.from) || selectedNode.has(edge.to);
+
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const norm = Math.max(1, Math.hypot(dx, dy));
+    const lift = sameCluster ? 14 : 38;
+    const cx = (from.x + to.x) / 2 - (dy / norm) * lift;
+    const cy = (from.y + to.y) / 2 + (dx / norm) * lift;
+
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.quadraticCurveTo(cx, cy, to.x, to.y);
+    ctx.strokeStyle = touchesSelection || isActive
+      ? 'rgba(218, 184, 116, 0.95)'
+      : sameCluster
+        ? 'rgba(212, 188, 135, 0.30)'
+        : 'rgba(143, 183, 199, 0.22)';
+    ctx.lineWidth = touchesSelection ? 2 : isActive ? 1.4 : 0.85;
+    ctx.stroke();
+  }
+}
+
+function sharedCluster(vm, fromId, toId) {
+  const from = vm.concepts.byId?.[fromId];
+  const to = vm.concepts.byId?.[toId];
+  const fromParent = from?.parentIds?.[0];
+  const toParent = to?.parentIds?.[0];
+  return fromParent && fromParent === toParent;
+}
+
+function drawAtomicNodes(vm, layout, grs) {
+  const visible = new Set(grs?.visibleNodeIds ?? vm.graph.nodes.map((n) => n.id));
+  const active = new Set(grs?.activeNodeIds ?? []);
+  const dimmed = new Set(grs?.dimmedNodeIds ?? []);
+  const selected = new Set(grs?.selectedNodeIds ?? []);
+
+  for (const node of vm.graph.nodes) {
+    if (node.level === 'clustered') continue;
+    if (!visible.has(node.id)) continue;
+    const pos = layout.nodes[node.id];
+    if (!pos) continue;
+    const radius = 3.2 + (node.visualWeight ?? 0.5) * 1.8;
+    const isActive = active.has(node.id);
+    const isDimmed = dimmed.has(node.id);
+    const isSelected = selected.has(node.id);
+
+    ctx.beginPath();
+    ctx.fillStyle = isActive ? '#f4cf86' : '#b8a07a';
+    ctx.globalAlpha = isSelected ? 1 : isActive ? 0.94 : isDimmed ? 0.28 : 0.7;
+    ctx.arc(pos.x, pos.y, radius + (isSelected ? 1.5 : 0), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    if (isSelected) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#fff4db';
+      ctx.lineWidth = 1.6;
+      ctx.arc(pos.x, pos.y, radius + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawClusterLabels(layout, grs) {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = "500 18px 'Inter', system-ui, sans-serif";
+  ctx.fillStyle = 'rgba(245, 234, 210, 0.92)';
+  for (const cluster of layout.clusters) {
+    const lines = wrapLabel(cluster.label, 2);
+    const lineHeight = 22;
+    const top = -((lines.length - 1) * lineHeight) / 2;
+    lines.forEach((line, i) => {
+      ctx.fillText(line, cluster.x, cluster.y + top + i * lineHeight);
+    });
+  }
+}
+
+function drawAtomicLabels(vm, layout, grs) {
+  const labelVisible = new Set(grs?.labelVisibleNodeIds ?? vm.graph.nodes.map((n) => n.id));
+  const active = new Set(grs?.activeNodeIds ?? []);
+  const dimmed = new Set(grs?.dimmedNodeIds ?? []);
+
+  ctx.font = "11px 'Inter', system-ui, sans-serif";
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+
+  for (const node of vm.graph.nodes) {
+    if (node.level === 'clustered') continue;
+    if (!labelVisible.has(node.id)) continue;
+    const pos = layout.nodes[node.id];
+    if (!pos) continue;
+    const isActive = active.has(node.id);
+    const isDimmed = dimmed.has(node.id);
+    ctx.fillStyle = `rgba(234, 227, 213, ${isDimmed ? 0.34 : isActive ? 0.92 : 0.7})`;
+    ctx.fillText(node.label, pos.x, pos.y - 8);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Timeline renderers (copied from ui/app.js lines 611–663)
+// ---------------------------------------------------------------------------
+
+function renderTimeline(vm, activeFrames, graphRenderState) {
+  const levels = getVisibleTimelineLevels();
+  return `
+    <div class="timeline-panel__header">
+      <div class="timeline-heading">
+        <h2>Timeline</h2>
+        <div class="muted">${graphRenderState.viewportMode} · ${graphRenderState.focusMode}</div>
+      </div>
+      <div class="timeline-toolbar">
+        <button type="button" class="playback-button ${state.isPlaying ? 'active' : ''}" data-action="toggle-play">${state.isPlaying ? 'Pause' : 'Play'}</button>
+        <button type="button" class="playback-button" data-action="step-back">←</button>
+        <button type="button" class="playback-button" data-action="step-forward">→</button>
+        <input class="timeline-range" type="range" min="0" max="${Math.max(1, Math.round(vm.documentMeta.durationSeconds))}" value="${Math.round(state.playheadTime)}" data-action="scrub-playhead" />
+        <div class="timeline-time muted">${formatTime(state.playheadTime)} / ${formatTime(vm.documentMeta.durationSeconds)}</div>
+        <div class="level-toggle timeline-level-toggle" role="tablist" aria-label="Active frame level">
+          ${['macro', 'meso', 'micro'].map((level) => `
+            <button type="button" data-action="set-level" data-level="${level}" class="${state.activeLevel === level ? 'active' : ''}">${level}</button>
+          `).join('')}
         </div>
-      </header>
+      </div>
+    </div>
+    <div class="track-list track-list--${levels.length}">
+      ${levels.map((level) => renderTrack(vm, level, activeFrames[level])).join('')}
+    </div>
+  `;
+}
 
-      <div class="main-layout">
-        <div class="stage-column" id="stage-column">
-          <section class="graph-panel">
-            <div class="graph-panel__header">
-              <div>
-                <h2>Graph canvas</h2>
-                <div class="muted">Cytoscape camera with ambient labels, progressive reveal, and selection callout.</div>
-              </div>
-              <div class="graph-toolbar" id="graph-toolbar"></div>
-            </div>
-            <div class="graph-stage" id="graph-stage">
-              <div class="graph-canvas" id="cy-root"></div>
-            </div>
-            <div class="graph-panel__legend">
-              <span class="legend-dot atomic">atomic concept</span>
-              <span class="legend-dot active">active at playhead</span>
-            </div>
-            <pre class="graph-debug" id="graph-debug"></pre>
-          </section>
+function getVisibleTimelineLevels() {
+  if (state.activeLevel === 'micro') return ['macro', 'meso', 'micro'];
+  if (state.activeLevel === 'meso') return ['macro', 'meso'];
+  return ['macro'];
+}
 
-          <section class="timeline-panel" id="timeline-panel"></section>
-        </div>
-
-        <aside class="inspector-panel" id="inspector-panel"></aside>
+function renderTrack(vm, level, activeFrame) {
+  const frames = vm.frames[level];
+  const total = Math.max(1, vm.documentMeta.durationSeconds);
+  const playheadPct = (state.playheadTime / total) * 100;
+  return `
+    <div class="track track--${level}">
+      <div class="track__label">${level}</div>
+      <div class="track__bar" data-level="${level}">
+        ${frames.map((frame) => {
+          const leftPct = (frame.span.start / total) * 100;
+          const widthPct = (frame.duration / total) * 100;
+          const isSelected = state.selectedFrameRef && state.selectedFrameRef.level === level && state.selectedFrameRef.index === frame.ref.index;
+          const isActive = activeFrame?.ref.index === frame.ref.index;
+          return `<button type="button" class="frame-segment ${isSelected ? 'selected-frame' : ''} ${isActive ? 'active-frame' : ''}" style="left:${leftPct}%;width:${widthPct}%" title="${escapeHtml(`${frameLabel(frame)} · ${formatTime(frame.span.start)} → ${formatTime(frame.span.end)}`)}" data-action="select-frame" data-level="${level}" data-index="${frame.ref.index}"></button>`;
+        }).join('')}
+        <div class="playhead" style="left: calc(${Math.min(100, Math.max(0, playheadPct))}% - 1px)"></div>
       </div>
     </div>
   `;
 }
 
-function updateAppShell({ vm, activeFrame, inspectorHtml, timelineHtml }) {
-  const titleEl = document.getElementById('topbar-title');
-  const metaEl = document.getElementById('topbar-meta');
-  const stageColumnEl = document.getElementById('stage-column');
-  const toolbarEl = document.getElementById('graph-toolbar');
-  const timelineEl = document.getElementById('timeline-panel');
-  const inspectorEl = document.getElementById('inspector-panel');
-  const debugEl = document.getElementById('graph-debug');
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
 
-  if (titleEl) {
-    titleEl.innerHTML = `
-      <h1>${escapeHtml(vm.documentMeta.title)}</h1>
-      <p>${escapeHtml(state.document.transcript?.speakers?.join(', ') || 'Unknown speaker')} · ${formatTime(vm.documentMeta.durationSeconds)} total · ${vm.documentMeta.counts.atomicConcepts} atomic concepts</p>
-    `;
+function wrapLabel(label, maxLines = 2) {
+  const words = String(label).split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return [String(label)];
+  const perLine = Math.ceil(words.length / maxLines);
+  const out = [];
+  for (let i = 0; i < words.length; i += perLine) {
+    out.push(words.slice(i, i + perLine).join(' '));
   }
-
-  if (metaEl) {
-    metaEl.textContent = `${buildSelectionLabel(activeFrame)} · ${state.graphRenderState.viewportMode} · ${state.graphRenderState.focusMode}`;
-  }
-
-  if (stageColumnEl) stageColumnEl.className = `stage-column stage-column--${state.activeLevel}`;
-  if (toolbarEl) toolbarEl.innerHTML = renderGraphToolbar();
-  if (timelineEl) timelineEl.innerHTML = timelineHtml;
-  if (inspectorEl) inspectorEl.innerHTML = inspectorHtml;
-  if (debugEl) debugEl.textContent = formatDebugInfo();
+  return out.slice(0, maxLines);
 }
 
-function renderGraphToolbar() {
+function deterministicAngle(value) {
+  return seededUnit(value) * Math.PI * 2;
+}
+
+function seededUnit(value) {
+  let h = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    h = ((h << 5) - h + value.charCodeAt(i)) | 0;
+  }
+  return (Math.abs(h) % 1000) / 1000;
+}
+
+function hexToRgba(hex, alpha) {
+  const v = hex.replace('#', '');
+  const n = Number.parseInt(v, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+// ---------------------------------------------------------------------------
+// Inspector helpers
+// ---------------------------------------------------------------------------
+
+function formatTime(seconds) {
+  const total = Math.max(0, Math.floor(seconds || 0));
+  const hh = Math.floor(total / 3600);
+  const mm = Math.floor((total % 3600) / 60);
+  const ss = total % 60;
+  if (hh > 0) return `${hh}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+  return `${mm}:${String(ss).padStart(2, '0')}`;
+}
+
+function frameLabel(frame) {
+  return `${frame.ref.level} ${frame.ref.index + 1}${frame.title ? ` · ${frame.title}` : ''}`;
+}
+
+function numberOrDash(value, digits = 2) {
+  return value == null ? '—' : Number(value).toFixed(digits);
+}
+
+function renderStat(label, value) {
   return `
-    <button type="button" class="ghost-button chip" data-action="zoom-out">−</button>
-    <input class="graph-zoom-range" type="range" min="0.1" max="3" step="0.05" value="${state.graphZoom.toFixed(2)}" data-action="set-graph-zoom" />
-    <button type="button" class="ghost-button chip" data-action="zoom-in">+</button>
-    <button type="button" class="ghost-button chip" data-action="fit-all">Fit</button>
-    <button type="button" class="ghost-button chip" data-action="fit-selection">Focus</button>
-    <button type="button" class="ghost-button chip" data-action="reset-camera">Reset</button>
-    <button type="button" class="ghost-button chip" data-action="clear-selection">Clear</button>
+    <div class="stat-card">
+      <div class="label">${escapeHtml(label)}</div>
+      <div class="value">${escapeHtml(String(value))}</div>
+    </div>
   `;
 }
 
-function bindEvents() {
-  appEl.querySelectorAll('[data-action="set-level"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.activeLevel = button.dataset.level;
-      render();
-    });
-  });
-
-  appEl.querySelector('[data-action="clear-selection"]')?.addEventListener('click', () => {
-    state.selectedConceptId = undefined;
-    state.selectedFrameRef = undefined;
-    render();
-  });
-
-  appEl.querySelector('[data-action="zoom-in"]')?.addEventListener('click', () => {
-    zoomGraphBy(1.2);
-  });
-
-  appEl.querySelector('[data-action="zoom-out"]')?.addEventListener('click', () => {
-    zoomGraphBy(1 / 1.2);
-  });
-
-  appEl.querySelector('[data-action="fit-all"]')?.addEventListener('click', () => {
-    fitGraphToVisible();
-  });
-
-  appEl.querySelector('[data-action="fit-selection"]')?.addEventListener('click', () => {
-    fitGraphToSelection();
-  });
-
-  appEl.querySelector('[data-action="reset-camera"]')?.addEventListener('click', () => {
-    state.selectedConceptId = undefined;
-    state.selectedFrameRef = undefined;
-    state.graphHasMounted = false;
-    render();
-  });
-
-  appEl.querySelector('[data-action="set-graph-zoom"]')?.addEventListener('input', (event) => {
-    setGraphZoom(Number(event.target.value));
-  });
-
-  appEl.querySelectorAll('[data-action="select-concept"]').forEach((el) => {
-    el.addEventListener('click', () => {
-      state.selectedConceptId = el.dataset.conceptId;
-      state.selectedFrameRef = undefined;
-      render();
-    });
-  });
-
-  appEl.querySelectorAll('[data-action="select-frame"]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const ref = { level: el.dataset.level, index: Number(el.dataset.index) };
-      state.selectedFrameRef = ref;
-      state.selectedConceptId = undefined;
-      const frame = state.viewModel.selectors.getFrame(ref);
-      if (frame) state.playheadTime = frame.span.start;
-      render();
-    });
-  });
-
-  appEl.querySelector('[data-action="toggle-play"]')?.addEventListener('click', togglePlayback);
-  appEl.querySelector('[data-action="step-back"]')?.addEventListener('click', () => stepFrame(-1));
-  appEl.querySelector('[data-action="step-forward"]')?.addEventListener('click', () => stepFrame(1));
-  appEl.querySelector('.inspector-close')?.addEventListener('click', () => {
-    state.selectedConceptId = undefined;
-    state.selectedFrameRef = undefined;
-    render();
-  });
-
-  const range = appEl.querySelector('[data-action="scrub-playhead"]');
-  if (range) {
-    range.addEventListener('input', (event) => {
-      state.playheadTime = Number(event.target.value);
-      syncSelectionToPlayhead(state.activeLevel);
-      stopPlayback();
-      render();
-    });
-  }
-
-  appEl.querySelectorAll('.track__bar').forEach((trackBar) => {
-    const beginTrackDrag = (event) => {
-      event.preventDefault();
-      const level = trackBar.dataset.level;
-      state.timelineDrag = { pointerId: event.pointerId, level };
-      trackBar.setPointerCapture?.(event.pointerId);
-      scrubTimelineToPointer(trackBar, event, level);
-    };
-
-    trackBar.addEventListener('pointerdown', beginTrackDrag);
-    trackBar.addEventListener('pointermove', (event) => {
-      if (!state.timelineDrag || state.timelineDrag.pointerId !== event.pointerId) return;
-      scrubTimelineToPointer(trackBar, event, state.timelineDrag.level);
-    });
-
-    const endTrackDrag = (event) => {
-      if (!state.timelineDrag || state.timelineDrag.pointerId !== event.pointerId) return;
-      state.timelineDrag = undefined;
-      trackBar.releasePointerCapture?.(event.pointerId);
-    };
-
-    trackBar.addEventListener('pointerup', endTrackDrag);
-    trackBar.addEventListener('pointercancel', endTrackDrag);
-  });
+function renderTranscriptItem(segment) {
+  return `
+    <div class="transcript-item">
+      <div class="muted">${formatTime(segment.start)} → ${formatTime(segment.end)}${segment.speaker ? ` · ${escapeHtml(segment.speaker)}` : ''}</div>
+      <div>${escapeHtml(segment.text)}</div>
+    </div>
+  `;
 }
 
-function mountGraph() {
-  const vm = state.viewModel;
-  const layout = state.graphLayout;
-  const graphRenderState = state.graphRenderState;
-  const cyRoot = document.getElementById('cy-root');
-
-  if (!vm || !layout || !graphRenderState || !cyRoot) return;
-
-  if (!state.cy) {
-    state.cy = cytoscape({
-      container: cyRoot,
-      elements: [],
-      layout: { name: 'preset', fit: false },
-      minZoom: 0.1,
-      maxZoom: 3,
-      wheelSensitivity: 0.2,
-      style: buildCytoscapeStyles(),
-    });
-
-    state.cy.on('tap', 'node', (event) => {
-      state.selectedConceptId = event.target.id();
-      state.selectedFrameRef = undefined;
-      refreshChromeOnly();
-      applyExternalFocusState();
-    });
-
-    state.cy.on('tap', (event) => {
-      if (event.target !== state.cy) return;
-      state.selectedConceptId = undefined;
-      state.selectedFrameRef = undefined;
-      refreshChromeOnly();
-      applyExternalFocusState();
-    });
-
-    state.cy.on('zoom pan render resize', () => {
-      snapshotGraphCamera();
-      syncGraphZoomInput();
-    });
-  }
-
-  const elements = buildCytoscapeElements(vm, layout, graphRenderState);
-  state.cy.batch(() => {
-    state.cy.elements().remove();
-    state.cy.add(elements);
-    state.cy.style(buildCytoscapeStyles());
-  });
-
-  state.debugInfo = {
-    graphNodes: vm.graph.nodes.length,
-    graphEdges: vm.graph.edges.length,
-    cyNodes: state.cy.nodes().length,
-    cyEdges: state.cy.edges().length,
-    selectedConceptId: state.selectedConceptId ?? 'none',
-    selectedFrameRef: state.selectedFrameRef ? `${state.selectedFrameRef.level}:${state.selectedFrameRef.index}` : 'none',
-    lastRuntimeError: state.lastRuntimeError ?? 'none',
-  };
-
-  requestAnimationFrame(() => {
-    if (!state.cy) return;
-    state.cy.resize();
-    if (!state.graphHasMounted) {
-      state.cy.fit(state.cy.elements(), GRAPH_CAMERA_PADDING);
-      state.graphHasMounted = true;
-    } else if (Number.isFinite(state.graphZoom) && Number.isFinite(state.graphPan?.x) && Number.isFinite(state.graphPan?.y)) {
-      state.cy.zoom(clamp(state.graphZoom, state.cy.minZoom(), state.cy.maxZoom()));
-      state.cy.pan(state.graphPan);
-    } else {
-      state.cy.fit(state.cy.elements(), GRAPH_CAMERA_PADDING);
-    }
-    applyExternalFocusState();
-  });
+function renderFrameChip(frame, isLive = false) {
+  return `
+    <div class="frame-chip">
+      <button type="button" data-action="select-frame" data-level="${frame.ref.level}" data-index="${frame.ref.index}">
+        <strong>${escapeHtml(frameLabel(frame))}</strong>
+        <div class="muted">${formatTime(frame.span.start)} → ${formatTime(frame.span.end)}${isLive ? ' · live now' : ''}</div>
+      </button>
+    </div>
+  `;
 }
 
-function buildCytoscapeElements(vm, layout, graphRenderState) {
-  const selectedId = state.selectedConceptId;
-  const frameConceptIds = state.selectedFrameRef
-    ? vm.selectors.getFrameConcepts(state.selectedFrameRef).map((activation) => activation.id)
-    : [];
-  const primaryFocusIds = new Set(selectedId ? [selectedId] : frameConceptIds);
-  const neighborIds = new Set([...primaryFocusIds].flatMap((id) => vm.selectors.getConceptNeighbors(id).map((concept) => concept.id)));
-  const activeNodeIds = new Set(graphRenderState.activeNodeIds);
-  const hasFocus = primaryFocusIds.size > 0;
-
-  const nodeElements = vm.graph.nodes
-    .filter((node) => node.level !== 'clustered')
-    .map((node) => {
-      const position = layout.nodes[node.id];
-      const size = 26 + (node.visualWeight || 0.5) * 10;
-      const isPrimary = primaryFocusIds.has(node.id);
-      const isNeighbor = neighborIds.has(node.id);
-      const shouldFade = hasFocus && !isPrimary && !isNeighbor;
-      const classes = [
-        'atomic-node',
-        shouldFade ? 'faded' : '',
-      ].filter(Boolean).join(' ');
-
-      return {
-        data: {
-          id: node.id,
-          label: node.label,
-          displayLabel: node.label,
-          nodeLevel: node.level,
-          color: clusterColorForNode(node.id, vm),
-          size,
-          regionKey: node.regionKey || '',
-        },
-        position,
-        classes,
-        selectable: false,
-        grabbable: false,
-        locked: true,
-      };
-    });
-
-  const visibleAtomicIds = new Set(nodeElements.map((element) => element.data.id));
-
-  const edgeElements = vm.graph.edges
-    .filter((edge) => visibleAtomicIds.has(edge.from) && visibleAtomicIds.has(edge.to))
-    .map((edge) => {
-    const touchesPrimary = primaryFocusIds.has(edge.from) || primaryFocusIds.has(edge.to);
-    const touchesNeighbor = neighborIds.has(edge.from) || neighborIds.has(edge.to);
-    const classes = [
-      touchesPrimary || touchesNeighbor ? 'focused-edge' : '',
-      hasFocus && !touchesPrimary && !touchesNeighbor ? 'faded' : '',
-    ].filter(Boolean).join(' ');
-
-    return {
-      data: {
-        id: edge.id,
-        source: edge.from,
-        target: edge.to,
-      },
-      classes,
-      selectable: false,
-      grabbable: false,
-      locked: true,
-    };
-  });
-
-  return [...nodeElements, ...edgeElements];
+function renderInspectorChrome(activeTab, title = 'Inspector', subtitle = 'Live semantic window') {
+  return `
+    <div class="inspector-panel__header inspector-header-shell">
+      <div class="inspector-header-label">Details</div>
+      <button type="button" class="inspector-close" aria-label="Close">×</button>
+    </div>
+    <div class="inspector-title-block">
+      <h2>${escapeHtml(title)}</h2>
+      <div class="muted">${escapeHtml(subtitle)}</div>
+    </div>
+  `;
 }
 
-function buildCytoscapeStyles() {
-  return [
-    {
-      selector: 'node',
-      style: {
-        label: 'data(label)',
-        width: 'data(size)',
-        height: 'data(size)',
-        'background-color': 'data(color)',
-        color: '#f5ead2',
-        'font-size': 12,
-        'text-wrap': 'wrap',
-        'text-max-width': 110,
-        'text-valign': 'center',
-        'text-halign': 'center',
-        'overlay-opacity': 0,
-        'border-width': 1.5,
-        'border-color': 'rgba(255,255,255,0.12)',
-      },
-    },
-    {
-      selector: 'edge',
-      style: {
-        width: 2,
-        'curve-style': 'bezier',
-        'line-color': 'rgba(184, 148, 97, 0.45)',
-        'target-arrow-shape': 'none',
-        'overlay-opacity': 0,
-      },
-    },
-    {
-      selector: 'node:selected',
-      style: {
-        'border-width': 3,
-        'border-color': '#fff4db',
-        'background-color': '#f4cf86',
-      },
-    },
-    {
-      selector: '.faded',
-      style: {
-        opacity: 0.18,
-      },
-    },
-    {
-      selector: '.focused-edge',
-      style: {
-        width: 3,
-        'line-color': '#f4cf86',
-        opacity: 0.9,
-      },
-    },
-  ];
-}
+// ---------------------------------------------------------------------------
+// Inspector renderers (copied from ui/app.js)
+// ---------------------------------------------------------------------------
 
 function renderInspector(vm) {
   if (state.selectedConceptId) return renderConceptInspector(vm, state.selectedConceptId);
@@ -631,405 +871,4 @@ function renderFrameInspector(vm, frameRef) {
       </section>
     </div>
   `;
-}
-
-function renderTimeline(vm, activeFrames, graphRenderState) {
-  const levels = getVisibleTimelineLevels();
-  return `
-    <div class="timeline-panel__header">
-      <div class="timeline-heading">
-        <h2>Timeline</h2>
-        <div class="muted">${graphRenderState.viewportMode} · ${graphRenderState.focusMode}</div>
-      </div>
-      <div class="timeline-toolbar">
-        <button type="button" class="playback-button ${state.isPlaying ? 'active' : ''}" data-action="toggle-play">${state.isPlaying ? 'Pause' : 'Play'}</button>
-        <button type="button" class="playback-button" data-action="step-back">←</button>
-        <button type="button" class="playback-button" data-action="step-forward">→</button>
-        <input class="timeline-range" type="range" min="0" max="${Math.max(1, Math.round(vm.documentMeta.durationSeconds))}" value="${Math.round(state.playheadTime)}" data-action="scrub-playhead" />
-        <div class="timeline-time muted">${formatTime(state.playheadTime)} / ${formatTime(vm.documentMeta.durationSeconds)}</div>
-        <div class="level-toggle timeline-level-toggle" role="tablist" aria-label="Active frame level">
-          ${['macro', 'meso', 'micro'].map((level) => `
-            <button type="button" data-action="set-level" data-level="${level}" class="${state.activeLevel === level ? 'active' : ''}">${level}</button>
-          `).join('')}
-        </div>
-      </div>
-    </div>
-    <div class="track-list track-list--${levels.length}">
-      ${levels.map((level) => renderTrack(vm, level, activeFrames[level])).join('')}
-    </div>
-  `;
-}
-
-function getVisibleTimelineLevels() {
-  if (state.activeLevel === 'micro') return ['macro', 'meso', 'micro'];
-  if (state.activeLevel === 'meso') return ['macro', 'meso'];
-  return ['macro'];
-}
-
-function renderTrack(vm, level, activeFrame) {
-  const frames = vm.frames[level];
-  const total = Math.max(1, vm.documentMeta.durationSeconds);
-  const playheadPct = (state.playheadTime / total) * 100;
-  return `
-    <div class="track track--${level}">
-      <div class="track__label">${level}</div>
-      <div class="track__bar" data-level="${level}">
-        ${frames.map((frame) => {
-          const width = Math.max(0.6, (frame.duration / total) * 100);
-          const isSelected = state.selectedFrameRef && state.selectedFrameRef.level === level && state.selectedFrameRef.index === frame.ref.index;
-          const isActive = activeFrame?.ref.index === frame.ref.index;
-          return `<button type="button" class="frame-segment ${isSelected ? 'selected-frame' : ''} ${isActive ? 'active-frame' : ''}" style="width:${width}%" title="${escapeHtml(`${frameLabel(frame)} · ${formatTime(frame.span.start)} → ${formatTime(frame.span.end)}`)}" data-action="select-frame" data-level="${level}" data-index="${frame.ref.index}"></button>`;
-        }).join('')}
-        <div class="playhead" style="left: calc(${Math.min(100, Math.max(0, playheadPct))}% - 1px)"></div>
-      </div>
-    </div>
-  `;
-}
-
-function buildGraphLayout(vm) {
-  const clusters = vm.concepts.clustered.map((cluster) => {
-    const proto = PROTOTYPE_CLUSTER_LAYOUT[cluster.id] ?? { x: 490, y: 310, radius: 88 };
-    return {
-      id: cluster.id,
-      label: cluster.label,
-      x: proto.x,
-      y: proto.y,
-      radius: proto.radius,
-    };
-  });
-
-  const nodes = {};
-
-  clusters.forEach((cluster) => {
-    nodes[cluster.id] = { x: cluster.x, y: cluster.y };
-    const children = vm.selectors.getClusterChildren(cluster.id);
-    const childRadius = Math.max(26, cluster.radius - 30);
-    const startAngle = deterministicAngle(cluster.id);
-
-    children.forEach((child, idx) => {
-      const angle = startAngle + (Math.PI * 2 * idx) / Math.max(children.length, 1);
-      const ring = 0.58 + (seededUnit(`${cluster.id}:${child.id}`) * 0.28);
-      const x = cluster.x + Math.cos(angle) * childRadius * ring;
-      const y = cluster.y + Math.sin(angle) * childRadius * ring;
-      nodes[child.id] = { x, y };
-    });
-  });
-
-  const fallbackCluster = clusters[0] ?? { x: 490, y: 310, radius: 88 };
-  const missingNodes = vm.graph.nodes.filter((node) => !nodes[node.id]);
-  missingNodes.forEach((node, idx) => {
-    const parentCluster = node.regionKey ? clusters.find((cluster) => cluster.id === node.regionKey) : undefined;
-    const anchor = parentCluster ?? fallbackCluster;
-    const angle = deterministicAngle(`fallback:${node.id}`) + ((Math.PI * 2 * idx) / Math.max(1, missingNodes.length));
-    const radius = (anchor.radius ?? 88) + 42 + (idx % 3) * 14;
-    nodes[node.id] = {
-      x: anchor.x + Math.cos(angle) * radius,
-      y: anchor.y + Math.sin(angle) * radius,
-    };
-  });
-
-  return { clusters, nodes };
-}
-
-function renderInspectorChrome(activeTab, title = 'Inspector', subtitle = 'Live semantic window') {
-  return `
-    <div class="inspector-panel__header inspector-header-shell">
-      <div class="inspector-header-label">Details</div>
-      <button type="button" class="inspector-close" aria-label="Close">×</button>
-    </div>
-    <div class="inspector-title-block">
-      <h2>${escapeHtml(title)}</h2>
-      <div class="muted">${escapeHtml(subtitle)}</div>
-    </div>
-  `;
-}
-
-function renderFrameChip(frame, isLive = false) {
-  return `
-    <div class="frame-chip">
-      <button type="button" data-action="select-frame" data-level="${frame.ref.level}" data-index="${frame.ref.index}">
-        <strong>${escapeHtml(frameLabel(frame))}</strong>
-        <div class="muted">${formatTime(frame.span.start)} → ${formatTime(frame.span.end)}${isLive ? ' · live now' : ''}</div>
-      </button>
-    </div>
-  `;
-}
-
-function renderTranscriptItem(segment) {
-  return `
-    <div class="transcript-item">
-      <div class="muted">${formatTime(segment.start)} → ${formatTime(segment.end)}${segment.speaker ? ` · ${escapeHtml(segment.speaker)}` : ''}</div>
-      <div>${escapeHtml(segment.text)}</div>
-    </div>
-  `;
-}
-
-function renderStat(label, value) {
-  return `
-    <div class="stat-card">
-      <div class="label">${escapeHtml(label)}</div>
-      <div class="value">${escapeHtml(String(value))}</div>
-    </div>
-  `;
-}
-
-function togglePlayback() {
-  if (state.isPlaying) {
-    stopPlayback();
-    render();
-    return;
-  }
-
-  state.isPlaying = true;
-  state.timerId = window.setInterval(() => {
-    const duration = state.viewModel.documentMeta.durationSeconds;
-    state.playheadTime = Math.min(duration, state.playheadTime + 3);
-    if (state.playheadTime >= duration) stopPlayback();
-    render();
-  }, 250);
-  render();
-}
-
-function stopPlayback() {
-  state.isPlaying = false;
-  if (state.timerId) window.clearInterval(state.timerId);
-  state.timerId = undefined;
-}
-
-function stepFrame(direction) {
-  stopPlayback();
-  const frames = state.viewModel.frames[state.activeLevel];
-  const current = state.viewModel.selectors.getActiveFrameAtTime(state.activeLevel, state.playheadTime) ?? frames[0];
-  const nextIndex = Math.max(0, Math.min(frames.length - 1, current.ref.index + direction));
-  const nextFrame = frames[nextIndex];
-  state.playheadTime = nextFrame.span.start;
-  state.selectedFrameRef = nextFrame.ref;
-  state.selectedConceptId = undefined;
-  render();
-}
-
-function buildSelectionLabel(activeFrame) {
-  if (state.selectedConceptId) {
-    const concept = state.viewModel.selectors.getConceptById(state.selectedConceptId);
-    return concept ? `Concept · ${concept.label}` : 'Concept';
-  }
-  if (state.selectedFrameRef) {
-    const frame = state.viewModel.selectors.getFrame(state.selectedFrameRef);
-    return frame ? `Frame · ${frame.ref.level} ${frame.ref.index + 1}` : 'Frame';
-  }
-  return activeFrame ? `Live · ${activeFrame.ref.level} ${activeFrame.ref.index + 1}` : 'Live';
-}
-
-function zoomGraphBy(multiplier) {
-  if (!state.cy) return;
-  const container = state.cy.container().getBoundingClientRect();
-  state.cy.zoom({
-    level: clamp(state.cy.zoom() * multiplier, state.cy.minZoom(), state.cy.maxZoom()),
-    renderedPosition: { x: container.width / 2, y: container.height / 2 },
-  });
-}
-
-function setGraphZoom(nextZoom) {
-  if (!state.cy) {
-    state.graphZoom = clamp(nextZoom, 0.1, 3);
-    return;
-  }
-  const container = state.cy.container().getBoundingClientRect();
-  state.cy.zoom({
-    level: clamp(nextZoom, state.cy.minZoom(), state.cy.maxZoom()),
-    renderedPosition: { x: container.width / 2, y: container.height / 2 },
-  });
-}
-
-function fitGraphToVisible() {
-  if (!state.cy) return;
-  const elements = state.cy.elements();
-  if (elements.length) {
-    state.cy.fit(elements, GRAPH_CAMERA_PADDING);
-    snapshotGraphCamera();
-  }
-}
-
-function fitGraphToSelection() {
-  if (!state.cy) return;
-  const focusTarget = getSelectionFocusCollection();
-  if (!focusTarget || !focusTarget.length) return;
-  state.cy.fit(focusTarget, 120);
-  snapshotGraphCamera();
-}
-
-function getSelectionFocusCollection() {
-  if (!state.cy || !state.viewModel) return undefined;
-  if (state.selectedConceptId) {
-    const selected = state.cy.$id(state.selectedConceptId);
-    return selected.length ? selected.closedNeighborhood() : undefined;
-  }
-  if (state.selectedFrameRef) {
-    const conceptIds = state.viewModel.selectors.getFrameConcepts(state.selectedFrameRef).map((activation) => activation.id);
-    const nodes = conceptIds.map((id) => state.cy.$id(id)).filter((node) => node.length);
-    if (!nodes.length) return undefined;
-    return nodes.reduce((collection, node) => collection.union(node.closedNeighborhood()), state.cy.collection());
-  }
-  return undefined;
-}
-
-function applyExternalFocusState() {
-  if (!state.cy) return;
-  state.cy.elements().removeClass('faded focused-edge');
-  state.cy.elements().unselect();
-
-  if (state.selectedConceptId) {
-    const selected = state.cy.$id(state.selectedConceptId);
-    if (!selected.length) return;
-    selected.select();
-    const neighborhood = selected.closedNeighborhood();
-    state.cy.elements().difference(neighborhood).addClass('faded');
-    neighborhood.edges().addClass('focused-edge');
-    return;
-  }
-
-  if (state.selectedFrameRef) {
-    const focusTarget = getSelectionFocusCollection();
-    if (!focusTarget || !focusTarget.length) return;
-    state.cy.elements().difference(focusTarget).addClass('faded');
-    focusTarget.edges().addClass('focused-edge');
-  }
-}
-
-function snapshotGraphCamera() {
-  if (!state.cy) return;
-  state.graphZoom = state.cy.zoom();
-  state.graphPan = state.cy.pan();
-}
-
-function scheduleOverlayDraw() {}
-
-function syncGraphZoomInput() {
-  const input = appEl.querySelector('[data-action="set-graph-zoom"]');
-  if (input) input.value = state.graphZoom.toFixed(2);
-}
-
-function scrubTimelineToPointer(trackBar, event, level) {
-  const rect = trackBar.getBoundingClientRect();
-  const pct = clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
-  const total = Math.max(1, state.viewModel.documentMeta.durationSeconds);
-  state.activeLevel = level;
-  state.playheadTime = total * pct;
-  state.selectedConceptId = undefined;
-  syncSelectionToPlayhead(level);
-  stopPlayback();
-  render();
-}
-
-function syncSelectionToPlayhead(level = state.activeLevel) {
-  const frame = state.viewModel?.selectors.getActiveFrameAtTime(level, state.playheadTime);
-  state.selectedFrameRef = frame ? frame.ref : undefined;
-}
-
-function renderMultilineLabel(label, maxLines = 2) {
-  const words = String(label).split(/\s+/).filter(Boolean);
-  if (words.length <= 1) return [String(label)];
-  const midpoint = Math.ceil(words.length / maxLines);
-  const lines = [];
-  for (let i = 0; i < words.length; i += midpoint) lines.push(words.slice(i, i + midpoint).join(' '));
-  return lines.slice(0, maxLines);
-}
-
-function deterministicAngle(value) {
-  return seededUnit(value) * Math.PI * 2;
-}
-
-function seededUnit(value) {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
-  return (Math.abs(hash) % 1000) / 1000;
-}
-
-function frameLabel(frame) {
-  return `${frame.ref.level} ${frame.ref.index + 1}${frame.title ? ` · ${frame.title}` : ''}`;
-}
-
-function formatTime(seconds) {
-  const total = Math.max(0, Math.floor(seconds || 0));
-  const hh = Math.floor(total / 3600);
-  const mm = Math.floor((total % 3600) / 60);
-  const ss = total % 60;
-  if (hh > 0) return `${hh}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
-  return `${mm}:${String(ss).padStart(2, '0')}`;
-}
-
-function numberOrDash(value, digits = 2) {
-  return value == null ? '—' : Number(value).toFixed(digits);
-}
-
-function clusterColorForNode(nodeId, vm) {
-  const clusterIndex = vm.concepts.clustered.findIndex((cluster) => cluster.id === nodeId);
-  if (clusterIndex >= 0) return CLUSTER_COLORS[clusterIndex % CLUSTER_COLORS.length];
-  const node = vm.graph.nodeById[nodeId];
-  const regionKey = node?.regionKey;
-  const regionIndex = vm.concepts.clustered.findIndex((cluster) => cluster.id === regionKey);
-  return CLUSTER_COLORS[(regionIndex >= 0 ? regionIndex : 0) % CLUSTER_COLORS.length];
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function hexToRgba(hex, alpha) {
-  const value = hex.replace('#', '');
-  const bigint = Number.parseInt(value, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function queueRender() {
-  if (state.renderQueued) return;
-  state.renderQueued = true;
-  requestAnimationFrame(() => {
-    state.renderQueued = false;
-    render();
-  });
-}
-
-function syncRuntimeErrorPanel() {
-  const debugEl = document.getElementById('graph-debug');
-  if (!debugEl) return;
-  debugEl.textContent = formatDebugInfo();
-}
-
-function formatDebugInfo() {
-  const preferredOrder = [
-    'lastRuntimeError',
-    'graphNodes',
-    'graphEdges',
-    'cyNodes',
-    'cyEdges',
-    'selectedConceptId',
-    'selectedFrameRef',
-  ];
-  const entries = Object.entries(state.debugInfo || {});
-  entries.sort((a, b) => {
-    const ai = preferredOrder.indexOf(a[0]);
-    const bi = preferredOrder.indexOf(b[0]);
-    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-  });
-  return entries
-    .map(([key, value]) => {
-      if (Array.isArray(value) || (value && typeof value === 'object')) {
-        return `${key}: ${JSON.stringify(value)}`;
-      }
-      return `${key}: ${value}`;
-    })
-    .join('\n');
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
 }
