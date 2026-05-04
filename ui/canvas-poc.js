@@ -117,10 +117,19 @@ function computeGraphRenderState() {
 function updateTopbar() {
   const titleEl = document.getElementById('topbar-title');
   const statusEl = document.getElementById('topbar-status');
+  const vm = state.viewModel;
   if (titleEl) titleEl.innerHTML =
-    `<h1>${escapeHtml(state.viewModel.documentMeta.title)}</h1>` +
-    `<p class="muted">${escapeHtml((state.document.transcript?.speakers || []).join(', ') || 'Unknown speaker')} · ${state.viewModel.documentMeta.counts.atomicConcepts} atomic concepts</p>`;
-  if (statusEl) statusEl.textContent = '';
+    `<h1>${escapeHtml(vm.documentMeta.title)}</h1>` +
+    `<p class="muted">${escapeHtml((state.document.transcript?.speakers || []).join(', ') || 'Unknown speaker')} · ${vm.documentMeta.counts.atomicConcepts} atomic concepts</p>`;
+  if (statusEl) {
+    const grs = state.graphRenderState;
+    const activeFrame = vm.selectors.getActiveFrameAtTime(state.activeLevel, state.playheadTime);
+    const levelLabel = activeFrame ? `${state.activeLevel} ${activeFrame.ref.index + 1}` : `${state.activeLevel} —`;
+    const viewportMode = grs?.viewportMode ?? 'overview';
+    const focusMode = grs?.focusMode ?? 'playhead';
+    const liveOrFrame = state.selectedFrameRef ? 'Frame' : state.selectedConceptId ? 'Concept' : 'Live';
+    statusEl.textContent = `${liveOrFrame} · ${levelLabel} · ${viewportMode} · ${focusMode}`;
+  }
 }
 
 function updateInspectorPanel() {
