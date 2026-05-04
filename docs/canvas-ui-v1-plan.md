@@ -1273,4 +1273,27 @@ All twelve tasks complete. The canvas UI is the default. Post-build cleanup (cyt
 
 The v1.5 parking lot from the spec is the natural next set of tasks: animation system, topographic backdrop, typed-edge color variants, filled cluster bodies in mockup style, focus reticle, hover preview, breathing labels, cluster collapse, search.
 
-The v1.5 parking lot from the spec is the natural next set of tasks: animation system, topographic backdrop, typed-edge color variants, filled cluster bodies in mockup style, focus reticle, hover preview, breathing labels, cluster collapse, search.
+---
+
+### Post-v1 — module split (2026-05-04)
+
+`ui/app.js` grew to 941 lines after the v1 polish pass, past the spec's ~600–700 line split threshold. A mechanical refactor split it along the existing section-comment seams:
+
+| Module | Lines | Responsibility |
+|---|---|---|
+| `ui/app.js` | 161 | Orchestrator: bootstrap, state, render, panel updaters |
+| `ui/camera.js` | 67 | applyDpr, screenToWorld/worldToScreen, fitCameraToLayout, zoomAround/Center |
+| `ui/hit-test.js` | 34 | hitTestAt(state, worldPoint) |
+| `ui/draw.js` | 177 | draw entry + all sub-draw functions; imports hexToRgba/wrapLabel from util |
+| `ui/layout.js` | 72 | computeLayout, PROTOTYPE_CLUSTER_LAYOUT, CLUSTER_COLORS, deterministicAngle/seededUnit |
+| `ui/events.js` | 183 | bindEvents(state, render, scheduleDraw), playback controls, camera/canvas handlers |
+| `ui/panels/timeline.js` | 59 | renderTimeline, renderTrack, getVisibleTimelineLevels |
+| `ui/panels/inspector.js` | 178 | renderInspector/Concept/Frame, chrome/chip/transcript/stat helpers |
+| `ui/util.js` | 46 | escapeHtml, formatTime, frameLabel, numberOrDash, wrapLabel, hexToRgba |
+
+Design decisions:
+- `state` is a singleton in `app.js`; modules receive it as a parameter rather than importing it (avoids implicit coupling). The draw/event modules accept `state` directly.
+- `render` and `scheduleDraw` live in `app.js` and are passed as parameters into `bindEvents`, avoiding a real import cycle problem.
+- `zoomAroundCenter` is a pure camera mutator; call sites call `render()` separately. This keeps `camera.js` free of any DOM/render dependency.
+- No bundler; native ES modules loaded directly by the browser via `<script type="module" src="/ui/app.js">` in index.html — unchanged.
+- All nine modules pass `node --check`. Zero runtime errors in Playwright walkthrough of all v1 verification states.
