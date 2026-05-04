@@ -76,6 +76,19 @@ async function bootstrap() {
   fitCameraToLayout();
   render();
 
+  // Re-apply DPR + redraw on viewport / display changes so the canvas
+  // stays sharp on resize and across displays with different DPR.
+  let resizeQueued = false;
+  window.addEventListener('resize', () => {
+    if (resizeQueued) return;
+    resizeQueued = true;
+    requestAnimationFrame(() => {
+      resizeQueued = false;
+      applyDpr();
+      scheduleDraw();
+    });
+  });
+
   console.info('mindgraph canvas POC ready', {
     clusters: state.layout.clusters.map((c) => ({ id: c.id, label: c.label, hasAnchor: !!PROTOTYPE_CLUSTER_LAYOUT[c.id] })),
   });
