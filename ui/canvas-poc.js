@@ -76,9 +76,6 @@ async function bootstrap() {
   fitCameraToLayout();
   render();
 
-  // Dev-only: expose internals for Playwright/devtools verification.
-  window.__poc = { state, render, fitCameraToLayout };
-
   console.info('mindgraph canvas POC ready', {
     clusters: state.layout.clusters.map((c) => ({ id: c.id, label: c.label, hasAnchor: !!PROTOTYPE_CLUSTER_LAYOUT[c.id] })),
   });
@@ -131,15 +128,23 @@ function updateTopbar() {
   const vm = state.viewModel;
   if (titleEl) titleEl.innerHTML =
     `<h1>${escapeHtml(vm.documentMeta.title)}</h1>` +
-    `<p class="muted">${escapeHtml((state.document.transcript?.speakers || []).join(', ') || 'Unknown speaker')} · ${vm.documentMeta.counts.atomicConcepts} atomic concepts</p>`;
+    `<p class="muted">${escapeHtml((state.document.transcript?.speakers || []).join(', ') || 'Unknown speaker')} · ${formatTime(vm.documentMeta.durationSeconds)} total · ${vm.documentMeta.counts.atomicConcepts} atomic concepts</p>`;
   if (statusEl) {
     const grs = state.graphRenderState;
     const activeFrame = vm.selectors.getActiveFrameAtTime(state.activeLevel, state.playheadTime);
-    const levelLabel = activeFrame ? `${state.activeLevel} ${activeFrame.ref.index + 1}` : `${state.activeLevel} —`;
     const viewportMode = grs?.viewportMode ?? 'overview';
     const focusMode = grs?.focusMode ?? 'playhead';
+    let contextLabel;
+    if (state.selectedConceptId) {
+      const concept = vm.concepts.byId?.[state.selectedConceptId];
+      contextLabel = concept ? concept.label : state.selectedConceptId;
+    } else if (state.selectedFrameRef) {
+      contextLabel = `${state.selectedFrameRef.level} ${state.selectedFrameRef.index + 1}`;
+    } else {
+      contextLabel = activeFrame ? `${state.activeLevel} ${activeFrame.ref.index + 1}` : `${state.activeLevel} —`;
+    }
     const liveOrFrame = state.selectedFrameRef ? 'Frame' : state.selectedConceptId ? 'Concept' : 'Live';
-    statusEl.textContent = `${liveOrFrame} · ${levelLabel} · ${viewportMode} · ${focusMode}`;
+    statusEl.textContent = `${liveOrFrame} · ${contextLabel} · ${viewportMode} · ${focusMode}`;
   }
 }
 
