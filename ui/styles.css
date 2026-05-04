@@ -1,6 +1,6 @@
-/* canvas-poc.css — layout scaffold for the canvas POC (Task 1)
-   Copied verbatim from ui/styles.css, skipping cytoscape-specific rules.
-   New additions for the POC layout are marked with a comment. */
+/* mindgraph UI styles. Layout, panels, inspector, timeline, and
+   timeline-track rules. The graph itself is drawn on a single
+   HTML5 Canvas (see ui/app.js). */
 
 :root {
   color-scheme: dark;

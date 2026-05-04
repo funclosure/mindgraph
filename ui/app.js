@@ -9,8 +9,8 @@ const DOC_PATH = '../examples/out/episode-1-built.mindgraph.json';
 const CANVAS_W = 1280;
 const CANVAS_H = 800;
 
-// Hand-placed cluster anchors, taken from the cytoscape spike but rescaled
-// to the larger 1280x800 canvas so each cluster has room to breathe.
+// Hand-placed cluster anchors. Stable across renders; chosen to give each
+// cluster room to breathe inside the 1280x800 logical canvas.
 const PROTOTYPE_CLUSTER_LAYOUT = {
   'cultural-convergences':          { x: 285,  y: 245, radius: 152 },
   'meaning-crisis-core':            { x: 640,  y: 400, radius: 142 },

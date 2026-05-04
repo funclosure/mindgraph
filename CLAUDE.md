@@ -4,60 +4,69 @@ Orientation for Claude Code sessions inside this project. Read on wake-up. Stays
 
 ## What this is
 
-`mindgraph` turns transcripts into evolving concept timelines. CLI is the rigid structural layer an LLM (or human) writes into; the view-model + UI layer reads the resulting documents.
+`mindgraph` digests learning material (YouTube transcripts, articles, lectures, papers) into an evolving multi-layer concept graph that a human can navigate.
 
 User-facing tour → `README.md`.
 
+## Operating model — read this first
+
+Two-sided architecture. **Where you are in this picture determines where new code belongs.**
+
+**Producer side — agent + CLI.** The CLI is *your* tool, built for the LLM (you) to fully operate end-to-end. When Victor brings source material, **you drive the pipeline**: `ingest → micro/meso/macro frames → atomic + clustered concepts → relations → activations → stats recompute`. Don't write Victor a runbook of commands to type — run them. CLI ergonomics are optimised for the LLM-as-operator (idempotent upserts, sensible defaults, parseable errors), not for human typists. Worked end-to-end example: `npm run test:smoke`.
+
+**Consumer side — human + UI.** Victor reads the digested artifact through the UI (graph + timeline + inspectors). The UI does not author — it *reveals*. He gives high-level direction (which material, what to focus on) and review (catches when output looks off). He does not drop into the CLI to fix things.
+
+**If a producer task needs a capability the CLI doesn't have, extend the CLI.** Don't write a one-off script alongside it. The CLI is the substrate; gaps are work to do.
+
 ## Layered mental model
 
-Four layers, kept deliberately separate. When in doubt about where new code belongs, name the layer first.
+Four layers, mapped onto the operating model. When in doubt about where new code belongs, name the layer first.
 
-1. **`src/core/`** — pure document layer
+1. **`src/core/`** — pure document layer (producer-side internals)
    - `schema.js` — canonical document shape, validation
    - `document.js` — load / save / mutate operations
    - `transcript.js` — transcript parsing (timed + untimed)
    - `build.js` — staged `build timeline` pipeline (ingest → micro → meso)
    - No I/O concerns beyond fs read/write of mindgraph JSON. No CLI, no UI.
 
-2. **`src/cli/index.js`** — actuator surface
+2. **`src/cli/index.js`** — agent operator surface (producer-side)
    - The single command file. Dispatch + arg parsing + calls into `core/`.
-   - Treat as the LLM-actuator API. Subcommands listed in `README.md § LLM-actuator workflow`.
-   - Smoke test: `npm run test:smoke` (Bun) or `test:smoke:node` (Node).
+   - **You operate this.** Subcommands listed in `README.md § LLM-actuator workflow`.
+   - Smoke test = worked end-to-end example: `npm run test:smoke` (Bun) or `test:smoke:node` (Node).
 
-3. **`src/view-model/`** — pure derivation layer
+3. **`src/view-model/`** — pure derivation layer (consumer-side, upstream of UI)
    - `buildMindgraphViewModel.js` — document → shell-ready VM (concepts, clusters, frames, timeline, inspectors).
    - `buildGraphRenderState.js` — VM + selection → overview / region / local visibility for the graph canvas.
    - `example.js` — driver: `npm run vm:example` prints a representative VM slice from `examples/out/episode-1-built.mindgraph.json`.
    - **Pure functions only.** No DOM, no fetch, no fs (except the example driver).
    - Canonical contract → `docs/ui-view-model-spec.md`.
 
-4. **`ui/` + `src/ui/dev-server.js`** — minimal browser shell
-   - `ui/index.html` + `ui/styles.css` + `ui/app.js` (~1k LOC, vanilla ES modules, cytoscape).
+4. **`ui/` + `src/ui/dev-server.js`** — browser shell (consumer-side)
+   - `ui/index.html` + `ui/styles.css` + `ui/app.js` — vanilla ES modules, single HTML5 Canvas, hand-written camera + hit-testing + progressive label reveal. No graph engine, no bundler.
    - `src/ui/dev-server.js` — tiny static server (path-traversal guarded, no-store), `npm run ui:dev` → `http://127.0.0.1:4173`.
    - `npm run ui:check` parses both for syntax. There is no test runner for the UI yet — verify behavior in the browser.
+   - The canvas v1 spec and plan in `docs/canvas-ui-v1-*.md` are the design and the build log. v1.5 parking lot (animation, topographic backdrop, typed-edge variants, focus reticle, hover preview, breathing labels, cluster collapse, search) is open work.
 
 ## Conventions
 
 - **Runtime:** Bun preferred for CLI (`bun src/cli/index.js …`); Node works for everything (`start:node`, `vm:example`, `ui:dev`).
 - **No bundler, no framework** in the UI. Browser loads `ui/app.js` as a module directly. Keep it that way unless explicitly asked.
 - **ES modules** throughout (`"type": "module"`).
-- **Dependencies are minimal** — only `cytoscape` so far. Add new deps only with reason.
+- **Dependencies are minimal** — currently zero runtime deps. Add new deps only with reason.
 - **Sample data:** `examples/out/episode-1-built.mindgraph.json` is the canonical input the UI loads. Built sample lives in `examples/out/`; raw fixtures in `examples/`.
 
 ## POC files (untracked, do not commit)
 
-These exist as scratch references for the cytoscape integration and were intentionally left out of git:
+These exist as historical references for the cytoscape integration that was tried before the canvas-only path. Intentionally untracked. Do not reference from `index.html`. If something useful crystallises, port it into `ui/app.js` and trash the spike — don't grow them.
 
 - `ui/cytoscape-spike.{html,js,css}`
 - `ui/cytoscape-camera-test.{html,js,css}`
 
-Don't reference them from `index.html`. If something useful crystallises, port it into `ui/app.js` and trash the spike — don't grow them.
-
 ## Specs in `docs/`
 
-Read these before substantive UI or VM work. They are the source of truth for behavior, not the code.
+Read before substantive UI or VM work. These describe the **intended destination** of the consumer side; cross-check against the as-built `ui/app.js` because the UI is early.
 
-- `docs/ui-view-model-spec.md` — VM contract (concepts, clusters, frames, inspectors)
+- `docs/ui-view-model-spec.md` — VM contract (concepts, clusters, frames, inspectors). The joint between producer document schema and consumer rendering — re-check this whenever the document schema changes.
 - `docs/ui-component-architecture.md` — component decomposition for the shell
 - `docs/dynamic-graph-interaction-architecture.md` — zoom / pan / level transitions
 - `docs/ui-wireframe-spec.md` — visual wireframes (older; cross-check against above)
@@ -65,8 +74,9 @@ Read these before substantive UI or VM work. They are the source of truth for be
 ## Verification before claiming done
 
 - CLI changes → run `npm run test:smoke` (Bun) end-to-end.
+- New producer pipeline → run it on real source material end-to-end via the CLI; inspect the output document with `mindgraph inspect …` and (if relevant) load it in the UI.
 - View-model changes → run `npm run vm:example` and inspect output.
-- UI changes → `npm run ui:check` for syntax, then **load `npm run ui:dev` in a browser** and exercise the changed feature. Syntax-check alone is not verification.
+- UI changes → `npm run ui:check` for syntax, then **load `npm run ui:dev` in a browser** (use playwright to take a screenshot if you cannot drive a real browser) and exercise the changed feature. Syntax-check alone is not verification.
 
 ## Standing rules
 
@@ -75,11 +85,14 @@ Workspace-level rules in `../../../CLAUDE.md` apply (no `git push` without appro
 - 🚫 Do not introduce a bundler (Vite/Webpack/etc.) without explicit approval.
 - 🚫 Do not add a UI framework (React/Vue/Svelte) without explicit approval.
 - 🚫 Do not commit `examples/out/` artifacts other than the canonical sample inputs the UI/tests rely on.
-- 🟢 Free to: run smoke tests, run the dev server, edit any layer, add new CLI subcommands, refactor within a single layer.
+- 🚫 Do not write a "here's what to type" runbook for producer tasks. Run the CLI yourself.
+- 🚫 Do not work around a missing CLI capability with a one-off script. Extend the CLI instead.
+- 🟢 Free to: run smoke tests, run the dev server, edit any layer, add new CLI subcommands, refactor within a single layer, drive the producer pipeline end-to-end on new source material.
 
 ## On wake-up
 
-1. Read this file (already loaded).
-2. If touching the UI or VM → skim the matching `docs/*.md` spec.
-3. If touching the CLI / document model → check `src/core/schema.js` and `src/cli/index.js` first.
-4. Run the relevant verification command above before claiming the task is done.
+1. Read this file (already loaded). Internalise the producer/consumer split before deciding what to do.
+2. If Victor brings source material → producer task. Read `src/cli/index.js` + `src/core/schema.js`, then drive the pipeline yourself.
+3. If touching the UI or VM → skim the matching `docs/ui-*.md` spec, but cross-check against `ui/app.js` (the UI is early; spec ≠ as-built).
+4. If touching the CLI / document model → check `src/core/schema.js` and `src/cli/index.js` first.
+5. Run the relevant verification command above before claiming the task is done.
