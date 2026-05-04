@@ -186,6 +186,70 @@ function bindEvents() {
       render();
     });
   });
+
+  // Toolbar camera buttons — static DOM, bind once only.
+  const toolbar = document.querySelector('.graph-toolbar');
+  if (toolbar && !toolbar.dataset.boundCameraEvents) {
+    toolbar.dataset.boundCameraEvents = '1';
+    document.querySelector('[data-action="zoom-in"]')?.addEventListener('click', () => {
+      zoomAroundCenter(1.2);
+    });
+    document.querySelector('[data-action="zoom-out"]')?.addEventListener('click', () => {
+      zoomAroundCenter(1 / 1.2);
+    });
+    document.querySelector('[data-action="fit"]')?.addEventListener('click', () => {
+      fitCameraToLayout();
+      render();
+    });
+    document.querySelector('[data-action="reset-camera"]')?.addEventListener('click', () => {
+      state.selectedConceptId = undefined;
+      state.selectedFrameRef = undefined;
+      fitCameraToLayout();
+      render();
+    });
+  }
+
+  // Canvas wheel + drag — bind once only.
+  const canvasEl = document.getElementById('stage');
+  if (canvasEl && !canvasEl.dataset.boundCameraEvents) {
+    canvasEl.dataset.boundCameraEvents = '1';
+
+    canvasEl.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = canvasEl.getBoundingClientRect();
+      const point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      zoomAround(point, factor);
+      render();
+    }, { passive: false });
+
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    canvasEl.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      canvasEl.setPointerCapture(e.pointerId);
+      canvasEl.style.cursor = 'grabbing';
+    });
+    canvasEl.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      state.camera.pan.x += e.clientX - lastX;
+      state.camera.pan.y += e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      scheduleDraw();
+    });
+    canvasEl.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      try { canvasEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      canvasEl.style.cursor = 'grab';
+      render();
+    });
+    canvasEl.style.cursor = 'grab';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -271,6 +335,25 @@ function worldToScreen(point) {
     x: point.x * state.camera.zoom + state.camera.pan.x,
     y: point.y * state.camera.zoom + state.camera.pan.y,
   };
+}
+
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function zoomAround(screenPoint, factor) {
+  const before = screenToWorld(screenPoint);
+  state.camera.zoom = clamp(state.camera.zoom * factor, 0.2, 4);
+  const after = screenToWorld(screenPoint);
+  state.camera.pan.x += (after.x - before.x) * state.camera.zoom;
+  state.camera.pan.y += (after.y - before.y) * state.camera.zoom;
+}
+
+function zoomAroundCenter(factor) {
+  const cx = CANVAS_W / 2;
+  const cy = CANVAS_H / 2;
+  zoomAround({ x: cx, y: cy }, factor);
+  render();
 }
 
 function fitCameraToLayout(padding = 60) {
