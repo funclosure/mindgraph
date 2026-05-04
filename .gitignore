@@ -1,2 +1,6 @@
 node_modules/
 .DS_Store
+
+# Playwright artifacts (screenshots, traces)
+.playwright-mcp/
+*.png
