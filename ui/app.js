@@ -161,6 +161,48 @@ function updateTimelinePanel() {
   el.innerHTML = renderTimeline(state.viewModel, activeFrames, state.graphRenderState ?? { viewportMode: 'overview', focusMode: 'none' });
 }
 
+function togglePlayback() {
+  if (state.isPlaying) stopPlayback();
+  else startPlayback();
+}
+
+function startPlayback() {
+  if (state.isPlaying) return;
+  const duration = state.viewModel.documentMeta.durationSeconds;
+  if (state.playheadTime >= duration) state.playheadTime = 0;
+  state.isPlaying = true;
+  let lastT = performance.now();
+  const tick = (now) => {
+    if (!state.isPlaying) return;
+    const dt = Math.min(0.5, (now - lastT) / 1000);
+    lastT = now;
+    state.playheadTime = Math.min(state.playheadTime + dt, duration);
+    if (state.playheadTime >= duration) state.isPlaying = false;
+    render();
+    if (state.isPlaying) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  render();
+}
+
+function stopPlayback() {
+  if (!state.isPlaying) return;
+  state.isPlaying = false;
+  render();
+}
+
+function stepFrame(direction) {
+  const frames = state.viewModel.frames[state.activeLevel];
+  if (!frames || !frames.length) return;
+  const current = state.viewModel.selectors.getActiveFrameAtTime(state.activeLevel, state.playheadTime);
+  const currentIndex = current ? current.ref.index : 0;
+  const nextIndex = Math.max(0, Math.min(frames.length - 1, currentIndex + direction));
+  const next = frames[nextIndex];
+  if (!next) return;
+  state.playheadTime = next.span.start;
+  render();
+}
+
 function bindEvents() {
   const range = document.querySelector('[data-action="scrub-playhead"]');
   if (range) {
@@ -169,6 +211,9 @@ function bindEvents() {
       render();
     });
   }
+  document.querySelector('[data-action="toggle-play"]')?.addEventListener('click', togglePlayback);
+  document.querySelector('[data-action="step-back"]')?.addEventListener('click', () => stepFrame(-1));
+  document.querySelector('[data-action="step-forward"]')?.addEventListener('click', () => stepFrame(1));
   document.querySelectorAll('[data-action="set-level"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.activeLevel = btn.dataset.level;
