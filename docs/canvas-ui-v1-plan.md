@@ -1247,14 +1247,30 @@ EOF
 
 ---
 
+## Implementation notes (deviations from plan)
+
+Two things came up during execution that the plan did not anticipate. Recorded here for future readers.
+
+### Task 9 — toolbar button guard
+
+The plan's Step 3 wraps the wheel and drag listeners in `if (!canvasEl.dataset.boundCameraEvents)` because `bindEvents()` is called on every `render()`. The plan did **not** apply the same guard to the toolbar button click listeners (Step 2: `data-action="zoom-in"`, `zoom-out`, `fit`, `reset-camera`).
+
+In practice, the toolbar lives in static HTML that `render()` does not rewrite, so each `render()` would attach a fresh click listener to each button. After N renders, one button click would trigger N zoom steps.
+
+The implementer caught this and added a matching `dataset.boundCameraEvents` guard around the toolbar handlers. Future plans for static-DOM event wiring should follow the same pattern.
+
+### Task 11 — status pill concept label
+
+During the Task 11 parity check, the canvas POC's status pill was showing `Concept · macro 1 · …` when a concept was selected — copying the level label instead of the concept's display label. The Task 5 template only branched on `liveOrFrame` to set the prefix, then always used the level label.
+
+The fix in Task 11 made `updateTopbar` read `state.viewModel.concepts.byId[selectedConceptId].label` when a concept is active, mirroring the live UI's status text. The same pattern is correct for any future inspector / pill that derives its title from selection state.
+
+---
+
 ## Done
 
-All twelve tasks complete. The canvas UI is now the default. The cytoscape archive sits beside it for reference until a follow-up cleanup task removes:
+All twelve tasks complete. The canvas UI is the default. Post-build cleanup (cytoscape dependency, archive files, gitignore, comment refresh) was committed in a follow-up session — see `git log --grep='^chore'`.
 
-- The `cytoscape` dependency from `package.json` and `package-lock.json`
-- The three archive files (`ui/index-cytoscape-archive.html`, `ui/app-cytoscape-archive.js`, `ui/styles-cytoscape-archive.css`)
-- The two POC reference files in the working tree (`ui/cytoscape-spike.*`, `ui/cytoscape-camera-test.*` — already untracked)
-
-That cleanup is intentionally left for a separate session. v1 is shipped.
+The v1.5 parking lot from the spec is the natural next set of tasks: animation system, topographic backdrop, typed-edge color variants, filled cluster bodies in mockup style, focus reticle, hover preview, breathing labels, cluster collapse, search.
 
 The v1.5 parking lot from the spec is the natural next set of tasks: animation system, topographic backdrop, typed-edge color variants, filled cluster bodies in mockup style, focus reticle, hover preview, breathing labels, cluster collapse, search.
