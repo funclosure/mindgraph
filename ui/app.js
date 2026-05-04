@@ -11,8 +11,6 @@ import { renderInspector } from './panels/inspector.js';
 import { escapeHtml, formatTime } from './util.js';
 
 const DOC_PATH = '../examples/out/episode-1-built.mindgraph.json';
-const CANVAS_W = 1280;
-const CANVAS_H = 800;
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
@@ -32,6 +30,7 @@ const state = {
   activeLevel: 'macro',
   isPlaying: false,
   camera: { zoom: 1, pan: { x: 0, y: 0 } },
+  viewport: { width: 0, height: 0 },
   drawScheduled: false,
 };
 
@@ -53,8 +52,8 @@ async function bootstrap() {
     state.viewModel.frames.macro[0]?.span.start ??
     state.viewModel.frames.meso[0]?.span.start ??
     0;
-  applyDpr(canvas, ctx);
-  fitCameraToLayout(state.camera, state.layout);
+  state.viewport = applyDpr(canvas, ctx);
+  fitCameraToLayout(state.camera, state.layout, state.viewport);
   render();
 
   // Re-apply DPR + redraw on viewport / display changes so the canvas
@@ -65,7 +64,7 @@ async function bootstrap() {
     resizeQueued = true;
     requestAnimationFrame(() => {
       resizeQueued = false;
-      applyDpr(canvas, ctx);
+      state.viewport = applyDpr(canvas, ctx);
       scheduleDraw();
     });
   });

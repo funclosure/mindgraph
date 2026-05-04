@@ -50,21 +50,21 @@ export function bindEvents(state, render, scheduleDraw) {
   if (toolbar && !toolbar.dataset.boundCameraEvents) {
     toolbar.dataset.boundCameraEvents = '1';
     document.querySelector('[data-action="zoom-in"]')?.addEventListener('click', () => {
-      zoomAroundCenter(state.camera, 1.2);
+      zoomAroundCenter(state.camera, state.viewport, 1.2);
       render();
     });
     document.querySelector('[data-action="zoom-out"]')?.addEventListener('click', () => {
-      zoomAroundCenter(state.camera, 1 / 1.2);
+      zoomAroundCenter(state.camera, state.viewport, 1 / 1.2);
       render();
     });
     document.querySelector('[data-action="fit"]')?.addEventListener('click', () => {
-      fitCameraToLayout(state.camera, state.layout);
+      fitCameraToLayout(state.camera, state.layout, state.viewport);
       render();
     });
     document.querySelector('[data-action="reset-camera"]')?.addEventListener('click', () => {
       state.selectedConceptId = undefined;
       state.selectedFrameRef = undefined;
-      fitCameraToLayout(state.camera, state.layout);
+      fitCameraToLayout(state.camera, state.layout, state.viewport);
       render();
     });
   }

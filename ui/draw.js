@@ -4,19 +4,16 @@
 
 import { hexToRgba, wrapLabel } from './util.js';
 
-const CANVAS_W = 1280;
-const CANVAS_H = 800;
-
 export function draw(ctx, state) {
-  const { viewModel: vm, layout, graphRenderState: grs } = state;
+  const { viewModel: vm, layout, graphRenderState: grs, viewport } = state;
+  const dpr = window.devicePixelRatio || 1;
 
   ctx.save();
-  ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
-  drawBackground(ctx);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawBackground(ctx, viewport);
   ctx.restore();
 
   ctx.save();
-  const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.translate(state.camera.pan.x, state.camera.pan.y);
   ctx.scale(state.camera.zoom, state.camera.zoom);
@@ -30,12 +27,17 @@ export function draw(ctx, state) {
   ctx.restore();
 }
 
-function drawBackground(ctx) {
-  const bg = ctx.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, 80, CANVAS_W / 2, CANVAS_H / 2, 760);
+function drawBackground(ctx, viewport) {
+  const w = viewport?.width ?? 0;
+  const h = viewport?.height ?? 0;
+  const cx = w / 2;
+  const cy = h / 2;
+  const radius = Math.max(w, h);
+  const bg = ctx.createRadialGradient(cx, cy, Math.min(80, radius * 0.1), cx, cy, radius);
   bg.addColorStop(0, '#1c1916');
   bg.addColorStop(1, '#0f0e0d');
   ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.fillRect(0, 0, w, h);
 }
 
 function drawClusterBodies(ctx, layout, grs) {

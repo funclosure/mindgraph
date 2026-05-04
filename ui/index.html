@@ -16,10 +16,6 @@
         <div class="stage-column" id="stage-column">
           <section class="graph-panel panel">
             <div class="graph-panel__header">
-              <div>
-                <h2>Graph canvas</h2>
-                <p class="muted">Single-canvas mindgraph render.</p>
-              </div>
               <div class="graph-toolbar">
                 <button type="button" class="chip" data-action="zoom-out">−</button>
                 <button type="button" class="chip" data-action="zoom-in">+</button>
@@ -28,11 +24,7 @@
               </div>
             </div>
             <div class="graph-canvas-wrap">
-              <canvas id="stage" width="1280" height="800"></canvas>
-            </div>
-            <div class="graph-panel__legend">
-              <span class="legend-dot atomic">atomic concept</span>
-              <span class="legend-dot active">active at playhead</span>
+              <canvas id="stage"></canvas>
             </div>
           </section>
           <section class="timeline-panel panel" id="timeline-panel"></section>

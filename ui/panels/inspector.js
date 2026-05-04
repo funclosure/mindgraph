@@ -137,10 +137,6 @@ export function renderFrameInspector(vm, frameRef, state) {
 
 function renderInspectorChrome(activeTab, title = 'Inspector', subtitle = 'Live semantic window') {
   return `
-    <div class="inspector-panel__header inspector-header-shell">
-      <div class="inspector-header-label">Details</div>
-      <button type="button" class="inspector-close" aria-label="Close">×</button>
-    </div>
     <div class="inspector-title-block">
       <h2>${escapeHtml(title)}</h2>
       <div class="muted">${escapeHtml(subtitle)}</div>

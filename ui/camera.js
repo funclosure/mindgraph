@@ -2,16 +2,18 @@
 // Camera — DPR setup, coordinate transforms, fit/zoom helpers
 // ---------------------------------------------------------------------------
 
-const CANVAS_W = 1280;
-const CANVAS_H = 800;
-
+// Canvas size is read from the element's CSS box. The CSS layout (.graph-
+// canvas-wrap with width/height: 100%) drives the box size; this module just
+// matches the internal pixel buffer to whatever the box turned out to be.
 export function applyDpr(canvas, ctx) {
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = CANVAS_W * dpr;
-  canvas.height = CANVAS_H * dpr;
-  canvas.style.width = `${CANVAS_W}px`;
-  canvas.style.height = `${CANVAS_H}px`;
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { width, height };
 }
 
 export function screenToWorld(camera, point) {
@@ -28,7 +30,7 @@ export function worldToScreen(camera, point) {
   };
 }
 
-export function fitCameraToLayout(camera, layout, padding = 60) {
+export function fitCameraToLayout(camera, layout, viewport, padding = 48) {
   const clusters = layout.clusters;
   if (!clusters.length) return;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -40,8 +42,8 @@ export function fitCameraToLayout(camera, layout, padding = 60) {
   }
   const worldW = maxX - minX;
   const worldH = maxY - minY;
-  const screenW = CANVAS_W - padding * 2;
-  const screenH = CANVAS_H - padding * 2;
+  const screenW = Math.max(1, viewport.width - padding * 2);
+  const screenH = Math.max(1, viewport.height - padding * 2);
   const zoom = Math.min(screenW / worldW, screenH / worldH);
   camera.zoom = zoom;
   camera.pan.x = padding - minX * zoom + (screenW - worldW * zoom) / 2;
@@ -60,8 +62,8 @@ export function zoomAround(camera, screenPoint, factor) {
   camera.pan.y += (after.y - before.y) * camera.zoom;
 }
 
-export function zoomAroundCenter(camera, factor) {
-  const cx = CANVAS_W / 2;
-  const cy = CANVAS_H / 2;
+export function zoomAroundCenter(camera, viewport, factor) {
+  const cx = viewport.width / 2;
+  const cy = viewport.height / 2;
   zoomAround(camera, { x: cx, y: cy }, factor);
 }

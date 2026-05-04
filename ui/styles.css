@@ -38,7 +38,7 @@ body {
 
 body {
   min-height: 100vh;
-  padding: 18px;
+  padding: 12px;
   overflow: hidden;
 }
 
@@ -64,8 +64,8 @@ button {
 .workspace {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 14px;
-  height: calc(100vh - 36px);
+  gap: 8px;
+  height: calc(100vh - 24px);
   overflow: hidden;
 }
 
@@ -73,16 +73,19 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
+  gap: 12px;
+  padding: 6px 12px;
+  border-radius: 16px;
 }
 
-.topbar__title h1 {
+#topbar-title h1 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-.topbar__title p,
+#topbar-title p,
 .topbar__meta,
 .muted,
 .empty-state,
@@ -90,22 +93,15 @@ button {
   color: var(--muted);
 }
 
-.topbar__title p {
-  margin: 4px 0 0;
-  font-size: 0.84rem;
-}
-
-.topbar__controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+#topbar-title p {
+  margin: 1px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.2;
 }
 
 .topbar__meta {
-  font-size: 0.8rem;
-  padding: 7px 10px;
+  font-size: 0.72rem;
+  padding: 4px 10px;
   border-radius: 999px;
   background: rgba(214, 176, 109, 0.08);
   border: 1px solid rgba(214, 176, 109, 0.16);
@@ -127,7 +123,8 @@ button {
   border: 1px solid transparent;
   background: transparent;
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
 }
 
 .level-toggle button.active,
@@ -168,10 +165,10 @@ button {
 
 .graph-panel {
   position: relative;
-  padding: 12px;
+  padding: 8px;
   display: grid;
-  grid-template-rows: auto minmax(280px, 1fr) auto;
-  gap: 10px;
+  grid-template-rows: auto minmax(240px, 1fr);
+  gap: 6px;
   min-height: 0;
   overflow: hidden;
 }
@@ -181,36 +178,31 @@ button {
 .inspector-panel__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.graph-panel__header {
-  padding: 2px 2px 0;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .graph-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
-.graph-panel__header h2,
 .inspector-panel__header h2,
 .timeline-panel__header h2,
 .section h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 /* .graph-canvas-wrap mirrors .graph-stage from styles.css — the canvas container. */
 .graph-canvas-wrap {
   position: relative;
-  min-height: 280px;
+  min-height: 240px;
   height: 100%;
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 42%, rgba(214, 176, 109, 0.08), transparent 34%),
@@ -226,75 +218,25 @@ button {
   touch-action: none;
 }
 
-.graph-panel__legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  font-size: 0.78rem;
-  color: var(--muted);
-  padding: 0 2px;
-}
-
-.legend-dot {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.legend-dot::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  display: inline-block;
-}
-
-.legend-dot.cluster::before { background: rgba(184, 148, 97, 0.95); }
-.legend-dot.atomic::before { background: rgba(211, 186, 138, 0.95); }
-.legend-dot.active::before { background: rgba(231, 203, 141, 0.95); }
-
 .inspector-panel {
   padding: 0;
   overflow: auto;
   min-height: 0;
 }
 
-.inspector-header-shell {
-  padding: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.inspector-header-label,
-.inspector-close {
-  border: 0;
-  background: transparent;
-  padding: 14px 18px;
-  color: var(--muted);
-}
-
-.inspector-header-label {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.inspector-close {
-  margin-left: auto;
-  font-size: 1.15rem;
-}
-
 .inspector-title-block {
-  padding: 18px 18px 8px;
+  padding: 12px 14px 6px;
 }
 
 .inspector-title-block h2 {
-  margin: 0 0 6px;
-  font-size: 1.15rem;
+  margin: 0 0 4px;
+  font-size: 0.98rem;
 }
 
 .inspector-scroll {
   display: grid;
-  gap: 16px;
-  padding: 0 18px 18px;
+  gap: 12px;
+  padding: 0 14px 14px;
 }
 
 .section {
