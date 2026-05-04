@@ -369,14 +369,22 @@ function drawClusterLabels(layout, grs) {
 }
 
 function drawAtomicLabels(vm, layout, grs) {
+  const labelVisible = new Set(grs?.labelVisibleNodeIds ?? vm.graph.nodes.map((n) => n.id));
+  const active = new Set(grs?.activeNodeIds ?? []);
+  const dimmed = new Set(grs?.dimmedNodeIds ?? []);
+
   ctx.font = "11px 'Inter', system-ui, sans-serif";
-  ctx.fillStyle = 'rgba(234, 227, 213, 0.55)';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
+
   for (const node of vm.graph.nodes) {
     if (node.level === 'clustered') continue;
+    if (!labelVisible.has(node.id)) continue;
     const pos = layout.nodes[node.id];
     if (!pos) continue;
+    const isActive = active.has(node.id);
+    const isDimmed = dimmed.has(node.id);
+    ctx.fillStyle = `rgba(234, 227, 213, ${isDimmed ? 0.34 : isActive ? 0.92 : 0.7})`;
     ctx.fillText(node.label, pos.x, pos.y - 8);
   }
 }
