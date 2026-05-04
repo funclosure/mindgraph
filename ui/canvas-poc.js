@@ -249,6 +249,34 @@ function bindEvents() {
       render();
     });
     canvasEl.style.cursor = 'grab';
+
+    let downAt = null;
+    canvasEl.addEventListener('pointerdown', (e) => {
+      downAt = { x: e.clientX, y: e.clientY };
+    });
+    canvasEl.addEventListener('click', (e) => {
+      // Suppress click if the pointer moved more than a few px (= drag, not click).
+      if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) {
+        downAt = null;
+        return;
+      }
+      downAt = null;
+      const rect = canvasEl.getBoundingClientRect();
+      const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const world = screenToWorld(screen);
+      const hit = hitTestAt(world);
+      if (hit && hit.kind === 'concept') {
+        state.selectedConceptId = hit.id;
+        state.selectedFrameRef = undefined;
+      } else if (hit && hit.kind === 'cluster') {
+        state.selectedConceptId = hit.id;
+        state.selectedFrameRef = undefined;
+      } else {
+        state.selectedConceptId = undefined;
+        state.selectedFrameRef = undefined;
+      }
+      render();
+    });
   }
 }
 
@@ -335,6 +363,30 @@ function worldToScreen(point) {
     x: point.x * state.camera.zoom + state.camera.pan.x,
     y: point.y * state.camera.zoom + state.camera.pan.y,
   };
+}
+
+function hitTestAt(worldPoint) {
+  // Atomic nodes win first (smaller hit zones, drawn on top conceptually).
+  for (const node of state.viewModel.graph.nodes) {
+    if (node.level === 'clustered') continue;
+    const pos = state.layout.nodes[node.id];
+    if (!pos) continue;
+    const radius = 6 + (node.visualWeight ?? 0.5) * 1.8;
+    const dx = worldPoint.x - pos.x;
+    const dy = worldPoint.y - pos.y;
+    if (dx * dx + dy * dy <= radius * radius) {
+      return { kind: 'concept', id: node.id };
+    }
+  }
+  // Cluster regions next.
+  for (const cluster of state.layout.clusters) {
+    const dx = worldPoint.x - cluster.x;
+    const dy = worldPoint.y - cluster.y;
+    if (dx * dx + dy * dy <= cluster.radius * cluster.radius) {
+      return { kind: 'cluster', id: cluster.id };
+    }
+  }
+  return null;
 }
 
 function clamp(v, lo, hi) {
