@@ -315,10 +315,12 @@ function bindEvents() {
       const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const world = screenToWorld(screen);
       const hit = hitTestAt(world);
-      if (hit && hit.kind === 'concept') {
-        state.selectedConceptId = hit.id;
-        state.selectedFrameRef = undefined;
-      } else if (hit && hit.kind === 'cluster') {
+      // hit.kind is 'concept' | 'cluster' | null. Cluster IDs are also
+      // concept IDs in the view-model (clusters are themselves concepts),
+      // so both kinds resolve through the same selection slot. v1.5 may
+      // diverge — e.g., cluster click could fly the camera to the region
+      // instead of opening the cluster's concept inspector.
+      if (hit) {
         state.selectedConceptId = hit.id;
         state.selectedFrameRef = undefined;
       } else {
