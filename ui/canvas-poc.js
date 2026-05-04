@@ -28,42 +28,112 @@ const CLUSTER_COLORS = {
   'wisdom-response':                '#7da0ad',
 };
 
-const meta = document.getElementById('meta'); // null in parity layout (no #meta element)
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
 
+// ---------------------------------------------------------------------------
+// Single source of truth
+// ---------------------------------------------------------------------------
+
+const state = {
+  document: undefined,
+  viewModel: undefined,
+  layout: undefined,
+  graphRenderState: undefined,
+  selectedConceptId: undefined,
+  selectedFrameRef: undefined,
+  playheadTime: 0,
+  activeLevel: 'macro',
+  isPlaying: false,
+  camera: { zoom: 1, pan: { x: 0, y: 0 } },
+  drawScheduled: false,
+};
+
+// ---------------------------------------------------------------------------
+// Bootstrap
+// ---------------------------------------------------------------------------
+
 bootstrap().catch((error) => {
   console.error(error);
-  if (meta) meta.textContent = `error: ${error.message || error}`;
 });
 
 async function bootstrap() {
   const response = await fetch(DOC_PATH);
   if (!response.ok) throw new Error(`HTTP ${response.status} loading ${DOC_PATH}`);
-  const document = await response.json();
-  const vm = buildMindgraphViewModel(document);
-  const layout = computeLayout(vm);
-
-  const placedClusters = layout.clusters.filter((c) => PROTOTYPE_CLUSTER_LAYOUT[c.id]).length;
-  const totalClusters = layout.clusters.length;
-  const placedNodes = Object.keys(layout.nodes).length;
-  const totalNodes = vm.graph.nodes.length;
-
-  if (meta) {
-    meta.textContent =
-      `${vm.documentMeta.title} — ` +
-      `clusters ${placedClusters}/${totalClusters} placed, ` +
-      `nodes ${placedNodes}/${totalNodes} positioned, ` +
-      `edges ${vm.graph.edges.length}`;
-  }
-
+  state.document = await response.json();
+  state.viewModel = buildMindgraphViewModel(state.document);
+  state.layout = computeLayout(state.viewModel);
+  state.playheadTime =
+    state.viewModel.frames.macro[0]?.span.start ??
+    state.viewModel.frames.meso[0]?.span.start ??
+    0;
   applyDpr();
-  draw(vm, layout);
+  render();
 
   console.info('mindgraph canvas POC ready', {
-    clusters: layout.clusters.map((c) => ({ id: c.id, label: c.label, hasAnchor: !!PROTOTYPE_CLUSTER_LAYOUT[c.id] })),
+    clusters: state.layout.clusters.map((c) => ({ id: c.id, label: c.label, hasAnchor: !!PROTOTYPE_CLUSTER_LAYOUT[c.id] })),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Render orchestrator
+// ---------------------------------------------------------------------------
+
+function render() {
+  if (!state.viewModel) return;
+  state.graphRenderState = computeGraphRenderState();
+  updateTopbar();
+  updateInspectorPanel();
+  updateTimelinePanel();
+  scheduleDraw();
+  bindEvents();
+}
+
+function scheduleDraw() {
+  if (state.drawScheduled) return;
+  state.drawScheduled = true;
+  requestAnimationFrame(() => {
+    state.drawScheduled = false;
+    drawAll();
+  });
+}
+
+function drawAll() {
+  draw(state.viewModel, state.layout);
+}
+
+// ---------------------------------------------------------------------------
+// Sub-render stubs (wired progressively in later tasks)
+// ---------------------------------------------------------------------------
+
+function computeGraphRenderState() {
+  return undefined; // wired in Task 6
+}
+
+function updateTopbar() {
+  const titleEl = document.getElementById('topbar-title');
+  const statusEl = document.getElementById('topbar-status');
+  if (titleEl) titleEl.innerHTML =
+    `<h1>${escapeHtml(state.viewModel.documentMeta.title)}</h1>` +
+    `<p class="muted">${escapeHtml((state.document.transcript?.speakers || []).join(', ') || 'Unknown speaker')} · ${state.viewModel.documentMeta.counts.atomicConcepts} atomic concepts</p>`;
+  if (statusEl) statusEl.textContent = '';
+}
+
+function updateInspectorPanel() {
+  // wired in Task 3
+}
+
+function updateTimelinePanel() {
+  // wired in Task 4
+}
+
+function bindEvents() {
+  // wired progressively in later tasks
+}
+
+// ---------------------------------------------------------------------------
+// Layout
+// ---------------------------------------------------------------------------
 
 function applyDpr() {
   const dpr = window.devicePixelRatio || 1;
@@ -106,6 +176,10 @@ function computeLayout(vm) {
 
   return { clusters, nodes };
 }
+
+// ---------------------------------------------------------------------------
+// Draw
+// ---------------------------------------------------------------------------
 
 function draw(vm, layout) {
   drawBackground();
@@ -218,6 +292,10 @@ function drawAtomicLabels(vm, layout) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
 function wrapLabel(label, maxLines = 2) {
   const words = String(label).split(/\s+/).filter(Boolean);
   if (words.length <= 1) return [String(label)];
@@ -245,4 +323,13 @@ function hexToRgba(hex, alpha) {
   const v = hex.replace('#', '');
   const n = Number.parseInt(v, 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
