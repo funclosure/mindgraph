@@ -73,7 +73,11 @@ async function bootstrap() {
     state.viewModel.frames.meso[0]?.span.start ??
     0;
   applyDpr();
+  fitCameraToLayout();
   render();
+
+  // Dev-only: expose internals for Playwright/devtools verification.
+  window.__poc = { state, render, fitCameraToLayout };
 
   console.info('mindgraph canvas POC ready', {
     clusters: state.layout.clusters.map((c) => ({ id: c.id, label: c.label, hasAnchor: !!PROTOTYPE_CLUSTER_LAYOUT[c.id] })),
@@ -235,12 +239,58 @@ function computeLayout(vm) {
 // ---------------------------------------------------------------------------
 
 function draw(vm, layout, grs) {
+  ctx.save();
+  ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
   drawBackground();
+  ctx.restore();
+
+  ctx.save();
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.translate(state.camera.pan.x, state.camera.pan.y);
+  ctx.scale(state.camera.zoom, state.camera.zoom);
+
   drawClusterBodies(layout, grs);
   drawEdges(vm, layout, grs);
   drawAtomicNodes(vm, layout, grs);
   drawClusterLabels(layout, grs);
   drawAtomicLabels(vm, layout, grs);
+
+  ctx.restore();
+}
+
+function screenToWorld(point) {
+  return {
+    x: (point.x - state.camera.pan.x) / state.camera.zoom,
+    y: (point.y - state.camera.pan.y) / state.camera.zoom,
+  };
+}
+
+function worldToScreen(point) {
+  return {
+    x: point.x * state.camera.zoom + state.camera.pan.x,
+    y: point.y * state.camera.zoom + state.camera.pan.y,
+  };
+}
+
+function fitCameraToLayout(padding = 60) {
+  const clusters = state.layout.clusters;
+  if (!clusters.length) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const c of clusters) {
+    minX = Math.min(minX, c.x - c.radius);
+    minY = Math.min(minY, c.y - c.radius);
+    maxX = Math.max(maxX, c.x + c.radius);
+    maxY = Math.max(maxY, c.y + c.radius);
+  }
+  const worldW = maxX - minX;
+  const worldH = maxY - minY;
+  const screenW = CANVAS_W - padding * 2;
+  const screenH = CANVAS_H - padding * 2;
+  const zoom = Math.min(screenW / worldW, screenH / worldH);
+  state.camera.zoom = zoom;
+  state.camera.pan.x = padding - minX * zoom + (screenW - worldW * zoom) / 2;
+  state.camera.pan.y = padding - minY * zoom + (screenH - worldH * zoom) / 2;
 }
 
 function drawBackground() {
