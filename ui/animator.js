@@ -17,6 +17,7 @@ function easeOutCubic(t) {
 
 const BLOOM_DURATION_MS = 600;
 const FADE_DURATION_MS = 200;
+const CAMERA_TIME_CONSTANT_S = 0.23; // ~700ms full convergence
 
 export function createAnimator() {
   const entityStates = new Map(); // id -> { opacity, scale, blooming, fading, animStart }
@@ -127,9 +128,28 @@ export function createAnimator() {
       }
     }
 
-    // Camera (lerp comes in Task 7 — leave a placeholder spot here).
-    if (cameraTarget && cameraMode === 'auto') {
-      // No-op for now; camera lerp added in Task 7.
+    if (cameraTarget && (cameraMode === 'auto' || cameraMode === 'selection')) {
+      // Convert target into screen-space pan+zoom for comparison.
+      const targetZoom = cameraTarget.zoom;
+      const targetPanX = (opts.viewport?.width ?? 0) / 2 - cameraTarget.cx * targetZoom;
+      const targetPanY = (opts.viewport?.height ?? 0) / 2 - cameraTarget.cy * targetZoom;
+
+      // Exponential damping: live = live + (target - live) * (1 - exp(-dt/τ))
+      const factor = 1 - Math.exp(-(opts.dt ?? 0) / CAMERA_TIME_CONSTANT_S);
+      camera.zoom += (targetZoom - camera.zoom) * factor;
+      camera.pan.x += (targetPanX - camera.pan.x) * factor;
+      camera.pan.y += (targetPanY - camera.pan.y) * factor;
+
+      // Settle check: if very close, snap and treat as not animating; otherwise mark active.
+      const dz = Math.abs(targetZoom - camera.zoom);
+      const dx = Math.abs(targetPanX - camera.pan.x);
+      const dy = Math.abs(targetPanY - camera.pan.y);
+      if (dz > 0.0005 || dx > 0.5 || dy > 0.5) stillAnimating = true;
+      else {
+        camera.zoom = targetZoom;
+        camera.pan.x = targetPanX;
+        camera.pan.y = targetPanY;
+      }
     }
 
     return stillAnimating;

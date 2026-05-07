@@ -108,6 +108,7 @@ function kickAnimationLoop() {
       cameraTarget: state.graphRenderState?.cameraTarget,
       cameraMode: state.cameraMode,
       camera: state.camera,
+      viewport: state.viewport,
       activeLevel: state.activeLevel,
       dt,
     });
