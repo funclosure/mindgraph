@@ -4,6 +4,7 @@
 
 import { screenToWorld, zoomAround, zoomAroundCenter, fitCameraToLayout } from './camera.js';
 import { hitTestAt } from './hit-test.js';
+import { startDrift, stopDrift, isDriftActive } from './drift.js';
 
 function scrollProseToChapter(macroIndex) {
   const container = document.getElementById('prose-overlay');
@@ -34,6 +35,22 @@ function cssEscape(s) {
   // Defensive escape for selectors. Modern browsers have CSS.escape; fall back.
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(s);
   return String(s).replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch.charCodeAt(0).toString(16)} `);
+}
+
+function updateDriftButton(on) {
+  const btn = document.querySelector('[data-action="toggle-drift"]');
+  if (!btn) return;
+  btn.classList.toggle('is-on', on);
+}
+
+function computePixelsPerSecond(container, vm) {
+  // Pixels-per-second so the prose advances at speech rate. For timed
+  // sources we use the document duration. For untimed sources the
+  // producer's wordsPerMinute (default 150) yields synthetic spans whose
+  // total still equals durationSeconds — same formula works.
+  const totalSec = Math.max(1, vm.documentMeta.durationSeconds);
+  const totalPx = Math.max(1, container.scrollHeight - container.clientHeight);
+  return totalPx / totalSec;
 }
 
 // bindEvents is called every render because innerHTML replaces DOM nodes and
@@ -101,6 +118,25 @@ export function bindEvents(state, render, scheduleDraw) {
       // will then re-confirm the playhead from the centered paragraph.
       scrollProseToChapter(idx);
       render();
+    });
+  });
+
+  document.querySelectorAll('[data-action="toggle-drift"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const container = document.getElementById('prose-overlay');
+      if (!container) return;
+      if (isDriftActive()) {
+        stopDrift();
+        updateDriftButton(false);
+        return;
+      }
+      const pps = computePixelsPerSecond(container, state.viewModel);
+      startDrift({
+        container,
+        pixelsPerSecond: pps,
+        onCancel: () => updateDriftButton(false),
+      });
+      updateDriftButton(true);
     });
   });
 

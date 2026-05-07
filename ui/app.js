@@ -173,7 +173,11 @@ function updateTopbar() {
 function updateProsePanel() {
   const el = document.getElementById('prose-overlay');
   if (!el) return;
+  // Preserve scroll position across innerHTML replacement so that drift
+  // auto-scroll and any in-flight smooth scrolls are not reset each render.
+  const savedScrollTop = el.scrollTop;
   el.innerHTML = renderProse(state.proseChunks ?? [], state);
+  if (savedScrollTop > 0) el.scrollTop = savedScrollTop;
 }
 
 function updateChapterStrip() {
