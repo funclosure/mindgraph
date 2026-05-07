@@ -15,7 +15,9 @@ function scrollProseToChapter(macroIndex) {
   const containerRect = container.getBoundingClientRect();
   const headingRect = heading.getBoundingClientRect();
   const offset = headingRect.top - (containerRect.top + 24); // leave 24 px from top edge
-  container.scrollBy({ top: offset, left: 0, behavior: 'smooth' });
+  // Instant assignment so the subsequent render()'s save/restore picks up the
+  // new position rather than cancelling an in-flight smooth-scroll animation.
+  container.scrollTop = container.scrollTop + offset;
 }
 
 function scrollProseToConcept(conceptId) {
