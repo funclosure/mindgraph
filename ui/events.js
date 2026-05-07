@@ -2,7 +2,7 @@
 // Events — bindEvents, playback controls, toolbar + canvas interactions
 // ---------------------------------------------------------------------------
 
-import { screenToWorld, zoomAround, zoomAroundCenter, fitCameraToLayout } from './camera.js';
+import { screenToWorld, zoomAround } from './camera.js';
 import { hitTestAt } from './hit-test.js';
 import { startDrift, stopDrift, isDriftActive } from './drift.js';
 
@@ -60,16 +60,12 @@ function computePixelsPerSecond(container, vm) {
 // render     — full re-render (state → DOM + canvas)
 // scheduleDraw — rAF-gated canvas-only redraw (for hot drag path)
 export function bindEvents(state, render, scheduleDraw) {
-  const range = document.querySelector('[data-action="scrub-playhead"]');
-  if (range) {
-    range.addEventListener('input', (e) => {
-      state.playheadTime = Number(e.target.value);
+  document.querySelectorAll('[data-action="toggle-view-popover"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.viewPopoverOpen = !state.viewPopoverOpen;
       render();
     });
-  }
-  document.querySelector('[data-action="toggle-play"]')?.addEventListener('click', () => togglePlayback(state, render));
-  document.querySelector('[data-action="step-back"]')?.addEventListener('click', () => stepFrame(state, render, -1));
-  document.querySelector('[data-action="step-forward"]')?.addEventListener('click', () => stepFrame(state, render, 1));
+  });
   document.querySelectorAll('[data-action="set-level"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.activeLevel = btn.dataset.level;
@@ -139,32 +135,6 @@ export function bindEvents(state, render, scheduleDraw) {
       updateDriftButton(true);
     });
   });
-
-  // Toolbar camera buttons — static DOM, bind once only.
-  const toolbar = document.querySelector('.graph-toolbar');
-  if (toolbar && !toolbar.dataset.boundCameraEvents) {
-    toolbar.dataset.boundCameraEvents = '1';
-    document.querySelector('[data-action="zoom-in"]')?.addEventListener('click', () => {
-      zoomAroundCenter(state.camera, state.viewport, 1.2);
-      render();
-    });
-    document.querySelector('[data-action="zoom-out"]')?.addEventListener('click', () => {
-      zoomAroundCenter(state.camera, state.viewport, 1 / 1.2);
-      render();
-    });
-    document.querySelector('[data-action="fit"]')?.addEventListener('click', () => {
-      // Fit is a one-shot manual override — let the user inspect the whole layout.
-      state.cameraMode = 'manual';
-      fitCameraToLayout(state.camera, state.layout, state.viewport);
-      render();
-    });
-    document.querySelector('[data-action="reset-camera"]')?.addEventListener('click', () => {
-      state.selectedConceptId = undefined;
-      state.selectedFrameRef = undefined;
-      state.cameraMode = 'auto';
-      render();
-    });
-  }
 
   // Canvas wheel + drag — bind once only.
   const canvasEl = document.getElementById('stage');
@@ -255,47 +225,4 @@ export function bindEvents(state, render, scheduleDraw) {
       render();
     });
   }
-}
-
-export function togglePlayback(state, render) {
-  if (state.isPlaying) stopPlayback(state, render);
-  else startPlayback(state, render);
-}
-
-export function startPlayback(state, render) {
-  if (state.cameraMode === 'manual') state.cameraMode = 'auto';
-  if (state.isPlaying) return;
-  const duration = state.viewModel.documentMeta.durationSeconds;
-  if (state.playheadTime >= duration) state.playheadTime = 0;
-  state.isPlaying = true;
-  let lastT = performance.now();
-  const tick = (now) => {
-    if (!state.isPlaying) return;
-    const dt = Math.min(0.5, (now - lastT) / 1000);
-    lastT = now;
-    state.playheadTime = Math.min(state.playheadTime + dt, duration);
-    if (state.playheadTime >= duration) state.isPlaying = false;
-    render();
-    if (state.isPlaying) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-  render();
-}
-
-export function stopPlayback(state, render) {
-  if (!state.isPlaying) return;
-  state.isPlaying = false;
-  render();
-}
-
-export function stepFrame(state, render, direction) {
-  const frames = state.viewModel.frames[state.activeLevel];
-  if (!frames || !frames.length) return;
-  const current = state.viewModel.selectors.getActiveFrameAtTime(state.activeLevel, state.playheadTime);
-  const currentIndex = current ? current.ref.index : 0;
-  const nextIndex = Math.max(0, Math.min(frames.length - 1, currentIndex + direction));
-  const next = frames[nextIndex];
-  if (!next) return;
-  state.playheadTime = next.span.start;
-  render();
 }

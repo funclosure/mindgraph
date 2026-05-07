@@ -10,7 +10,8 @@ import { createAnimator } from './animator.js';
 import { buildProseChunks } from '../src/view-model/buildProseChunks.js';
 import { renderProse } from './panels/prose.js';
 import { renderChapterStrip } from './panels/chapter-strip.js';
-import { escapeHtml, formatTime } from './util.js';
+import { renderTopbar } from './panels/topbar.js';
+import { renderViewPopover } from './panels/view-popover.js';
 import { attachScrollBinding } from './scroll-binding.js';
 
 const DOC_PATH = '../examples/out/episode-1-built.mindgraph.json';
@@ -32,6 +33,7 @@ const state = {
   playheadTime: 0,
   activeLevel: 'macro',
   isPlaying: false,
+  viewPopoverOpen: false,
   camera: { zoom: 1, pan: { x: 0, y: 0 } },
   viewport: { width: 0, height: 0 },
   cameraMode: 'auto',
@@ -67,9 +69,6 @@ async function bootstrap() {
   state.animator = createAnimator();
   render();
 
-  // Temporary debug hook (removed in Task 9) to test playhead-driven concept emphasis.
-  window.__mindgraph_set_playhead = (t) => { state.playheadTime = t; render(); };
-
   // Re-apply DPR + redraw on viewport / display changes so the canvas
   // stays sharp on resize and across displays with different DPR.
   let resizeQueued = false;
@@ -79,7 +78,7 @@ async function bootstrap() {
     requestAnimationFrame(() => {
       resizeQueued = false;
       state.viewport = applyDpr(canvas, ctx);
-      scheduleDraw();
+      kickAnimationLoop();
     });
   });
 
@@ -137,13 +136,6 @@ function kickAnimationLoop() {
   requestAnimationFrame(tick);
 }
 
-// Backwards-compat shim during transition: any callsite that still calls
-// scheduleDraw() should now kick the animation loop. After all callsites
-// are updated to call render() (which kicks the loop), this can be removed.
-function scheduleDraw() {
-  kickAnimationLoop();
-}
-
 // ---------------------------------------------------------------------------
 // Panel updaters
 // ---------------------------------------------------------------------------
@@ -163,11 +155,7 @@ function computeGraphRenderState() {
 function updateTopbar() {
   const el = document.getElementById('topbar-overlay');
   if (!el) return;
-  const vm = state.viewModel;
-  const speakers = (state.document.transcript?.speakers ?? []).join(', ') || 'Unknown speaker';
-  el.innerHTML =
-    `<div><h1>${escapeHtml(vm.documentMeta.title)}</h1></div>` +
-    `<div class="meta">${escapeHtml(speakers)} · ${formatTime(vm.documentMeta.durationSeconds)}</div>`;
+  el.innerHTML = renderTopbar(state.viewModel, state.document);
 }
 
 function updateProsePanel() {
@@ -187,7 +175,7 @@ function updateChapterStrip() {
 }
 
 function updateViewPopover() {
-  // Filled in by Task 9.
   const el = document.getElementById('view-popover-overlay');
-  if (el && !el.dataset.viewPopoverBound) el.innerHTML = '';
+  if (!el) return;
+  el.innerHTML = renderViewPopover(state);
 }

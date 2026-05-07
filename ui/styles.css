@@ -155,6 +155,48 @@ button { cursor: pointer; color: inherit; }
   top: 60px;
   right: calc(14px + min(620px, 44vw) + 8px);
   /* Anchor to the left edge of the prose panel; will be repositioned later if prose is collapsed. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+}
+.view-popover__toggle {
+  background: var(--panel-thin);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  color: rgba(245, 234, 210, 0.85);
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.92rem;
+}
+.view-popover__panel {
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  min-width: 220px;
+}
+.view-popover__row { display: flex; flex-direction: column; gap: 6px; }
+.view-popover__label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.view-popover__levels { display: inline-flex; gap: 4px; }
+.vp-level {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 234, 210, 0.85);
+}
+.vp-level.is-active {
+  background: rgba(214, 176, 109, 0.18);
+  border-color: rgba(214, 176, 109, 0.42);
 }
 
 .chapter-strip__label {
