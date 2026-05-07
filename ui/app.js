@@ -35,8 +35,6 @@ const state = {
   isPlaying: false,
   viewPopoverOpen: false,
   prosCollapsed: false,
-  topbarCollapsed: false,
-  chapterStripCollapsed: false,
   camera: { zoom: 1, pan: { x: 0, y: 0 } },
   viewport: { width: 0, height: 0 },
   cameraMode: 'auto',
@@ -173,15 +171,9 @@ function updateProsePanel() {
 }
 
 function updateChapterStrip() {
-  const el = document.getElementById('chapter-strip-overlay');
+  const el = document.getElementById('chapter-strip');
   if (!el) return;
-  if (state.chapterStripCollapsed) {
-    el.innerHTML = `<button type="button" class="chapter-strip__restore" data-action="toggle-chapter-strip" title="Show chapters">●</button>`;
-    el.classList.add('overlay--chapter-strip-collapsed');
-  } else {
-    el.innerHTML = renderChapterStrip(state.viewModel, state);
-    el.classList.remove('overlay--chapter-strip-collapsed');
-  }
+  el.innerHTML = renderChapterStrip(state.viewModel, state);
 }
 
 function updateViewPopover() {

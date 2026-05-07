@@ -39,12 +39,6 @@ function cssEscape(s) {
   return String(s).replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch.charCodeAt(0).toString(16)} `);
 }
 
-function updateDriftButton(on) {
-  const btn = document.querySelector('[data-action="toggle-drift"]');
-  if (!btn) return;
-  btn.classList.toggle('is-on', on);
-}
-
 function computePixelsPerSecond(container, vm) {
   // Pixels-per-second so the prose advances at speech rate. For timed
   // sources we use the document duration. For untimed sources the
@@ -92,19 +86,6 @@ export function bindEvents(state, render, scheduleDraw) {
     });
   });
 
-  document.querySelectorAll('[data-action="toggle-topbar"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.topbarCollapsed = !state.topbarCollapsed;
-      render();
-    });
-  });
-
-  document.querySelectorAll('[data-action="toggle-chapter-strip"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.chapterStripCollapsed = !state.chapterStripCollapsed;
-      render();
-    });
-  });
   document.querySelectorAll('[data-action="set-level"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.activeLevel = btn.dataset.level;
@@ -158,20 +139,20 @@ export function bindEvents(state, render, scheduleDraw) {
 
   document.querySelectorAll('[data-action="toggle-drift"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const container = document.getElementById('prose-overlay');
+      const container = document.getElementById('prose');
       if (!container) return;
       if (isDriftActive()) {
         stopDrift();
-        updateDriftButton(false);
+        render();
         return;
       }
       const pps = computePixelsPerSecond(container, state.viewModel);
       startDrift({
         container,
         pixelsPerSecond: pps,
-        onCancel: () => updateDriftButton(false),
+        onCancel: () => render(),
       });
-      updateDriftButton(true);
+      render();
     });
   });
 
