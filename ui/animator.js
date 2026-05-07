@@ -16,6 +16,7 @@ function easeOutCubic(t) {
 }
 
 const BLOOM_DURATION_MS = 600;
+const FADE_DURATION_MS = 200;
 
 export function createAnimator() {
   const entityStates = new Map(); // id -> { opacity, scale, blooming, fading, animStart }
@@ -39,6 +40,15 @@ export function createAnimator() {
     s.animStart = now;
     s.opacity = 0;
     s.scale = 1.6;
+  }
+
+  function startFade(id, now) {
+    const s = getEntityState(id);
+    if (s.opacity <= 0.001) return; // already invisible
+    s.fading = true;
+    s.blooming = false;
+    s.animStart = now;
+    s.scale = 1;
   }
 
   function step(now, opts) {
@@ -80,6 +90,11 @@ export function createAnimator() {
       for (const id of conceptSet) if (!prevConceptSet.has(id)) startBloom(id, now);
       for (const id of clusterSet) if (!prevClusterSet.has(id)) startBloom(id, now);
       for (const id of edgeSet) if (!prevEdgeSet.has(id)) startBloom(id, now);
+
+      // Newly leaving ids → schedule a fade.
+      for (const id of prevConceptSet) if (!conceptSet.has(id)) startFade(id, now);
+      for (const id of prevClusterSet) if (!clusterSet.has(id)) startFade(id, now);
+      for (const id of prevEdgeSet) if (!edgeSet.has(id)) startFade(id, now);
     }
     prevConceptSet = conceptSet;
     prevClusterSet = clusterSet;
@@ -98,6 +113,15 @@ export function createAnimator() {
           const e = easeOutCubic(t);
           s.opacity = e;
           s.scale = 1.6 - 0.6 * e;
+          stillAnimating = true;
+        }
+      } else if (s.fading) {
+        const t = (now - s.animStart) * 1000 / FADE_DURATION_MS;
+        if (t >= 1) {
+          s.opacity = 0;
+          s.fading = false;
+        } else {
+          s.opacity = 1 - t;
           stillAnimating = true;
         }
       }
