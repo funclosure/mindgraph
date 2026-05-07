@@ -71,10 +71,12 @@ async function bootstrap() {
   render();
   document.querySelector('.app').dataset.proseCollapsed = String(state.prosCollapsed);
 
-  // Re-apply DPR + redraw on viewport / display changes so the canvas
-  // stays sharp on resize and across displays with different DPR.
+  // Re-apply DPR + redraw whenever the canvas's box changes — window
+  // resize, prose toggle, future drag-resize, all unified through one
+  // ResizeObserver. rAF-coalesced so back-to-back layout shifts produce
+  // a single re-fit.
   let resizeQueued = false;
-  window.addEventListener('resize', () => {
+  const onCanvasResize = () => {
     if (resizeQueued) return;
     resizeQueued = true;
     requestAnimationFrame(() => {
@@ -82,7 +84,9 @@ async function bootstrap() {
       state.viewport = applyDpr(canvas, ctx);
       kickAnimationLoop();
     });
-  });
+  };
+  const ro = new ResizeObserver(onCanvasResize);
+  ro.observe(canvas);
 
   attachScrollBinding({
     container: document.getElementById('prose'),
