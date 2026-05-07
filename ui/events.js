@@ -5,6 +5,18 @@
 import { screenToWorld, zoomAround, zoomAroundCenter, fitCameraToLayout } from './camera.js';
 import { hitTestAt } from './hit-test.js';
 
+function scrollProseToChapter(macroIndex) {
+  const container = document.getElementById('prose-overlay');
+  if (!container) return;
+  const headings = container.querySelectorAll('.prose-chapter');
+  const heading = headings[macroIndex];
+  if (!heading) return;
+  const containerRect = container.getBoundingClientRect();
+  const headingRect = heading.getBoundingClientRect();
+  const offset = headingRect.top - (containerRect.top + 24); // leave 24 px from top edge
+  container.scrollBy({ top: offset, left: 0, behavior: 'smooth' });
+}
+
 function scrollProseToConcept(conceptId) {
   if (!conceptId) return;
   const container = document.getElementById('prose-overlay');
@@ -72,6 +84,22 @@ export function bindEvents(state, render, scheduleDraw) {
       state.selectedConceptId = conceptId;
       state.selectedFrameRef = undefined;
       state.cameraMode = 'selection';
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-action="jump-chapter"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.macroIndex);
+      const frame = state.viewModel.frames.macro?.[idx];
+      if (!frame) return;
+      state.playheadTime = frame.span.start;
+      state.selectedFrameRef = { level: 'macro', index: idx };
+      state.selectedConceptId = undefined;
+      state.cameraMode = 'selection';
+      // Smooth-scroll the prose to the chapter heading. The scroll-binding
+      // will then re-confirm the playhead from the centered paragraph.
+      scrollProseToChapter(idx);
       render();
     });
   });

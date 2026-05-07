@@ -9,6 +9,7 @@ import { bindEvents } from './events.js';
 import { createAnimator } from './animator.js';
 import { buildProseChunks } from '../src/view-model/buildProseChunks.js';
 import { renderProse } from './panels/prose.js';
+import { renderChapterStrip } from './panels/chapter-strip.js';
 import { escapeHtml, formatTime } from './util.js';
 import { attachScrollBinding } from './scroll-binding.js';
 
@@ -176,9 +177,9 @@ function updateProsePanel() {
 }
 
 function updateChapterStrip() {
-  // Filled in by Task 7. Leave the overlay empty for now.
   const el = document.getElementById('chapter-strip-overlay');
-  if (el && !el.dataset.chapterStripBound) el.innerHTML = '';
+  if (!el) return;
+  el.innerHTML = renderChapterStrip(state.viewModel, state);
 }
 
 function updateViewPopover() {

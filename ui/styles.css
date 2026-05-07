@@ -156,3 +156,46 @@ button { cursor: pointer; color: inherit; }
   right: calc(14px + min(620px, 44vw) + 8px);
   /* Anchor to the left edge of the prose panel; will be repositioned later if prose is collapsed. */
 }
+
+.chapter-strip__label {
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.chapter-strip__track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.chapter-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(184, 148, 97, 0.32);
+  border: none;
+  border-right: 1px solid rgba(0, 0, 0, 0.32);
+  padding: 0;
+  transition: background-color 120ms ease;
+}
+.chapter-seg:last-child { border-right: none; }
+.chapter-seg:hover { background: rgba(214, 176, 109, 0.55); }
+.chapter-seg--active { background: rgba(231, 203, 141, 0.85); box-shadow: 0 0 12px rgba(231, 203, 141, 0.4); }
+.chapter-strip__drift {
+  background: rgba(184, 148, 97, 0.12);
+  border: 1px solid rgba(184, 148, 97, 0.32);
+  color: var(--gold-bright);
+  width: 28px;
+  height: 24px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+}
+.chapter-strip__drift.is-on {
+  background: rgba(244, 207, 134, 0.28);
+  border-color: rgba(244, 207, 134, 0.68);
+}
