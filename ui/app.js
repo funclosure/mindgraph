@@ -56,11 +56,12 @@ async function bootstrap() {
     state.viewModel.frames.meso[0]?.span.start ??
     0;
   state.viewport = applyDpr(canvas, ctx);
+  // Initial fit uses the layout-fitter as a sensible start; the animator
+  // will then lerp from there to the cameraTarget on the next frame.
   fitCameraToLayout(state.camera, state.layout, state.viewport);
+  state.cameraMode = 'auto';
   state.animator = createAnimator();
   render();
-
-  window.__mindgraph = { state };
 
   // Re-apply DPR + redraw on viewport / display changes so the canvas
   // stays sharp on resize and across displays with different DPR.
