@@ -14,7 +14,10 @@ import { renderTopbar } from './panels/topbar.js';
 import { renderViewPopover } from './panels/view-popover.js';
 import { attachScrollBinding } from './scroll-binding.js';
 
-const DOC_PATH = '../examples/out/episode-1-built.mindgraph.json';
+// The dev server (src/ui/dev-server.js) serves whichever mindgraph
+// document was passed via its --doc flag — or the canonical sample by
+// default — at /doc.json. The UI doesn't need to know the path on disk.
+const DOC_PATH = '/doc.json';
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');

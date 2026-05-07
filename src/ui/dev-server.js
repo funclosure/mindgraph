@@ -8,8 +8,25 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../..');
+
+// CLI args: --doc <path>, --port <n>, --host <h>. All optional.
+const cliArgs = process.argv.slice(2);
+let docPathFlag;
+for (let i = 0; i < cliArgs.length; i += 1) {
+  const next = cliArgs[i + 1];
+  if (cliArgs[i] === '--doc' && next) { docPathFlag = path.resolve(next); i += 1; }
+  else if (cliArgs[i] === '--port' && next) { process.env.PORT = next; i += 1; }
+  else if (cliArgs[i] === '--host' && next) { process.env.HOST = next; i += 1; }
+}
+
 const host = process.env.HOST || '127.0.0.1';
 const port = Number(process.env.PORT || 4173);
+
+// The document the UI fetches at /doc.json. Either the --doc flag's target,
+// or the canonical sample inside the repo. The UI calls fetch('/doc.json')
+// regardless of source.
+const docPath = docPathFlag
+  || path.join(projectRoot, 'examples/out/episode-1-built.mindgraph.json');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -24,8 +41,26 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || `${host}:${port}`}`);
   const pathname = url.pathname === '/' ? '/ui/index.html' : decodeURIComponent(url.pathname);
-  const resolvedPath = path.resolve(projectRoot, `.${pathname}`);
 
+  // /doc.json — serve the configured document, regardless of where it lives.
+  if (pathname === '/doc.json') {
+    fs.stat(docPath, (statError, stats) => {
+      if (statError || !stats.isFile()) {
+        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+        res.end(`Document not found: ${docPath}`);
+        return;
+      }
+      res.writeHead(200, {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+      });
+      fs.createReadStream(docPath).pipe(res);
+    });
+    return;
+  }
+
+  // Everything else: static files inside the project root.
+  const resolvedPath = path.resolve(projectRoot, `.${pathname}`);
   if (!resolvedPath.startsWith(projectRoot)) {
     res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('Forbidden');
@@ -50,4 +85,5 @@ const server = http.createServer((req, res) => {
 
 server.listen(port, host, () => {
   console.log(`mindgraph UI shell available at http://${host}:${port}`);
+  console.log(`document: ${docPath}`);
 });
