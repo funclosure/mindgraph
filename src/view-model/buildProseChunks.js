@@ -17,6 +17,7 @@
  */
 
 const PARAGRAPH_WORD_TARGET = 150;
+const PARAGRAPH_WORD_HARD_CEILING = 220;
 
 export function buildProseChunks(vm) {
   const macro = vm.frames?.macro ?? [];
@@ -68,9 +69,14 @@ export function buildProseChunks(vm) {
     para.segmentIds.push(seg.id);
     para.text = (para.text ? para.text + ' ' : '') + (seg.text || '').trim();
 
-    // Length-based break: if running paragraph has accumulated ~150 words AND
-    // the segment ends with a sentence terminator, close the paragraph.
-    if (countWords(para.text) >= PARAGRAPH_WORD_TARGET && /[.!?]\s*$/.test(para.text)) {
+    // Length-based break: at the target (~150 words) we look for a sentence
+    // terminator; without one (machine transcripts often lack punctuation),
+    // we still force a break once we exceed PARAGRAPH_WORD_HARD_CEILING.
+    const words = countWords(para.text);
+    if (
+      (words >= PARAGRAPH_WORD_TARGET && /[.!?]\s*$/.test(para.text))
+      || words >= PARAGRAPH_WORD_HARD_CEILING
+    ) {
       chunks.push(finalizeParagraph(para, vm));
       para = newParagraph();
     }
