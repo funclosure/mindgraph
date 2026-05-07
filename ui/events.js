@@ -2,9 +2,20 @@
 // Events — bindEvents, playback controls, toolbar + canvas interactions
 // ---------------------------------------------------------------------------
 
-import { screenToWorld, zoomAround } from './camera.js';
+import { screenToWorld, zoomAround, applyDpr } from './camera.js';
 import { hitTestAt } from './hit-test.js';
 import { startDrift, stopDrift, isDriftActive } from './drift.js';
+
+function resizeCanvasNow(state) {
+  // Synchronously match the canvas's pixel buffer to its CSS box.
+  // Used after layout shifts (e.g. prose collapse) so the canvas
+  // doesn't blink stretched pixels for a frame before ResizeObserver
+  // catches up.
+  const canvas = document.getElementById('stage');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  state.viewport = applyDpr(canvas, ctx);
+}
 
 function scrollProseToChapter(macroIndex) {
   const container = document.getElementById('prose');
@@ -82,6 +93,11 @@ export function bindEvents(state, render, scheduleDraw) {
       state.prosCollapsed = !state.prosCollapsed;
       const app = document.querySelector('.app');
       if (app) app.dataset.proseCollapsed = String(state.prosCollapsed);
+      // Resize canvas synchronously before paint so the new layout's
+      // first frame already has the right pixel buffer (no stretch blink).
+      // Reading getBoundingClientRect inside applyDpr forces layout, which
+      // is what we want here — we need the post-toggle box dimensions.
+      resizeCanvasNow(state);
       render();
     });
   });
