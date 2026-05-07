@@ -65,6 +65,9 @@ async function bootstrap() {
   state.animator = createAnimator();
   render();
 
+  // Temporary debug hook (removed in Task 9) to test playhead-driven concept emphasis.
+  window.__mindgraph_set_playhead = (t) => { state.playheadTime = t; render(); };
+
   // Re-apply DPR + redraw on viewport / display changes so the canvas
   // stays sharp on resize and across displays with different DPR.
   let resizeQueued = false;
