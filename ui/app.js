@@ -6,6 +6,7 @@ import { computeLayout } from './layout.js';
 import { applyDpr, fitCameraToLayout } from './camera.js';
 import { draw } from './draw.js';
 import { bindEvents } from './events.js';
+import { createAnimator } from './animator.js';
 import { renderTimeline } from './panels/timeline.js';
 import { renderInspector } from './panels/inspector.js';
 import { escapeHtml, formatTime } from './util.js';
@@ -31,7 +32,9 @@ const state = {
   isPlaying: false,
   camera: { zoom: 1, pan: { x: 0, y: 0 } },
   viewport: { width: 0, height: 0 },
-  drawScheduled: false,
+  cameraMode: 'auto',
+  animator: undefined,
+  animationLoopActive: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -54,6 +57,7 @@ async function bootstrap() {
     0;
   state.viewport = applyDpr(canvas, ctx);
   fitCameraToLayout(state.camera, state.layout, state.viewport);
+  state.animator = createAnimator();
   render();
 
   window.__mindgraph = { state };
@@ -86,21 +90,42 @@ function render() {
   updateTopbar();
   updateInspectorPanel();
   updateTimelinePanel();
-  scheduleDraw();
-  bindEvents(state, render, scheduleDraw);
+  kickAnimationLoop();
+  bindEvents(state, render, kickAnimationLoop);
 }
 
+function kickAnimationLoop() {
+  if (state.animationLoopActive) return;
+  state.animationLoopActive = true;
+  let lastT = performance.now();
+  function tick(now) {
+    const dt = Math.min(0.1, (now - lastT) / 1000);
+    lastT = now;
+    const stillAnimating = state.animator.step(now / 1000, {
+      cumulativeVisibleConceptIds: state.graphRenderState?.cumulativeVisibleConceptIds ?? [],
+      cumulativeVisibleClusterIds: state.graphRenderState?.cumulativeVisibleClusterIds ?? [],
+      cumulativeVisibleEdgeIds: state.graphRenderState?.cumulativeVisibleEdgeIds ?? [],
+      cameraTarget: state.graphRenderState?.cameraTarget,
+      cameraMode: state.cameraMode,
+      camera: state.camera,
+      activeLevel: state.activeLevel,
+      dt,
+    });
+    draw(ctx, state);
+    if (stillAnimating) {
+      requestAnimationFrame(tick);
+    } else {
+      state.animationLoopActive = false;
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// Backwards-compat shim during transition: any callsite that still calls
+// scheduleDraw() should now kick the animation loop. After all callsites
+// are updated to call render() (which kicks the loop), this can be removed.
 function scheduleDraw() {
-  if (state.drawScheduled) return;
-  state.drawScheduled = true;
-  requestAnimationFrame(() => {
-    state.drawScheduled = false;
-    drawAll();
-  });
-}
-
-function drawAll() {
-  draw(ctx, state);
+  kickAnimationLoop();
 }
 
 // ---------------------------------------------------------------------------
