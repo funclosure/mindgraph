@@ -34,6 +34,9 @@ const state = {
   activeLevel: 'macro',
   isPlaying: false,
   viewPopoverOpen: false,
+  prosCollapsed: false,
+  topbarCollapsed: false,
+  chapterStripCollapsed: false,
   camera: { zoom: 1, pan: { x: 0, y: 0 } },
   viewport: { width: 0, height: 0 },
   cameraMode: 'auto',
@@ -68,6 +71,7 @@ async function bootstrap() {
   state.cameraMode = 'auto';
   state.animator = createAnimator();
   render();
+  document.querySelector('.app').dataset.proseCollapsed = String(state.prosCollapsed);
 
   // Re-apply DPR + redraw on viewport / display changes so the canvas
   // stays sharp on resize and across displays with different DPR.
@@ -155,7 +159,13 @@ function computeGraphRenderState() {
 function updateTopbar() {
   const el = document.getElementById('topbar-overlay');
   if (!el) return;
-  el.innerHTML = renderTopbar(state.viewModel, state.document);
+  if (state.topbarCollapsed) {
+    el.innerHTML = `<button type="button" class="topbar-restore" data-action="toggle-topbar" title="Show topbar">●</button>`;
+    el.classList.add('overlay--topbar-collapsed');
+  } else {
+    el.innerHTML = renderTopbar(state.viewModel, state.document);
+    el.classList.remove('overlay--topbar-collapsed');
+  }
 }
 
 function updateProsePanel() {
@@ -171,7 +181,13 @@ function updateProsePanel() {
 function updateChapterStrip() {
   const el = document.getElementById('chapter-strip-overlay');
   if (!el) return;
-  el.innerHTML = renderChapterStrip(state.viewModel, state);
+  if (state.chapterStripCollapsed) {
+    el.innerHTML = `<button type="button" class="chapter-strip__restore" data-action="toggle-chapter-strip" title="Show chapters">●</button>`;
+    el.classList.add('overlay--chapter-strip-collapsed');
+  } else {
+    el.innerHTML = renderChapterStrip(state.viewModel, state);
+    el.classList.remove('overlay--chapter-strip-collapsed');
+  }
 }
 
 function updateViewPopover() {

@@ -66,6 +66,43 @@ export function bindEvents(state, render, scheduleDraw) {
       render();
     });
   });
+
+  // Prose-handle is a static element in index.html — guard against accumulating
+  // listeners across re-renders with a dataset flag (same pattern as canvas).
+  const proseHandle = document.getElementById('prose-handle');
+  if (proseHandle && !proseHandle.dataset.boundToggle) {
+    proseHandle.dataset.boundToggle = '1';
+    proseHandle.addEventListener('click', () => {
+      state.prosCollapsed = !state.prosCollapsed;
+      const app = document.querySelector('.app');
+      if (app) app.dataset.proseCollapsed = String(state.prosCollapsed);
+      render();
+    });
+  }
+
+  // Prose collapse button — rendered inside the prose panel (fresh each render).
+  document.querySelectorAll('[data-action="toggle-prose"]:not(#prose-handle)').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.prosCollapsed = !state.prosCollapsed;
+      const app = document.querySelector('.app');
+      if (app) app.dataset.proseCollapsed = String(state.prosCollapsed);
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-action="toggle-topbar"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.topbarCollapsed = !state.topbarCollapsed;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-action="toggle-chapter-strip"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.chapterStripCollapsed = !state.chapterStripCollapsed;
+      render();
+    });
+  });
   document.querySelectorAll('[data-action="set-level"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.activeLevel = btn.dataset.level;

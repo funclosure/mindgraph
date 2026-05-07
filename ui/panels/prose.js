@@ -12,7 +12,12 @@ export function renderProse(chunks, state) {
   const activeIds = new Set(state.graphRenderState?.activeNodeIds ?? []);
   const selectedId = state.selectedConceptId;
   const html = chunks.map((chunk) => renderChunk(chunk, activeIds, selectedId)).join('');
-  return `<article class="prose-article">${html}</article>`;
+  return `
+    <header class="prose-header">
+      <button type="button" class="prose-collapse" data-action="toggle-prose" title="Hide reading panel">✕</button>
+    </header>
+    <article class="prose-article">${html}</article>
+  `;
 }
 
 function renderChunk(chunk, activeIds, selectedId) {

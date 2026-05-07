@@ -241,3 +241,94 @@ button { cursor: pointer; color: inherit; }
   background: rgba(244, 207, 134, 0.28);
   border-color: rgba(244, 207, 134, 0.68);
 }
+
+/* ---------------------------------------------------------------------------
+   Collapse affordances — prose handle, prose header, topbar/chapter toggles
+   --------------------------------------------------------------------------- */
+
+.prose-handle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 11;
+  width: 26px;
+  height: 60px;
+  background: var(--panel-thin);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  color: var(--gold);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.app[data-prose-collapsed="true"] .overlay--prose { display: none; }
+.app[data-prose-collapsed="true"] .prose-handle { display: flex; }
+.app[data-prose-collapsed="true"] .overlay--view-popover { right: 14px; }
+
+.prose-header {
+  position: sticky;
+  top: -18px;
+  margin: -18px -24px 8px;
+  padding: 6px 14px;
+  display: flex;
+  justify-content: flex-end;
+  background: linear-gradient(180deg, var(--panel) 0%, transparent 100%);
+}
+.prose-collapse {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.74rem;
+}
+.prose-collapse:hover { color: var(--text); }
+
+.topbar-collapse, .chapter-strip__collapse {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.74rem;
+}
+.overlay--topbar-collapsed {
+  width: 36px;
+  left: auto;
+  right: auto;
+  height: 16px;
+  padding: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+}
+.topbar-restore, .chapter-strip__restore {
+  background: transparent;
+  border: none;
+  color: var(--gold);
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  font-size: 0.7rem;
+}
+.overlay--chapter-strip-collapsed {
+  width: 36px;
+  height: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
+  padding: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+}

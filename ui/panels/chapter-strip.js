@@ -26,5 +26,6 @@ export function renderChapterStrip(vm, state) {
     <div class="chapter-strip__label">chapters</div>
     <div class="chapter-strip__track">${segments}</div>
     <button type="button" class="chapter-strip__drift" data-action="toggle-drift" title="drift forward">▶</button>
+    <button type="button" class="chapter-strip__collapse" data-action="toggle-chapter-strip" title="Hide chapter strip">⌄</button>
   `;
 }
