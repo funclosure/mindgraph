@@ -20,6 +20,31 @@ function normalizeConcept(rawConcept, level) {
   };
 }
 
+function deriveFirstSeenAt(document) {
+  // For each concept id, find the earliest frame.span.start where the
+  // concept appears in foregroundConcepts or backgroundConcepts at any
+  // level. Returns { conceptId: firstSeenAt }.
+  const firstSeen = {};
+  const allFrames = [
+    ...(document.frames?.micro ?? []),
+    ...(document.frames?.meso ?? []),
+    ...(document.frames?.macro ?? []),
+  ];
+  for (const frame of allFrames) {
+    const start = frame.span?.start;
+    if (typeof start !== 'number') continue;
+    for (const list of [frame.foregroundConcepts ?? [], frame.backgroundConcepts ?? []]) {
+      for (const activation of list) {
+        const prev = firstSeen[activation.id];
+        if (prev === undefined || start < prev) {
+          firstSeen[activation.id] = start;
+        }
+      }
+    }
+  }
+  return firstSeen;
+}
+
 function buildTranscriptVM(document) {
   const segments = (document.transcript?.segments ?? []).map((segment) => ({
     id: segment.id,
@@ -37,8 +62,20 @@ function buildTranscriptVM(document) {
 }
 
 function buildConceptsVM(document) {
-  const clustered = (document.concepts?.clustered ?? []).map((concept) => normalizeConcept(concept, 'clustered'));
-  const atomic = (document.concepts?.atomic ?? []).map((concept) => normalizeConcept(concept, 'atomic'));
+  const derivedFirstSeen = deriveFirstSeenAt(document);
+  const applyFirstSeen = (concept) => {
+    if (typeof concept.firstSeenAt === 'number') return concept;
+    const derived = derivedFirstSeen[concept.id];
+    if (typeof derived === 'number') concept.firstSeenAt = derived;
+    return concept;
+  };
+
+  const clustered = (document.concepts?.clustered ?? [])
+    .map((concept) => normalizeConcept(concept, 'clustered'))
+    .map(applyFirstSeen);
+  const atomic = (document.concepts?.atomic ?? [])
+    .map((concept) => normalizeConcept(concept, 'atomic'))
+    .map(applyFirstSeen);
 
   const byId = Object.fromEntries([...clustered, ...atomic].map((concept) => [concept.id, concept]));
   const childrenByClusterId = {};
