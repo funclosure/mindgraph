@@ -8,12 +8,13 @@
   </head>
   <body>
     <div class="app">
-      <canvas id="stage"></canvas>
-      <div class="overlay overlay--topbar" id="topbar-overlay"></div>
-      <button type="button" class="prose-handle" id="prose-handle" data-action="toggle-prose" title="Open reading panel">📖</button>
-      <aside class="overlay overlay--prose" id="prose-overlay"></aside>
-      <div class="overlay overlay--chapter-strip" id="chapter-strip-overlay"></div>
-      <div class="overlay overlay--view-popover" id="view-popover-overlay"></div>
+      <header class="topbar" id="topbar"></header>
+      <div class="graph-cell">
+        <canvas id="stage"></canvas>
+      </div>
+      <div class="strip" id="chapter-strip"></div>
+      <aside class="prose" id="prose"></aside>
+      <div class="view-popover" id="view-popover"></div>
     </div>
     <script type="module" src="/ui/app.js"></script>
   </body>
