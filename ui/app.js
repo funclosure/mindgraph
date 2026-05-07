@@ -7,8 +7,8 @@ import { applyDpr, fitCameraToLayout } from './camera.js';
 import { draw } from './draw.js';
 import { bindEvents } from './events.js';
 import { createAnimator } from './animator.js';
-import { renderTimeline } from './panels/timeline.js';
-import { renderInspector } from './panels/inspector.js';
+import { buildProseChunks } from '../src/view-model/buildProseChunks.js';
+import { renderProse } from './panels/prose.js';
 import { escapeHtml, formatTime } from './util.js';
 
 const DOC_PATH = '../examples/out/episode-1-built.mindgraph.json';
@@ -35,6 +35,7 @@ const state = {
   cameraMode: 'auto',
   animator: undefined,
   animationLoopActive: false,
+  proseChunks: undefined,
 };
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,7 @@ async function bootstrap() {
   if (!response.ok) throw new Error(`HTTP ${response.status} loading ${DOC_PATH}`);
   state.document = await response.json();
   state.viewModel = buildMindgraphViewModel(state.document);
+  state.proseChunks = buildProseChunks(state.viewModel);
   state.layout = computeLayout(state.viewModel);
   state.playheadTime =
     state.viewModel.frames.macro[0]?.span.start ??
@@ -89,8 +91,9 @@ function render() {
   if (!state.viewModel) return;
   state.graphRenderState = computeGraphRenderState();
   updateTopbar();
-  updateInspectorPanel();
-  updateTimelinePanel();
+  updateProsePanel();
+  updateChapterStrip();
+  updateViewPopover();
   kickAnimationLoop();
   bindEvents(state, render, kickAnimationLoop);
 }
@@ -147,45 +150,29 @@ function computeGraphRenderState() {
 }
 
 function updateTopbar() {
-  const titleEl = document.getElementById('topbar-title');
-  const statusEl = document.getElementById('topbar-status');
+  const el = document.getElementById('topbar-overlay');
+  if (!el) return;
   const vm = state.viewModel;
-  if (titleEl) titleEl.innerHTML =
-    `<h1>${escapeHtml(vm.documentMeta.title)}</h1>` +
-    `<p class="muted">${escapeHtml((state.document.transcript?.speakers || []).join(', ') || 'Unknown speaker')} · ${formatTime(vm.documentMeta.durationSeconds)} total · ${vm.documentMeta.counts.atomicConcepts} atomic concepts</p>`;
-  if (statusEl) {
-    const grs = state.graphRenderState;
-    const activeFrame = vm.selectors.getActiveFrameAtTime(state.activeLevel, state.playheadTime);
-    const viewportMode = grs?.viewportMode ?? 'overview';
-    const focusMode = grs?.focusMode ?? 'playhead';
-    let contextLabel;
-    if (state.selectedConceptId) {
-      const concept = vm.concepts.byId?.[state.selectedConceptId];
-      contextLabel = concept ? concept.label : state.selectedConceptId;
-    } else if (state.selectedFrameRef) {
-      contextLabel = `${state.selectedFrameRef.level} ${state.selectedFrameRef.index + 1}`;
-    } else {
-      contextLabel = activeFrame ? `${state.activeLevel} ${activeFrame.ref.index + 1}` : `${state.activeLevel} —`;
-    }
-    const liveOrFrame = state.selectedFrameRef ? 'Frame' : state.selectedConceptId ? 'Concept' : 'Live';
-    statusEl.textContent = `${liveOrFrame} · ${contextLabel} · ${viewportMode} · ${focusMode}`;
-  }
+  const speakers = (state.document.transcript?.speakers ?? []).join(', ') || 'Unknown speaker';
+  el.innerHTML =
+    `<div><h1>${escapeHtml(vm.documentMeta.title)}</h1></div>` +
+    `<div class="meta">${escapeHtml(speakers)} · ${formatTime(vm.documentMeta.durationSeconds)}</div>`;
 }
 
-function updateInspectorPanel() {
-  const el = document.getElementById('inspector-panel');
+function updateProsePanel() {
+  const el = document.getElementById('prose-overlay');
   if (!el) return;
-  el.innerHTML = renderInspector(state.viewModel, state);
+  el.innerHTML = renderProse(state.proseChunks ?? [], state);
 }
 
-function updateTimelinePanel() {
-  const el = document.getElementById('timeline-panel');
-  if (!el) return;
-  const activeFrames = state.viewModel.selectors.getActiveFramesAtTime(state.playheadTime);
-  el.innerHTML = renderTimeline(
-    state.viewModel,
-    activeFrames,
-    state.graphRenderState ?? { viewportMode: 'overview', focusMode: 'none' },
-    state,
-  );
+function updateChapterStrip() {
+  // Filled in by Task 7. Leave the overlay empty for now.
+  const el = document.getElementById('chapter-strip-overlay');
+  if (el && !el.dataset.chapterStripBound) el.innerHTML = '';
+}
+
+function updateViewPopover() {
+  // Filled in by Task 9.
+  const el = document.getElementById('view-popover-overlay');
+  if (el && !el.dataset.viewPopoverBound) el.innerHTML = '';
 }

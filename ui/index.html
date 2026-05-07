@@ -7,30 +7,12 @@
     <link rel="stylesheet" href="/ui/styles.css" />
   </head>
   <body>
-    <div class="workspace">
-      <header class="topbar panel">
-        <div id="topbar-title"></div>
-        <div id="topbar-status" class="topbar__meta"></div>
-      </header>
-      <div class="main-row">
-        <div class="stage-column" id="stage-column">
-          <section class="graph-panel panel">
-            <div class="graph-panel__header">
-              <div class="graph-toolbar">
-                <button type="button" class="chip" data-action="zoom-out">−</button>
-                <button type="button" class="chip" data-action="zoom-in">+</button>
-                <button type="button" class="chip" data-action="fit">Fit</button>
-                <button type="button" class="chip" data-action="reset-camera">Reset</button>
-              </div>
-            </div>
-            <div class="graph-canvas-wrap">
-              <canvas id="stage"></canvas>
-            </div>
-          </section>
-          <section class="timeline-panel panel" id="timeline-panel"></section>
-        </div>
-        <aside class="inspector-panel panel" id="inspector-panel"></aside>
-      </div>
+    <div class="app">
+      <canvas id="stage"></canvas>
+      <div class="overlay overlay--topbar" id="topbar-overlay"></div>
+      <aside class="overlay overlay--prose" id="prose-overlay"></aside>
+      <div class="overlay overlay--chapter-strip" id="chapter-strip-overlay"></div>
+      <div class="overlay overlay--view-popover" id="view-popover-overlay"></div>
     </div>
     <script type="module" src="/ui/app.js"></script>
   </body>
