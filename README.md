@@ -1,13 +1,18 @@
 # mindgraph
 
-An LLM-native CLI and data model for turning transcripts into evolving concept timelines.
+An LLM-native CLI and data model for turning transcripts into evolving concept timelines, plus a reading-driven UI for re-entering them.
 
 ## How to think about it
 
-- `mindgraph` is the **toolkit**
-- your transcript or research repo is the **content workspace**
+mindgraph has two sides, with a JSON document between them.
 
-Build and evolve `mindgraph` here, then run it against files elsewhere.
+**Producer side — agent + CLI.** The CLI is built for an LLM agent to operate end-to-end: ingest source material, generate frames at three levels, extract concepts and relations, set activations, recompute stats. Ergonomics target an AI user, not a human typist — idempotent upserts, JSON in / JSON out, parseable errors. You don't drive the CLI; you bring source material and review the output.
+
+**Consumer side — human + UI.** The UI presents the digested mindgraph as a reading surface: a graph that fills the window, a right-side prose panel that reads like an essay, scroll the prose and the graph reveals concepts as they appear in the text. Reading drives time. The point is to re-enter dense source material at your own pace, with conceptual and temporal structure visible.
+
+**The document is the contract.** A `.mindgraph.json` file is the boundary. CLI writes it. UI reads it. Either side can change as long as the schema holds. The document is the durable artifact.
+
+mindgraph itself is the **toolkit**; your transcript or research repo is the **content workspace**. Build and evolve mindgraph here, then run it against files elsewhere.
 
 ## First commands
 
@@ -154,9 +159,9 @@ mindgraph frame list ./episode-01.mindgraph.json --level meso --offset 0 --limit
 mindgraph concept upsert ./episode-01.mindgraph.json --id meaning-crisis --label "Meaning Crisis"
 ```
 
-## Minimal UI shell
+## Reading UI
 
-There is now a small graph-first UI shell wired to the real episode 1 document and the new view-model layer.
+A reading-driven UI for the digested mindgraph. Single HTML5 Canvas for the graph, plain DOM for the prose, vanilla ES modules — no bundler, no framework.
 
 Run it with:
 
@@ -170,16 +175,16 @@ Then open:
 http://127.0.0.1:4173
 ```
 
-Current shell capabilities:
-- loads `examples/out/episode-1-built.mindgraph.json`
-- builds the real `MindgraphViewModel`
-- computes a derived graph render-state for overview / region / local visibility
-- renders a deterministic clustered graph canvas
-- supports graph zoom, wheel zoom, and drag pan
-- renders micro / meso / macro timeline tracks
-- supports playhead scrubbing and simple playback
-- supports concept selection and frame selection
-- shows concept and frame inspector grounding from transcript data
+What you see:
+
+- The window is split by a CSS grid: thin header on top, graph canvas in the left column, chapter strip below the graph, prose panel on the right.
+- The prose reads like an essay — chapters from macro frames, paragraphs joined from transcript segments. Concept mentions are gold-underlined inline.
+- **Reading drives time.** Scroll the prose; the graph reveals concepts as their `firstSeenAt` thresholds are crossed. Concepts bloom in (opacity + scale, 600 ms easeOutCubic) when first introduced and fade out if you scroll back past them.
+- **Click-bidirectional linking.** Click a concept word in the prose → the camera flies to that concept on the graph; all its mentions in the prose glow brighter. Click a concept on the graph → the prose smooth-scrolls to its first mention.
+- **Chapter strip** at the bottom shows macro chapters proportionally. Click any segment to jump.
+- **Drift-forward** (▶ on the chapter strip) auto-scrolls the prose at the source's speech rate, so reading progresses in real time. Manual scroll cancels.
+- **View popover** (gear icon in the header) toggles the camera-cadence level (macro / meso / micro).
+- **Prose can be collapsed** (panel-right icon in the header) — graph fills the full window when hidden.
 
 Syntax check:
 
@@ -187,7 +192,4 @@ Syntax check:
 npm run ui:check
 ```
 
-## Next likely commands
-
-- `mindgraph extract concepts ...`
-- `mindgraph export ui ...`
+The UI loads `examples/out/episode-1-built.mindgraph.json` by default. Point it at a different document by editing `DOC_PATH` in `ui/app.js` (a future flag will make this configurable).
