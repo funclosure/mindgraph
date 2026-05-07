@@ -24,6 +24,8 @@ export function createAnimator() {
   let prevConceptSet = null;
   let prevClusterSet = null;
   let prevEdgeSet = null;
+  const microSmoothBuffer = []; // array of recent { cx, cy, zoom } at micro level
+  const MICRO_SMOOTH_SIZE = 5;
 
   function getEntityState(id) {
     let s = entityStates.get(id);
@@ -128,19 +130,30 @@ export function createAnimator() {
       }
     }
 
-    if (cameraTarget && (cameraMode === 'auto' || cameraMode === 'selection')) {
-      // Convert target into screen-space pan+zoom for comparison.
-      const targetZoom = cameraTarget.zoom;
-      const targetPanX = (opts.viewport?.width ?? 0) / 2 - cameraTarget.cx * targetZoom;
-      const targetPanY = (opts.viewport?.height ?? 0) / 2 - cameraTarget.cy * targetZoom;
+    let effectiveTarget = cameraTarget;
+    if (effectiveTarget) {
+      if (opts.activeLevel === 'micro') {
+        microSmoothBuffer.push({ ...effectiveTarget });
+        while (microSmoothBuffer.length > MICRO_SMOOTH_SIZE) microSmoothBuffer.shift();
+        let scx = 0, scy = 0, szoom = 0;
+        for (const t of microSmoothBuffer) { scx += t.cx; scy += t.cy; szoom += t.zoom; }
+        const n = microSmoothBuffer.length;
+        effectiveTarget = { cx: scx / n, cy: scy / n, zoom: szoom / n };
+      } else if (microSmoothBuffer.length) {
+        microSmoothBuffer.length = 0; // clear when leaving micro
+      }
+    }
 
-      // Exponential damping: live = live + (target - live) * (1 - exp(-dt/τ))
+    if (effectiveTarget && (cameraMode === 'auto' || cameraMode === 'selection')) {
+      const targetZoom = effectiveTarget.zoom;
+      const targetPanX = (opts.viewport?.width ?? 0) / 2 - effectiveTarget.cx * targetZoom;
+      const targetPanY = (opts.viewport?.height ?? 0) / 2 - effectiveTarget.cy * targetZoom;
+
       const factor = 1 - Math.exp(-(opts.dt ?? 0) / CAMERA_TIME_CONSTANT_S);
       camera.zoom += (targetZoom - camera.zoom) * factor;
       camera.pan.x += (targetPanX - camera.pan.x) * factor;
       camera.pan.y += (targetPanY - camera.pan.y) * factor;
 
-      // Settle check: if very close, snap and treat as not animating; otherwise mark active.
       const dz = Math.abs(targetZoom - camera.zoom);
       const dx = Math.abs(targetPanX - camera.pan.x);
       const dy = Math.abs(targetPanY - camera.pan.y);
