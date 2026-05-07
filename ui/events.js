@@ -5,6 +5,25 @@
 import { screenToWorld, zoomAround, zoomAroundCenter, fitCameraToLayout } from './camera.js';
 import { hitTestAt } from './hit-test.js';
 
+function scrollProseToConcept(conceptId) {
+  if (!conceptId) return;
+  const container = document.getElementById('prose-overlay');
+  if (!container) return;
+  const span = container.querySelector(`.concept[data-concept-id="${cssEscape(conceptId)}"]`);
+  if (!span) return;
+  const containerRect = container.getBoundingClientRect();
+  const spanRect = span.getBoundingClientRect();
+  // Target: scroll so the span sits at the vertical center of the container.
+  const offset = (spanRect.top + spanRect.height / 2) - (containerRect.top + containerRect.height / 2);
+  container.scrollBy({ top: offset, left: 0, behavior: 'smooth' });
+}
+
+function cssEscape(s) {
+  // Defensive escape for selectors. Modern browsers have CSS.escape; fall back.
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(s);
+  return String(s).replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch.charCodeAt(0).toString(16)} `);
+}
+
 // bindEvents is called every render because innerHTML replaces DOM nodes and
 // fresh elements need listeners. The camera/canvas block guards against double-
 // binding with a dataset flag.
@@ -43,7 +62,11 @@ export function bindEvents(state, render, scheduleDraw) {
       const conceptId = btn.dataset.conceptId;
       const concept = state.viewModel.concepts.byId?.[conceptId];
       const firstSeen = concept?.firstSeenAt;
-      if (typeof firstSeen === 'number' && firstSeen > state.playheadTime) {
+      const isProseSpan = btn.classList.contains('concept');
+      // Auto-advance the playhead only when the click did NOT come from a prose
+      // mention. Prose-span clicks should never teleport — the user clicked a
+      // word in their current view.
+      if (!isProseSpan && typeof firstSeen === 'number' && firstSeen > state.playheadTime) {
         state.playheadTime = firstSeen;
       }
       state.selectedConceptId = conceptId;
@@ -156,6 +179,10 @@ export function bindEvents(state, render, scheduleDraw) {
         state.selectedConceptId = hit.id;
         state.selectedFrameRef = undefined;
         state.cameraMode = 'selection';
+        // Smooth-scroll the prose to the first occurrence of this concept's
+        // mention so the user sees it in context. The scroll-to-playhead
+        // binding will pick up the new position and update graph state.
+        scrollProseToConcept(state.selectedConceptId);
       } else {
         state.selectedConceptId = undefined;
         state.selectedFrameRef = undefined;
