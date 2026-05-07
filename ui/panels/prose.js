@@ -4,20 +4,11 @@
 
 import { escapeHtml } from '../util.js';
 
-// Render the full prose panel HTML.
-//
-// chunks  — output of buildProseChunks(vm)
-// state   — { selectedConceptId, graphRenderState: { activeNodeIds } }
 export function renderProse(chunks, state) {
   const activeIds = new Set(state.graphRenderState?.activeNodeIds ?? []);
   const selectedId = state.selectedConceptId;
   const html = chunks.map((chunk) => renderChunk(chunk, activeIds, selectedId)).join('');
-  return `
-    <header class="prose-header">
-      <button type="button" class="prose-collapse" data-action="toggle-prose" title="Hide reading panel">✕</button>
-    </header>
-    <article class="prose-article">${html}</article>
-  `;
+  return `<article class="prose-article">${html}</article>`;
 }
 
 function renderChunk(chunk, activeIds, selectedId) {
@@ -32,7 +23,6 @@ function renderParagraph(para, activeIds, selectedId) {
   return `<p class="prose-para" data-time-start="${para.timeSpan.start}" data-time-end="${para.timeSpan.end}">${inner}</p>`;
 }
 
-// Build the paragraph's inner HTML by interleaving plain-text and mention spans.
 function renderParagraphInner(text, mentions, activeIds, selectedId) {
   if (!mentions.length) return escapeHtml(text);
   const parts = [];

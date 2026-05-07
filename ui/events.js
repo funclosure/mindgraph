@@ -7,28 +7,28 @@ import { hitTestAt } from './hit-test.js';
 import { startDrift, stopDrift, isDriftActive } from './drift.js';
 
 function scrollProseToChapter(macroIndex) {
-  const container = document.getElementById('prose-overlay');
+  const container = document.getElementById('prose');
   if (!container) return;
   const headings = container.querySelectorAll('.prose-chapter');
   const heading = headings[macroIndex];
   if (!heading) return;
   const containerRect = container.getBoundingClientRect();
   const headingRect = heading.getBoundingClientRect();
-  const offset = headingRect.top - (containerRect.top + 24); // leave 24 px from top edge
-  // Instant assignment so the subsequent render()'s save/restore picks up the
-  // new position rather than cancelling an in-flight smooth-scroll animation.
-  container.scrollTop = container.scrollTop + offset;
+  const offset = headingRect.top - (containerRect.top + 24);
+  // Use instant scroll (avoids race with the scroll-binding's render path —
+  // see v2 Task 11 finalization commit). The scroll-binding picks up the new
+  // position and updates the playhead naturally.
+  container.scrollTop += offset;
 }
 
 function scrollProseToConcept(conceptId) {
   if (!conceptId) return;
-  const container = document.getElementById('prose-overlay');
+  const container = document.getElementById('prose');
   if (!container) return;
   const span = container.querySelector(`.concept[data-concept-id="${cssEscape(conceptId)}"]`);
   if (!span) return;
   const containerRect = container.getBoundingClientRect();
   const spanRect = span.getBoundingClientRect();
-  // Target: scroll so the span sits at the vertical center of the container.
   const offset = (spanRect.top + spanRect.height / 2) - (containerRect.top + containerRect.height / 2);
   container.scrollBy({ top: offset, left: 0, behavior: 'smooth' });
 }

@@ -85,7 +85,7 @@ async function bootstrap() {
   });
 
   attachScrollBinding({
-    container: document.getElementById('prose-overlay'),
+    container: document.getElementById('prose'),
     getState: () => state,
     onChange: render,
   });
@@ -161,13 +161,12 @@ function updateTopbar() {
 }
 
 function updateProsePanel() {
-  const el = document.getElementById('prose-overlay');
+  const el = document.getElementById('prose');
   if (!el) return;
-  // Preserve scroll position across innerHTML replacement so that drift
-  // auto-scroll and any in-flight smooth scrolls are not reset each render.
-  const savedScrollTop = el.scrollTop;
+  // Save scrollTop across innerHTML replacement (carried from v2 Task 8 fix).
+  const saved = el.scrollTop;
   el.innerHTML = renderProse(state.proseChunks ?? [], state);
-  if (savedScrollTop > 0) el.scrollTop = savedScrollTop;
+  el.scrollTop = saved;
 }
 
 function updateChapterStrip() {
