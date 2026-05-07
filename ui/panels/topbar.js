@@ -1,14 +1,25 @@
 // ---------------------------------------------------------------------------
-// Topbar — small floating pill with title, speaker, duration
+// Topbar — single thin header row: title, meta, action icons.
 // ---------------------------------------------------------------------------
 
 import { escapeHtml, formatTime } from '../util.js';
+import {
+  settingsIcon,
+  panelRightCloseIcon,
+  panelRightOpenIcon,
+} from '../icons.js';
 
-export function renderTopbar(vm, document_) {
+export function renderTopbar(vm, document_, state) {
   const speakers = (document_.transcript?.speakers ?? []).join(', ') || 'Unknown speaker';
+  const settingsActive = state.viewPopoverOpen ? 'is-active' : '';
+  const proseIcon = state.prosCollapsed ? panelRightOpenIcon() : panelRightCloseIcon();
+  const proseTitle = state.prosCollapsed ? 'Show reading panel' : 'Hide reading panel';
   return (
-    `<div class="topbar-title"><h1>${escapeHtml(vm.documentMeta.title)}</h1></div>` +
-    `<div class="topbar-meta meta">${escapeHtml(speakers)} · ${formatTime(vm.documentMeta.durationSeconds)}</div>` +
-    `<button type="button" class="topbar-collapse" data-action="toggle-topbar" title="Hide topbar">⌄</button>`
+    `<h1>${escapeHtml(vm.documentMeta.title)}</h1>` +
+    `<span class="topbar-meta">${escapeHtml(speakers)} · ${formatTime(vm.documentMeta.durationSeconds)}</span>` +
+    `<div class="topbar-actions">` +
+      `<button type="button" data-action="toggle-view-popover" class="${settingsActive}" title="View settings" aria-label="View settings">${settingsIcon()}</button>` +
+      `<button type="button" data-action="toggle-prose" title="${proseTitle}" aria-label="${proseTitle}">${proseIcon}</button>` +
+    `</div>`
   );
 }

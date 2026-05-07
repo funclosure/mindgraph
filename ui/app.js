@@ -157,15 +157,9 @@ function computeGraphRenderState() {
 }
 
 function updateTopbar() {
-  const el = document.getElementById('topbar-overlay');
+  const el = document.getElementById('topbar');
   if (!el) return;
-  if (state.topbarCollapsed) {
-    el.innerHTML = `<button type="button" class="topbar-restore" data-action="toggle-topbar" title="Show topbar">●</button>`;
-    el.classList.add('overlay--topbar-collapsed');
-  } else {
-    el.innerHTML = renderTopbar(state.viewModel, state.document);
-    el.classList.remove('overlay--topbar-collapsed');
-  }
+  el.innerHTML = renderTopbar(state.viewModel, state.document, state);
 }
 
 function updateProsePanel() {
@@ -191,7 +185,7 @@ function updateChapterStrip() {
 }
 
 function updateViewPopover() {
-  const el = document.getElementById('view-popover-overlay');
+  const el = document.getElementById('view-popover');
   if (!el) return;
   el.innerHTML = renderViewPopover(state);
 }
