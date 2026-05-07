@@ -7,6 +7,17 @@
   "bin": {
     "mindgraph": "./src/cli/index.js"
   },
+  "files": [
+    "src/",
+    "ui/",
+    "examples/awakening.sample.transcript.txt",
+    "examples/out/episode-1-built.mindgraph.json",
+    "README.md",
+    "CLAUDE.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "bun ./src/cli/index.js",
     "start:node": "node ./src/cli/index.js",

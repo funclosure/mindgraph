@@ -2,6 +2,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawn, exec } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { createEmptyDocument, summarizeDocument, validateDocument } from '../core/schema.js';
 import { createDocumentFromTranscript } from '../core/transcript.js';
 import { buildTimelineFromTranscript } from '../core/build.js';
@@ -26,6 +28,7 @@ Usage:
   mindgraph frame set-activations <document-file> --level micro|meso|macro --index <n> [--foreground-json <json>] [--background-json <json>] [--relations-json <json>] [--summary <text>]
   mindgraph frame merge <document-file> --from micro|meso --to meso|macro --start-index <n> --end-index <n> [--summary <text>] [--title <text>]
   mindgraph stats recompute <document-file>
+  mindgraph view [<document-file>] [--port <n>] [--host <h>]
 
 Commands:
   init                   Create an empty starter mindgraph document
@@ -40,6 +43,7 @@ Commands:
   frame set-activations  Write weighted concept/relation activations to a frame
   frame merge            Merge lower-level frames into a higher-level frame
   stats recompute        Recompute concept recurrence and activation stats
+  view                   Open the reading UI for a document in the browser
 
 Transcript formats currently supported:
   [00:01:23] Speaker: text
@@ -465,6 +469,55 @@ if (command === 'stats' && subcommand === 'recompute') {
   process.exit(0);
 }
 
-console.error(`Unknown command: ${args.join(' ')}`);
-printHelp();
-process.exit(1);
+if (command === 'view') {
+  // Positional arg: optional document file. Anything else is parsed as flags.
+  let target;
+  let flagArgs;
+  if (subcommand && !subcommand.startsWith('-')) {
+    target = subcommand;
+    flagArgs = rest;
+  } else {
+    flagArgs = subcommand !== undefined ? [subcommand, ...rest] : rest;
+  }
+  const flags = parseFlags(flagArgs);
+  const port = String(flags['--port'] ?? '4173');
+  const host = String(flags['--host'] ?? '127.0.0.1');
+  const url = `http://${host}:${port}`;
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const serverScript = path.resolve(__dirname, '..', 'ui', 'dev-server.js');
+
+  const serverArgs = [serverScript, '--port', port, '--host', host];
+  if (target) {
+    const docPath = path.resolve(target);
+    if (!fs.existsSync(docPath)) {
+      console.error(`Document not found: ${docPath}`);
+      process.exit(1);
+    }
+    serverArgs.push('--doc', docPath);
+  }
+
+  const child = spawn(process.execPath, serverArgs, { stdio: 'inherit' });
+
+  // Open the browser shortly after the server binds.
+  setTimeout(() => {
+    const cmd =
+      process.platform === 'darwin' ? `open ${JSON.stringify(url)}` :
+      process.platform === 'win32' ? `start "" ${JSON.stringify(url)}` :
+      `xdg-open ${JSON.stringify(url)}`;
+    exec(cmd, (err) => {
+      if (err) console.error(`(Could not auto-open browser; visit ${url} manually.)`);
+    });
+  }, 600);
+
+  // Forward exit signals so Ctrl+C cleanly stops the dev server.
+  for (const sig of ['SIGINT', 'SIGTERM']) {
+    process.on(sig, () => { child.kill(sig); });
+  }
+  child.on('exit', (code) => process.exit(code ?? 0));
+} else {
+  console.error(`Unknown command: ${args.join(' ')}`);
+  printHelp();
+  process.exit(1);
+}
