@@ -32,6 +32,7 @@ export function bindEvents(state, render, scheduleDraw) {
     btn.addEventListener('click', () => {
       state.selectedFrameRef = { level: btn.dataset.level, index: Number(btn.dataset.index) };
       state.selectedConceptId = undefined;
+      state.cameraMode = 'selection';
       const frame = state.viewModel.selectors.getFrame(state.selectedFrameRef);
       if (frame) state.playheadTime = frame.span.start;
       render();
@@ -58,13 +59,15 @@ export function bindEvents(state, render, scheduleDraw) {
       render();
     });
     document.querySelector('[data-action="fit"]')?.addEventListener('click', () => {
+      // Fit is a one-shot manual override — let the user inspect the whole layout.
+      state.cameraMode = 'manual';
       fitCameraToLayout(state.camera, state.layout, state.viewport);
       render();
     });
     document.querySelector('[data-action="reset-camera"]')?.addEventListener('click', () => {
       state.selectedConceptId = undefined;
       state.selectedFrameRef = undefined;
-      fitCameraToLayout(state.camera, state.layout, state.viewport);
+      state.cameraMode = 'auto';
       render();
     });
   }
@@ -79,6 +82,7 @@ export function bindEvents(state, render, scheduleDraw) {
       const rect = canvasEl.getBoundingClientRect();
       const point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const factor = Math.exp(-e.deltaY * 0.0015);
+      state.cameraMode = 'manual';
       zoomAround(state.camera, point, factor);
       render();
     }, { passive: false });
@@ -86,15 +90,28 @@ export function bindEvents(state, render, scheduleDraw) {
     let dragging = false;
     let lastX = 0;
     let lastY = 0;
+    let downStartX = 0;
+    let downStartY = 0;
+    let dragSwitched = false;
     canvasEl.addEventListener('pointerdown', (e) => {
       dragging = true;
       lastX = e.clientX;
       lastY = e.clientY;
+      downStartX = e.clientX;
+      downStartY = e.clientY;
+      dragSwitched = false;
       canvasEl.setPointerCapture(e.pointerId);
       canvasEl.style.cursor = 'grabbing';
     });
     canvasEl.addEventListener('pointermove', (e) => {
       if (!dragging) return;
+      if (!dragSwitched) {
+        const moved = Math.hypot(e.clientX - downStartX, e.clientY - downStartY);
+        if (moved > 4) {
+          state.cameraMode = 'manual';
+          dragSwitched = true;
+        }
+      }
       state.camera.pan.x += e.clientX - lastX;
       state.camera.pan.y += e.clientY - lastY;
       lastX = e.clientX;
@@ -131,9 +148,11 @@ export function bindEvents(state, render, scheduleDraw) {
       if (hit) {
         state.selectedConceptId = hit.id;
         state.selectedFrameRef = undefined;
+        state.cameraMode = 'selection';
       } else {
         state.selectedConceptId = undefined;
         state.selectedFrameRef = undefined;
+        if (state.cameraMode === 'selection') state.cameraMode = 'auto';
       }
       render();
     });
@@ -146,6 +165,7 @@ export function togglePlayback(state, render) {
 }
 
 export function startPlayback(state, render) {
+  if (state.cameraMode === 'manual') state.cameraMode = 'auto';
   if (state.isPlaying) return;
   const duration = state.viewModel.documentMeta.durationSeconds;
   if (state.playheadTime >= duration) state.playheadTime = 0;
