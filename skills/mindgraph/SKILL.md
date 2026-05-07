@@ -181,15 +181,23 @@ mindgraph validate <output-file>
 
 If validation fails, the error message points at the issue. Fix and re-validate.
 
-Then tell the user — explicitly, with the exact command:
+Then offer to open the reading UI for the user. **Ask before launching** — `mindgraph view` starts a local dev server that stays alive until stopped, and the user may want to open it on their own terms (different port, different time, after they finish another task). Phrase it as a confirmation, not an announcement:
 
-> The mindgraph is ready at `<absolute-path-to-output-file>`. Open it in the browser by running:
->
-> ```bash
-> mindgraph view <absolute-path-to-output-file>
-> ```
+> The mindgraph is ready at `<absolute-path-to-output-file>`. Want me to open the reading UI now? It'll start a local server at `http://127.0.0.1:4173` and open your browser. (You can also run it yourself later with `mindgraph view <absolute-path-to-output-file>`.)
 
-If the user wants the UI on a different port, they can pass `--port <n>`. If they want to put the file somewhere specific, that's their call — you don't need to manage their filesystem beyond the output path they specified.
+If the user confirms (yes / sure / open it), run the command. The dev server keeps running until the user stops it (Ctrl+C in the terminal that hosts it, or close the process), so launch it in the background so it doesn't block your session:
+
+```bash
+mindgraph view <absolute-path-to-output-file> &
+```
+
+Then tell the user the URL is up:
+
+> The UI is running at http://127.0.0.1:4173. Stop it later with `Ctrl+C` in the terminal, or by closing the process.
+
+If the user declines, leave them with the command and move on — don't push.
+
+If they want the UI on a different port (say 4173 is taken), pass `--port <n>`. The path arg is an absolute path; the user can leave the document anywhere on disk.
 
 ## Heuristics and judgment
 
