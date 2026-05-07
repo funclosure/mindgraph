@@ -40,8 +40,15 @@ export function bindEvents(state, render, scheduleDraw) {
   });
   document.querySelectorAll('[data-action="select-concept"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      state.selectedConceptId = btn.dataset.conceptId;
+      const conceptId = btn.dataset.conceptId;
+      const concept = state.viewModel.concepts.byId?.[conceptId];
+      const firstSeen = concept?.firstSeenAt;
+      if (typeof firstSeen === 'number' && firstSeen > state.playheadTime) {
+        state.playheadTime = firstSeen;
+      }
+      state.selectedConceptId = conceptId;
       state.selectedFrameRef = undefined;
+      state.cameraMode = 'selection';
       render();
     });
   });
