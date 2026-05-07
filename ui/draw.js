@@ -43,7 +43,9 @@ function drawBackground(ctx, viewport) {
 function drawClusterBodies(ctx, layout, grs) {
   const dimmedRegions = new Set(grs?.dimmedRegionIds ?? []);
   const emphasisByRegion = grs?.regionEmphasis ?? {};
+  const visibleClusters = grs?.visibleClusterIds ? new Set(grs.visibleClusterIds) : null;
   for (const cluster of layout.clusters) {
+    if (visibleClusters && !visibleClusters.has(cluster.id)) continue;
     const emphasis = emphasisByRegion[cluster.id] ?? 0.35;
     const isDimmed = dimmedRegions.has(cluster.id);
     const fillAlpha = isDimmed ? 0.06 : 0.10 + emphasis * 0.14;
@@ -147,7 +149,9 @@ function drawClusterLabels(ctx, layout, grs) {
   ctx.textBaseline = 'middle';
   ctx.font = "500 18px 'Inter', system-ui, sans-serif";
   ctx.fillStyle = 'rgba(245, 234, 210, 0.92)';
+  const visibleClusters = grs?.visibleClusterIds ? new Set(grs.visibleClusterIds) : null;
   for (const cluster of layout.clusters) {
+    if (visibleClusters && !visibleClusters.has(cluster.id)) continue;
     const lines = wrapLabel(cluster.label, 2);
     const lineHeight = 22;
     const top = -((lines.length - 1) * lineHeight) / 2;

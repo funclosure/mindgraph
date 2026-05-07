@@ -3,16 +3,20 @@
 // ---------------------------------------------------------------------------
 
 export function hitTestAt(state, worldPoint) {
-  // Hit-test only what's currently drawn — what you see is what you can click.
-  // visibleNodeIds reflects the render-state at the current zoom / selection.
-  const visible = state.graphRenderState?.visibleNodeIds
+  // Hit-test only what is currently drawn. visibleNodeIds is already
+  // gated by cumulative visibility (see buildGraphRenderState). Cluster
+  // hits also need the cumulative cluster gate so empty cluster regions
+  // don't accept clicks before the cluster has appeared.
+  const visibleNodes = state.graphRenderState?.visibleNodeIds
     ? new Set(state.graphRenderState.visibleNodeIds)
     : null;
+  const visibleClusters = state.graphRenderState?.cumulativeVisibleClusterIds
+    ? new Set(state.graphRenderState.cumulativeVisibleClusterIds)
+    : null;
 
-  // Atomic nodes win first (smaller hit zones, drawn on top conceptually).
   for (const node of state.viewModel.graph.nodes) {
     if (node.level === 'clustered') continue;
-    if (visible && !visible.has(node.id)) continue;
+    if (visibleNodes && !visibleNodes.has(node.id)) continue;
     const pos = state.layout.nodes[node.id];
     if (!pos) continue;
     const radius = 6 + (node.visualWeight ?? 0.5) * 1.8;
@@ -22,8 +26,8 @@ export function hitTestAt(state, worldPoint) {
       return { kind: 'concept', id: node.id };
     }
   }
-  // Cluster regions next. Cluster bodies are always drawn, so always hit-testable.
   for (const cluster of state.layout.clusters) {
+    if (visibleClusters && !visibleClusters.has(cluster.id)) continue;
     const dx = worldPoint.x - cluster.x;
     const dy = worldPoint.y - cluster.y;
     if (dx * dx + dy * dy <= cluster.radius * cluster.radius) {

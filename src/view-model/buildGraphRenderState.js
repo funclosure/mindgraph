@@ -1,3 +1,36 @@
+function buildCumulativeVisibility(viewModel, playheadTime) {
+  const conceptIds = new Set();
+  const clusterIds = new Set();
+  // viewModel.graph.nodes does not carry firstSeenAt — the field lives on
+  // viewModel.concepts.{atomic,clustered} where it was derived in Task 1.
+  for (const concept of [...viewModel.concepts.atomic, ...viewModel.concepts.clustered]) {
+    if (typeof concept.firstSeenAt !== 'number') continue;
+    if (concept.firstSeenAt <= playheadTime) {
+      conceptIds.add(concept.id);
+    }
+  }
+  // A cluster is visible if at least one of its members is visible.
+  // (Cluster nodes themselves use the cluster's own firstSeenAt — set during
+  // buildConceptsVM derivation — but we also include any cluster whose
+  // children are visible, in case the cluster itself has no activation.)
+  for (const cluster of viewModel.concepts.clustered) {
+    if (conceptIds.has(cluster.id)) {
+      clusterIds.add(cluster.id);
+      continue;
+    }
+    const childIds = viewModel.concepts.childrenByClusterId[cluster.id] ?? [];
+    if (childIds.some((id) => conceptIds.has(id))) clusterIds.add(cluster.id);
+  }
+  // Make sure clusters that are visible are also in the conceptIds set
+  // (cluster-level concepts share id space with the graph's "clustered" nodes).
+  for (const id of clusterIds) conceptIds.add(id);
+  const edgeIds = new Set();
+  for (const edge of viewModel.graph.edges) {
+    if (conceptIds.has(edge.from) && conceptIds.has(edge.to)) edgeIds.add(edge.id);
+  }
+  return { conceptIds, clusterIds, edgeIds };
+}
+
 function scoreNodeBase(node) {
   return (
     (node.stats?.peakActivation ?? node.visualWeight ?? 0.5) * 0.45
@@ -67,6 +100,7 @@ export function buildGraphRenderState(viewModel, {
   zoomLevel = 1,
 } = {}) {
   const focus = buildFocusSets(viewModel, { selectedConceptId, selectedFrameRef, playheadTime, activeLevel });
+  const cumulative = buildCumulativeVisibility(viewModel, playheadTime);
   const viewportMode = inferViewportMode({ zoomLevel, focusMode: focus.focusMode });
   const nodeScores = new Map();
   const activeEdgeIds = new Set();
@@ -163,6 +197,20 @@ export function buildGraphRenderState(viewModel, {
     }
   }
 
+  // Cumulative gate: nothing introduced after the playhead is visible.
+  for (const id of [...visibleNodeIds]) {
+    if (!cumulative.conceptIds.has(id)) visibleNodeIds.delete(id);
+  }
+  for (const id of [...visibleClusterIds]) {
+    if (!cumulative.clusterIds.has(id)) visibleClusterIds.delete(id);
+  }
+  for (const id of [...visibleEdgeIds]) {
+    if (!cumulative.edgeIds.has(id)) visibleEdgeIds.delete(id);
+  }
+  for (const id of [...labelVisibleNodeIds]) {
+    if (!cumulative.conceptIds.has(id)) labelVisibleNodeIds.delete(id);
+  }
+
   return {
     viewportMode,
     focusMode: focus.focusMode,
@@ -178,5 +226,8 @@ export function buildGraphRenderState(viewModel, {
     dimmedRegionIds: [...dimmedRegionIds],
     regionEmphasis,
     nodeScores: Object.fromEntries(nodeScores.entries()),
+    cumulativeVisibleConceptIds: [...cumulative.conceptIds],
+    cumulativeVisibleClusterIds: [...cumulative.clusterIds],
+    cumulativeVisibleEdgeIds: [...cumulative.edgeIds],
   };
 }
