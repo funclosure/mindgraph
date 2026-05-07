@@ -14,6 +14,38 @@ mindgraph has two sides, with a JSON document between them.
 
 mindgraph itself is the **toolkit**; your transcript or research repo is the **content workspace**. Build and evolve mindgraph here, then run it against files elsewhere.
 
+## Quick start
+
+Install the CLI globally:
+
+```bash
+npm install -g github:funclosure/mindgraph
+```
+
+That puts `mindgraph` on your `PATH`. Sanity check:
+
+```bash
+mindgraph --help
+```
+
+Open the reading UI for the bundled sample (Awakening from the Meaning Crisis — Episode 1):
+
+```bash
+mindgraph view
+```
+
+Open the reading UI for your own document:
+
+```bash
+mindgraph view ./graphs/my-episode.mindgraph.json
+```
+
+Both forms boot a small dev server (default `http://127.0.0.1:4173`) and open your browser. Ctrl+C to stop. Use `--port <n>` if 4173 is taken.
+
+To produce a document, run the CLI yourself or pair it with an LLM agent — see [LLM-actuator workflow](#llm-actuator-workflow) below.
+
+Requires Node 18+ (or Bun). No other system dependencies.
+
 ## First commands
 
 ```bash
@@ -34,6 +66,7 @@ In another project:
 mindgraph ingest transcript ./transcripts/episode-01.txt -o ./graphs/episode-01.mindgraph.json
 mindgraph validate ./graphs/episode-01.mindgraph.json
 mindgraph inspect ./graphs/episode-01.mindgraph.json
+mindgraph view ./graphs/episode-01.mindgraph.json
 ```
 
 Or directly with Bun before packaging/installing globally:
