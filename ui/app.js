@@ -10,6 +10,7 @@ import { createAnimator } from './animator.js';
 import { buildProseChunks } from '../src/view-model/buildProseChunks.js';
 import { renderProse } from './panels/prose.js';
 import { escapeHtml, formatTime } from './util.js';
+import { attachScrollBinding } from './scroll-binding.js';
 
 const DOC_PATH = '../examples/out/episode-1-built.mindgraph.json';
 
@@ -79,6 +80,12 @@ async function bootstrap() {
       state.viewport = applyDpr(canvas, ctx);
       scheduleDraw();
     });
+  });
+
+  attachScrollBinding({
+    container: document.getElementById('prose-overlay'),
+    getState: () => state,
+    onChange: render,
   });
 
   console.info('mindgraph canvas POC ready', {
