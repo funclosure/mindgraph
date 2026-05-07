@@ -56,6 +56,8 @@ async function bootstrap() {
   fitCameraToLayout(state.camera, state.layout, state.viewport);
   render();
 
+  window.__mindgraph = { state };
+
   // Re-apply DPR + redraw on viewport / display changes so the canvas
   // stays sharp on resize and across displays with different DPR.
   let resizeQueued = false;
@@ -112,6 +114,8 @@ function computeGraphRenderState() {
     playheadTime: state.playheadTime,
     activeLevel: state.activeLevel,
     zoomLevel: state.camera.zoom,
+    layout: state.layout,
+    viewport: state.viewport,
   });
 }
 

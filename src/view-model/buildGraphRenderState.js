@@ -31,6 +31,83 @@ function buildCumulativeVisibility(viewModel, playheadTime) {
   return { conceptIds, clusterIds, edgeIds };
 }
 
+function deriveCameraTarget(viewModel, layout, viewport, opts) {
+  if (!layout || !viewport) return undefined;
+  const { activeLevel, playheadTime, cumulative } = opts;
+  const frame = viewModel.selectors.getActiveFrameAtTime(activeLevel, playheadTime);
+  const fg = frame?.foregroundConcepts ?? [];
+
+  const pointFor = (id) => layout.nodes[id];
+
+  // Case 1: no active frame → fit visible clusters.
+  if (!frame || !fg.length) {
+    const clusters = layout.clusters.filter((c) => cumulative.clusterIds.has(c.id));
+    if (!clusters.length) return undefined;
+    return boundsOfClusters(clusters, viewport, 0.15);
+  }
+
+  // Case 2: single foreground concept → use its parent cluster.
+  if (fg.length === 1) {
+    const concept = viewModel.concepts.byId[fg[0].id];
+    const parentClusterId = concept?.parentIds?.[0] ?? concept?.id;
+    const cluster = layout.clusters.find((c) => c.id === parentClusterId);
+    if (cluster) return boundsOfClusters([cluster], viewport, 0.20);
+    const point = pointFor(fg[0].id);
+    if (!point) return undefined;
+    return boundsAroundPoint(point, 200, viewport);
+  }
+
+  // Case 3: multiple foreground concepts → weighted center, unweighted bbox, padded.
+  const points = fg.map((a) => ({ pos: pointFor(a.id), weight: a.weight ?? 0.5 }))
+    .filter((p) => p.pos);
+  if (!points.length) return undefined;
+  const totalWeight = points.reduce((s, p) => s + p.weight, 0) || 1;
+  const cx = points.reduce((s, p) => s + p.pos.x * p.weight, 0) / totalWeight;
+  const cy = points.reduce((s, p) => s + p.pos.y * p.weight, 0) / totalWeight;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of points) {
+    if (p.pos.x < minX) minX = p.pos.x;
+    if (p.pos.y < minY) minY = p.pos.y;
+    if (p.pos.x > maxX) maxX = p.pos.x;
+    if (p.pos.y > maxY) maxY = p.pos.y;
+  }
+  return fitTarget(minX, minY, maxX, maxY, cx, cy, viewport, 0.15);
+}
+
+function boundsOfClusters(clusters, viewport, pad) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const c of clusters) {
+    minX = Math.min(minX, c.x - c.radius);
+    minY = Math.min(minY, c.y - c.radius);
+    maxX = Math.max(maxX, c.x + c.radius);
+    maxY = Math.max(maxY, c.y + c.radius);
+  }
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  return fitTarget(minX, minY, maxX, maxY, cx, cy, viewport, pad);
+}
+
+function boundsAroundPoint(point, radius, viewport) {
+  return fitTarget(
+    point.x - radius, point.y - radius,
+    point.x + radius, point.y + radius,
+    point.x, point.y, viewport, 0.15,
+  );
+}
+
+function fitTarget(minX, minY, maxX, maxY, cx, cy, viewport, pad) {
+  const worldW = Math.max(1, maxX - minX);
+  const worldH = Math.max(1, maxY - minY);
+  const padFactor = 1 + pad * 2;
+  const screenW = Math.max(1, viewport.width);
+  const screenH = Math.max(1, viewport.height);
+  const zoom = Math.min(
+    screenW / (worldW * padFactor),
+    screenH / (worldH * padFactor),
+  );
+  return { cx, cy, zoom: Math.max(0.2, Math.min(4, zoom)) };
+}
+
 function scoreNodeBase(node) {
   return (
     (node.stats?.peakActivation ?? node.visualWeight ?? 0.5) * 0.45
@@ -98,6 +175,8 @@ export function buildGraphRenderState(viewModel, {
   playheadTime,
   activeLevel = 'meso',
   zoomLevel = 1,
+  layout,
+  viewport,
 } = {}) {
   const focus = buildFocusSets(viewModel, { selectedConceptId, selectedFrameRef, playheadTime, activeLevel });
   const cumulative = buildCumulativeVisibility(viewModel, playheadTime);
@@ -211,6 +290,12 @@ export function buildGraphRenderState(viewModel, {
     if (!cumulative.conceptIds.has(id)) labelVisibleNodeIds.delete(id);
   }
 
+  const cameraTarget = deriveCameraTarget(viewModel, layout, viewport, {
+    activeLevel,
+    playheadTime,
+    cumulative,
+  });
+
   return {
     viewportMode,
     focusMode: focus.focusMode,
@@ -229,5 +314,6 @@ export function buildGraphRenderState(viewModel, {
     cumulativeVisibleConceptIds: [...cumulative.conceptIds],
     cumulativeVisibleClusterIds: [...cumulative.clusterIds],
     cumulativeVisibleEdgeIds: [...cumulative.edgeIds],
+    cameraTarget,
   };
 }
