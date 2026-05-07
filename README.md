@@ -46,6 +46,10 @@ To produce a document, run the CLI yourself or pair it with an LLM agent — see
 
 Requires Node 18+ (or Bun). No other system dependencies.
 
+## Use as a Claude / superpowers skill
+
+The producer-side workflow is packaged as a skill at [`skills/mindgraph/SKILL.md`](skills/mindgraph/SKILL.md). When loaded by Claude Code (or any compatible runtime) it triggers on phrases like "digest this lecture" or "build a mindgraph for this transcript" and walks the CLI command sequence end-to-end. Drop the file into your skills folder (typically `~/.claude/skills/mindgraph/`) and the agent does the rest.
+
 ## First commands
 
 ```bash
