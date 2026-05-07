@@ -5,10 +5,17 @@
 // The animator is the only stateful piece of the canvas rendering. Every other
 // layer is a pure function of the input state. Each rAF tick:
 //   1. Read the latest pure render-state (cumulative sets, cameraTarget).
-//   2. Update per-entity opacity/scale (snap for now; bloom/fade later).
+//   2. Update per-entity opacity/scale (bloom on entry; snap for removal).
 //   3. Update the live camera (snap for now; lerp later).
 //   4. Return whether anything is still animating, so app.js can stop the
 //      loop when everything has settled.
+
+function easeOutCubic(t) {
+  const x = Math.max(0, Math.min(1, t));
+  return 1 - Math.pow(1 - x, 3);
+}
+
+const BLOOM_DURATION_MS = 600;
 
 export function createAnimator() {
   const entityStates = new Map(); // id -> { opacity, scale, blooming, fading, animStart }
@@ -23,6 +30,15 @@ export function createAnimator() {
       entityStates.set(id, s);
     }
     return s;
+  }
+
+  function startBloom(id, now) {
+    const s = getEntityState(id);
+    s.blooming = true;
+    s.fading = false;
+    s.animStart = now;
+    s.opacity = 0;
+    s.scale = 1.6;
   }
 
   function step(now, opts) {
@@ -40,37 +56,59 @@ export function createAnimator() {
     const edgeSet = new Set(cumulativeVisibleEdgeIds);
 
     const isFirstStep = prevConceptSet === null;
+
+    // Detect transitions on every step except the very first. On first
+    // step, just record the current sets as "already resting".
     if (isFirstStep) {
-      // On first tick, treat current visible set as already-resting state.
       for (const id of conceptSet) {
         const s = getEntityState(id);
         s.opacity = 1;
         s.scale = 1;
       }
+      for (const id of clusterSet) {
+        const s = getEntityState(id);
+        s.opacity = 1;
+        s.scale = 1;
+      }
+      for (const id of edgeSet) {
+        const s = getEntityState(id);
+        s.opacity = 1;
+        s.scale = 1;
+      }
+    } else {
+      // Newly entering ids → schedule a bloom.
+      for (const id of conceptSet) if (!prevConceptSet.has(id)) startBloom(id, now);
+      for (const id of clusterSet) if (!prevClusterSet.has(id)) startBloom(id, now);
+      for (const id of edgeSet) if (!prevEdgeSet.has(id)) startBloom(id, now);
     }
     prevConceptSet = conceptSet;
     prevClusterSet = clusterSet;
     prevEdgeSet = edgeSet;
 
-    // Snap visible entities to opacity 1 / scale 1; hidden entities to opacity 0.
-    // (Bloom and fade transitions come in later tasks.)
-    for (const id of conceptSet) {
-      const s = getEntityState(id);
-      s.opacity = 1;
-      s.scale = 1;
-    }
-    for (const [id, s] of entityStates) {
-      if (!conceptSet.has(id) && !clusterSet.has(id) && !edgeSet.has(id)) {
-        s.opacity = 0;
+    // Advance bloom for any blooming entity.
+    let stillAnimating = false;
+    for (const [, s] of entityStates) {
+      if (s.blooming) {
+        const t = (now - s.animStart) * 1000 / BLOOM_DURATION_MS;
+        if (t >= 1) {
+          s.opacity = 1;
+          s.scale = 1;
+          s.blooming = false;
+        } else {
+          const e = easeOutCubic(t);
+          s.opacity = e;
+          s.scale = 1.6 - 0.6 * e;
+          stillAnimating = true;
+        }
       }
     }
 
-    // Camera snap (lerp comes later).
+    // Camera (lerp comes in Task 7 — leave a placeholder spot here).
     if (cameraTarget && cameraMode === 'auto') {
-      // No-op for now; camera stays where bootstrap put it.
+      // No-op for now; camera lerp added in Task 7.
     }
 
-    return false; // never "still animating" until later tasks add real interp
+    return stillAnimating;
   }
 
   return {
