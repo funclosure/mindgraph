@@ -17,8 +17,8 @@ Usage:
   mindgraph init <output-file>
   mindgraph validate <input-file>
   mindgraph inspect <input-file>
-  mindgraph ingest transcript <transcript-file> -o <output-file> [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>]
-  mindgraph build timeline <transcript-file> -o <output-file> [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>]
+  mindgraph ingest transcript <transcript-file> [-o <output-file>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>]
+  mindgraph build timeline <transcript-file> [-o <output-file>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>]
   mindgraph concept upsert <document-file> --id <id> --label <label> [--level atomic|clustered]
   mindgraph concept list <document-file> [--level atomic|clustered]
   mindgraph concept show <document-file> --id <id> [--level atomic|clustered]
@@ -29,6 +29,9 @@ Usage:
   mindgraph frame merge <document-file> --from micro|meso --to meso|macro --start-index <n> --end-index <n> [--summary <text>] [--title <text>]
   mindgraph stats recompute <document-file>
   mindgraph view [<document-file>] [--port <n>] [--host <h>]
+
+When -o is omitted from ingest/build, mindgraph defaults to ./graphs/<slug>.mindgraph.json
+if a ./graphs/ directory exists in the current working directory.
 
 Commands:
   init                   Create an empty starter mindgraph document
@@ -100,6 +103,38 @@ function validateOrExit(doc, filePath) {
     for (const error of result.errors) console.error(`- ${error}`);
     process.exit(1);
   }
+}
+
+function slugify(text) {
+  return String(text)
+    .replace(/\.[^/.]+$/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+// Resolve where the produced .mindgraph.json should land.
+//
+// - Explicit -o always wins.
+// - Otherwise, if ./graphs/ exists in cwd we default to ./graphs/<slug>.mindgraph.json,
+//   where the slug comes from --title or the source filename.
+// - Otherwise we return null and the caller errors with a hint.
+//
+// Returns { path, explicit } or null.
+function resolveOutputPath({ explicit, transcriptFile, title, cwd }) {
+  if (explicit) return { path: explicit, explicit: true };
+  const slugSource = title || path.basename(transcriptFile || '');
+  const slug = slugify(slugSource);
+  if (!slug) return null;
+  const graphsDir = path.join(cwd, 'graphs');
+  let stat;
+  try {
+    stat = fs.statSync(graphsDir);
+  } catch {
+    return null;
+  }
+  if (!stat.isDirectory()) return null;
+  return { path: path.join(graphsDir, `${slug}.mindgraph.json`), explicit: false };
 }
 
 const args = process.argv.slice(2);
@@ -184,15 +219,27 @@ if (command === 'build' && subcommand === 'timeline') {
   }
 
   const flags = parseFlags(flagArgs);
-  const outputFile = requireFlag(flags, '-o', '--output');
+  const explicitOutput = requireFlag(flags, '-o', '--output');
   const title = requireFlag(flags, '--title');
   const mode = requireFlag(flags, '--mode') ?? 'auto';
   const defaultSpeaker = requireFlag(flags, '--speaker');
   const wordsPerMinute = requireFlag(flags, '--wpm');
   const mesoSize = requireFlag(flags, '--meso-size');
 
-  if (!outputFile) {
-    console.error('Missing output file. Use -o <output-file>.');
+  const resolved = resolveOutputPath({
+    explicit: explicitOutput,
+    transcriptFile,
+    title,
+    cwd: process.cwd(),
+  });
+  if (!resolved) {
+    console.error('Missing output file. Pass -o <output-file>, or run from a workspace containing ./graphs/.');
+    process.exit(1);
+  }
+  const outputFile = resolved.path;
+  if (!resolved.explicit && fs.existsSync(outputFile)) {
+    console.error(`Output already exists: ${outputFile}`);
+    console.error('Pass -o <output-file> explicitly to overwrite, or choose a different name.');
     process.exit(1);
   }
 
@@ -227,14 +274,26 @@ if (command === 'ingest' && subcommand === 'transcript') {
   }
 
   const flags = parseFlags(flagArgs);
-  const outputFile = requireFlag(flags, '-o', '--output');
+  const explicitOutput = requireFlag(flags, '-o', '--output');
   const title = requireFlag(flags, '--title');
   const mode = requireFlag(flags, '--mode') ?? 'auto';
   const defaultSpeaker = requireFlag(flags, '--speaker');
   const wordsPerMinute = requireFlag(flags, '--wpm');
 
-  if (!outputFile) {
-    console.error('Missing output file. Use -o <output-file>.');
+  const resolved = resolveOutputPath({
+    explicit: explicitOutput,
+    transcriptFile,
+    title,
+    cwd: process.cwd(),
+  });
+  if (!resolved) {
+    console.error('Missing output file. Pass -o <output-file>, or run from a workspace containing ./graphs/.');
+    process.exit(1);
+  }
+  const outputFile = resolved.path;
+  if (!resolved.explicit && fs.existsSync(outputFile)) {
+    console.error(`Output already exists: ${outputFile}`);
+    console.error('Pass -o <output-file> explicitly to overwrite, or choose a different name.');
     process.exit(1);
   }
 

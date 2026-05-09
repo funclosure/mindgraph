@@ -1,6 +1,6 @@
 ---
 name: mindgraph
-description: Use this skill whenever the user asks you to digest, summarize, ingest, build, visualize, or otherwise turn a transcript, lecture, podcast episode, video, or article into a navigable map of concepts and time. Trigger on phrases like "digest this transcript", "build a mindgraph", "make a concept map of this lecture", "ingest this episode", "I want to study this video" — or whenever they mention "mindgraph" by name. The skill walks the producer-side CLI workflow (`mindgraph ingest → build timeline → concept upsert → frame set-activations → frame merge → stats recompute → validate`) and finishes by telling the user to open the reading UI with `mindgraph view <file>`. Use this even when the user doesn't say "mindgraph" explicitly — if their request is "make this lecture easier to study" or similar, this is the right tool.
+description: Use this skill whenever the user asks you to digest, summarize, ingest, build, visualize, or otherwise turn a transcript, lecture, podcast episode, video, or article into a navigable map of concepts and time — or to operate on a mindgraph that already exists (open it, list what's been built, add to it, rebuild it). Trigger on phrases like "digest this transcript", "build a mindgraph", "make a concept map of this lecture", "ingest this episode", "I want to study this video", "open my last mindgraph", "list my mindgraphs", "what graphs do I have", "show me what I've built", "add to the [X] graph", "refresh the [X] graph with these notes", "rebuild the [X] mindgraph" — or whenever they mention "mindgraph" by name. The skill walks the producer-side CLI workflow (`mindgraph ingest → build timeline → concept upsert → frame set-activations → frame merge → stats recompute → validate`) and finishes by telling the user to open the reading UI with `mindgraph view <file>`. For operations on existing graphs, see the "Lifecycle operations" section. Use this even when the user doesn't say "mindgraph" explicitly — if their request is "make this lecture easier to study" or similar, this is the right tool.
 ---
 
 # mindgraph
@@ -30,6 +30,14 @@ If the command is not found, install it:
 npm install -g github:funclosure/mindgraph
 ```
 
+After install, you can confirm the CLI and reading UI work end-to-end with:
+
+```bash
+mindgraph view
+```
+
+With no args, this opens the bundled "Awakening from the Meaning Crisis — Episode 1" sample in the browser. If the graph + prose panel render, the install is healthy. Suggest this to the user when they've just installed for the first time, or whenever something behaves strangely and you want to rule out a broken install.
+
 Requires Node 18+. If `npm` is also missing, ask the user to install Node first (or use Bun).
 
 ## Document shape (the thing you're building)
@@ -54,16 +62,32 @@ The end-to-end flow has three phases: **structural ingest**, **semantic enrichme
 
 ### Phase 1 — Structural ingest
 
+#### Acquiring the transcript
+
+If the user gives you a path to a transcript file, skip this subsection. If they give you a URL or paste a video/podcast reference instead, you need a transcript on disk before Phase 1 can run. Approach by source type:
+
+- **YouTube / video.** Try `yt-dlp --write-auto-sub --skip-download --sub-lang en --convert-subs srt -o "./transcripts/%(title)s.%(ext)s" <url>`, then move the resulting `.srt` to `./transcripts/<slug>.srt` with a clean slug. If `yt-dlp` is not installed, suggest `brew install yt-dlp` (macOS) or ask the user to paste the transcript directly. Do not try to scrape YouTube via WebFetch — the page rarely contains transcript text.
+- **Articles, blog posts, papers (HTML).** Use the WebFetch tool to retrieve the article, save the readable text to `./transcripts/<slug>.txt`, then ingest with `--mode untimed`.
+- **Podcasts.** If the show publishes a transcript page, treat it like an article. Otherwise ask the user for a transcript file or pasted text — audio-only ingestion is out of scope for this skill.
+- **PDFs.** Local PDFs: read with the Read tool. Remote PDFs: WebFetch the URL, save the text to `./transcripts/<slug>.txt`.
+- **Fallback.** Ask the user to paste the transcript inline. Save it to `./transcripts/<slug>.txt` so it's available for re-ingest later.
+
+In a `mind-digest`-style workspace, `./transcripts/` is the canonical landing zone — keep all sources there. Outside that convention, place the file wherever the user prefers; the path you pass to `mindgraph build timeline` is what matters.
+
+#### Building the timeline
+
 Take the user's source file and produce a starter document with micro and meso frames already laid out:
 
 ```bash
-mindgraph build timeline <source-file> -o <output-file> \
+mindgraph build timeline <source-file> [-o <output-file>] \
   [--title "Display Title"] \
   [--mode auto|timed-lines|captions|untimed] \
   [--speaker "Speaker Name"] \
   [--wpm 150] \
   [--meso-size 12]
 ```
+
+When `-o` is omitted, the CLI defaults to `./graphs/<slug>.mindgraph.json` if a `./graphs/` directory exists in the current working directory (the slug is derived from `--title` or the source filename). In a `mind-digest`-style content workspace this is the recommended form — drop the `-o` and let the convention place the file. Outside a workspace, pass `-o` explicitly.
 
 `--mode` defaults to `auto` and detects timed-lines / captions / untimed.
 
@@ -198,6 +222,62 @@ Then tell the user the URL is up:
 If the user declines, leave them with the command and move on — don't push.
 
 If they want the UI on a different port (say 4173 is taken), pass `--port <n>`. The path arg is an absolute path; the user can leave the document anywhere on disk.
+
+## Lifecycle operations (existing graphs)
+
+Not every request is a fresh ingest. If the user is asking about a graph they've already built — opening it, listing what's around, adding to it, rebuilding it — route to one of the patterns below before reaching for Phase 1.
+
+The convention in a `mind-digest`-style workspace is:
+
+- `./graphs/<slug>.mindgraph.json` — built documents
+- `./transcripts/<slug>.<ext>` — source material
+
+Outside that convention, fall back to whatever path the user gives you.
+
+### List
+
+Triggers: "list my mindgraphs", "what graphs do I have", "show me what I've built".
+
+```bash
+ls -lt ./graphs/*.mindgraph.json
+```
+
+For each match, run `mindgraph inspect <file>` and report a one-line summary (title, concept counts, frame counts) so the user sees content, not just filenames.
+
+### Open
+
+Triggers: "open my last graph", "open the [X] graph", "let me read [X]".
+
+Resolve the file:
+- "last" / "the most recent" → newest mtime in `./graphs/`.
+- Named → fuzzy-match against the slug, or use `mindgraph inspect` to compare titles when the slug is ambiguous.
+
+Then apply the same "ask before launching" rule from Phase 3 — confirm before starting the dev server, then background it:
+
+```bash
+mindgraph view <absolute-path> &
+```
+
+### Refresh / annotate
+
+Triggers: "add to the [X] graph", "I have more notes on [X]", "refresh the [X] mindgraph".
+
+**Do not rebuild from scratch.** The CLI is idempotent — `concept upsert`, `relation upsert`, and `frame set-activations` update in place by id. Steps:
+
+1. `mindgraph inspect <file>` to remind yourself of the current shape.
+2. `mindgraph concept list <file>` and `mindgraph frame list <file> --level meso` to see what's already there.
+3. Apply the user's new notes: upsert new concepts, attach activations to the relevant frames, upsert new relations. Re-running with the same id is safe — it updates instead of duplicating.
+4. `mindgraph stats recompute <file>` and `mindgraph validate <file>` at the end.
+
+### Rebuild from source
+
+Triggers: "rebuild the [X] mindgraph", "the source transcript changed".
+
+Only reach for this when the *transcript* itself has changed. If only the annotations are changing, use refresh.
+
+1. Re-run Phase 1 with `-o ./graphs/<existing-slug>.mindgraph.json` passed explicitly — the explicit `-o` is required because the implicit-default path refuses to overwrite.
+2. Re-run Phase 2 from scratch. Existing concept ids can be re-upserted; activations need to be reapplied to the freshly generated frames.
+3. Phase 3 as usual.
 
 ## Heuristics and judgment
 
