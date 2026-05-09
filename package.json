@@ -10,6 +10,8 @@
   "files": [
     "src/",
     "ui/",
+    "skills/",
+    "scripts/",
     "examples/awakening.sample.transcript.txt",
     "examples/out/episode-1-built.mindgraph.json",
     "README.md",
@@ -19,6 +21,7 @@
     "node": ">=18"
   },
   "scripts": {
+    "postinstall": "node ./scripts/install-skill.js",
     "start": "bun ./src/cli/index.js",
     "start:node": "node ./src/cli/index.js",
     "vm:example": "node ./src/view-model/example.js",
