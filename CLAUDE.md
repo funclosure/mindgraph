@@ -55,13 +55,6 @@ Four layers, mapped onto the operating model. When in doubt about where new code
 - **Dependencies are minimal** — currently zero runtime deps. Add new deps only with reason.
 - **Sample data:** `examples/out/episode-1-built.mindgraph.json` is the canonical input the UI loads. Built sample lives in `examples/out/`; raw fixtures in `examples/`.
 
-## POC files (untracked, do not commit)
-
-These exist as historical references for the cytoscape integration that was tried before the canvas-only path. Intentionally untracked. Do not reference from `index.html`. If something useful crystallises, port it into `ui/app.js` and trash the spike — don't grow them.
-
-- `ui/cytoscape-spike.{html,js,css}`
-- `ui/cytoscape-camera-test.{html,js,css}`
-
 ## Specs in `docs/`
 
 Read before substantive UI or VM work. These describe the **intended destination** of the consumer side; cross-check against the as-built `ui/app.js` because the UI is early.
