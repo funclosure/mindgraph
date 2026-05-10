@@ -99,7 +99,7 @@ async function bootstrap() {
   });
 
   console.info('mindgraph canvas POC ready', {
-    clusters: state.layout.clusters.map((c) => ({ id: c.id, label: c.label })),
+    nodes: Object.keys(state.layout.nodes).length,
   });
 }
 
@@ -127,7 +127,6 @@ function kickAnimationLoop() {
     lastT = now;
     const stillAnimating = state.animator.step(now / 1000, {
       cumulativeVisibleConceptIds: state.graphRenderState?.cumulativeVisibleConceptIds ?? [],
-      cumulativeVisibleClusterIds: state.graphRenderState?.cumulativeVisibleClusterIds ?? [],
       cumulativeVisibleEdgeIds: state.graphRenderState?.cumulativeVisibleEdgeIds ?? [],
       cameraTarget: state.graphRenderState?.cameraTarget,
       cameraMode: state.cameraMode,

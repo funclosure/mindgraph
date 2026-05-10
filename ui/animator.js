@@ -22,7 +22,6 @@ const CAMERA_TIME_CONSTANT_S = 0.23; // ~700ms full convergence
 export function createAnimator() {
   const entityStates = new Map(); // id -> { opacity, scale, blooming, fading, animStart }
   let prevConceptSet = null;
-  let prevClusterSet = null;
   let prevEdgeSet = null;
   const microSmoothBuffer = []; // array of recent { cx, cy, zoom } at micro level
   const MICRO_SMOOTH_SIZE = 5;
@@ -57,7 +56,6 @@ export function createAnimator() {
   function step(now, opts) {
     const {
       cumulativeVisibleConceptIds = [],
-      cumulativeVisibleClusterIds = [],
       cumulativeVisibleEdgeIds = [],
       cameraTarget,
       cameraMode,
@@ -65,7 +63,6 @@ export function createAnimator() {
     } = opts;
 
     const conceptSet = new Set(cumulativeVisibleConceptIds);
-    const clusterSet = new Set(cumulativeVisibleClusterIds);
     const edgeSet = new Set(cumulativeVisibleEdgeIds);
 
     const isFirstStep = prevConceptSet === null;
@@ -78,11 +75,6 @@ export function createAnimator() {
         s.opacity = 1;
         s.scale = 1;
       }
-      for (const id of clusterSet) {
-        const s = getEntityState(id);
-        s.opacity = 1;
-        s.scale = 1;
-      }
       for (const id of edgeSet) {
         const s = getEntityState(id);
         s.opacity = 1;
@@ -91,16 +83,13 @@ export function createAnimator() {
     } else {
       // Newly entering ids → schedule a bloom.
       for (const id of conceptSet) if (!prevConceptSet.has(id)) startBloom(id, now);
-      for (const id of clusterSet) if (!prevClusterSet.has(id)) startBloom(id, now);
       for (const id of edgeSet) if (!prevEdgeSet.has(id)) startBloom(id, now);
 
       // Newly leaving ids → schedule a fade.
       for (const id of prevConceptSet) if (!conceptSet.has(id)) startFade(id, now);
-      for (const id of prevClusterSet) if (!clusterSet.has(id)) startFade(id, now);
       for (const id of prevEdgeSet) if (!edgeSet.has(id)) startFade(id, now);
     }
     prevConceptSet = conceptSet;
-    prevClusterSet = clusterSet;
     prevEdgeSet = edgeSet;
 
     // Advance bloom for any blooming entity.

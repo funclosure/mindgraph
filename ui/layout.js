@@ -1,15 +1,12 @@
 // ---------------------------------------------------------------------------
 // Layout — force-directed graph layout, hand-rolled.
 //
-// Pure function `computeLayout(viewModel) → { nodes, bounds, clusters }`.
+// Pure function `computeLayout(viewModel) → { nodes, bounds }`.
 //
 // Atomic concepts: visible dots, participate in physics, returned in `nodes`.
 // Clustered concepts: invisible physics anchors, used as gravitational centres
-// for their atomic children. NOT returned in `nodes` (drawn nowhere). Their
-// final positions ARE returned in `clusters` so legacy code paths that still
-// expect a `clusters` array on the layout don't break — they are emitted with
-// label/radius/color fields kept for backwards compat through the cluster
-// rendering removal in Task 6.
+// for their atomic children. NOT returned (drawn nowhere; their positions
+// only exist to shape the simulation).
 //
 // See docs/superpowers/specs/2026-05-10-graph-rendering-design.md § "Layout
 // pipeline" for the full rationale and force constants.
@@ -64,7 +61,7 @@ export function computeLayout(viewModel) {
   const allNodes = [...atomic, ...clustered];
 
   if (!allNodes.length) {
-    return { nodes: {}, bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 }, clusters: [] };
+    return { nodes: {}, bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 } };
   }
 
   // Initial placement: deterministic, seeded by concept id, scattered on a unit disk
@@ -113,23 +110,12 @@ export function computeLayout(viewModel) {
     alpha *= ALPHA_DECAY;
   }
 
-  // Output: only atomic positions are visible. Clustered positions are
-  // emitted in `clusters` for backwards compat with code that still iterates
-  // `layout.clusters` (removed in Task 6).
+  // Output: only atomic positions are visible. Cluster anchors participate
+  // in physics but are not emitted — they're drawn nowhere.
   const nodes = {};
   for (const node of atomic) {
     nodes[node.id] = positions[node.id];
   }
-  // Cluster anchors aren't drawn but downstream code (camera fit, legacy
-  // drawClusterBodies) reads them — emit until cluster rendering is removed.
-  const clusters = clustered.map((concept) => ({
-    id: concept.id,
-    label: concept.label,
-    x: positions[concept.id].x,
-    y: positions[concept.id].y,
-    radius: 80,                          // legacy field for cluster bodies; ignored after Task 6
-    color: clusterColor(concept.id),
-  }));
 
   // Bounds from atomic positions only — cluster anchors might be off-screen and we don't want camera-fit to chase them.
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -144,7 +130,7 @@ export function computeLayout(viewModel) {
     minX = -100; minY = -100; maxX = 100; maxY = 100;
   }
 
-  return { nodes, bounds: { minX, minY, maxX, maxY }, clusters };
+  return { nodes, bounds: { minX, minY, maxX, maxY } };
 }
 
 function applyChargeForce(nodes, positions, velocities) {

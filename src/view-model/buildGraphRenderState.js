@@ -28,7 +28,7 @@ function buildCumulativeVisibility(viewModel, playheadTime) {
   for (const edge of viewModel.graph.edges) {
     if (conceptIds.has(edge.from) && conceptIds.has(edge.to)) edgeIds.add(edge.id);
   }
-  return { conceptIds, clusterIds, edgeIds };
+  return { conceptIds, edgeIds };
 }
 
 function deriveCameraTarget(viewModel, layout, viewport, opts) {
@@ -39,19 +39,25 @@ function deriveCameraTarget(viewModel, layout, viewport, opts) {
 
   const pointFor = (id) => layout.nodes[id];
 
-  // Case 1: no active frame → fit visible clusters.
+  // Case 1: no active frame → fit visible atomic nodes.
   if (!frame || !fg.length) {
-    const clusters = layout.clusters.filter((c) => cumulative.clusterIds.has(c.id));
-    if (!clusters.length) return undefined;
-    return boundsOfClusters(clusters, viewport, 0.15);
+    const visibleIds = [...cumulative.conceptIds].filter((id) => layout.nodes[id]);
+    if (!visibleIds.length) return undefined;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const id of visibleIds) {
+      const p = layout.nodes[id];
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    return fitTarget(minX, minY, maxX, maxY, cx, cy, viewport, 0.15);
   }
 
-  // Case 2: single foreground concept → use its parent cluster.
+  // Case 2: single foreground concept → focus around its position.
   if (fg.length === 1) {
-    const concept = viewModel.concepts.byId[fg[0].id];
-    const parentClusterId = concept?.parentIds?.[0] ?? concept?.id;
-    const cluster = layout.clusters.find((c) => c.id === parentClusterId);
-    if (cluster) return boundsOfClusters([cluster], viewport, 0.20);
     const point = pointFor(fg[0].id);
     if (!point) return undefined;
     return boundsAroundPoint(point, 200, viewport);
@@ -72,19 +78,6 @@ function deriveCameraTarget(viewModel, layout, viewport, opts) {
     if (p.pos.y > maxY) maxY = p.pos.y;
   }
   return fitTarget(minX, minY, maxX, maxY, cx, cy, viewport, 0.15);
-}
-
-function boundsOfClusters(clusters, viewport, pad) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const c of clusters) {
-    minX = Math.min(minX, c.x - c.radius);
-    minY = Math.min(minY, c.y - c.radius);
-    maxX = Math.max(maxX, c.x + c.radius);
-    maxY = Math.max(maxY, c.y + c.radius);
-  }
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
-  return fitTarget(minX, minY, maxX, maxY, cx, cy, viewport, pad);
 }
 
 function boundsAroundPoint(point, radius, viewport) {
@@ -186,13 +179,9 @@ export function buildGraphRenderState(viewModel, {
   const neighborNodeIds = new Set(focus.nearContextIds);
   const selectedNodeIds = new Set(focus.selectedNodeIds);
   const activeNodeIds = new Set(focus.activeNodeIds);
-  const labelVisibleNodeIds = new Set();
   const visibleNodeIds = new Set();
-  const visibleClusterIds = new Set();
   const visibleEdgeIds = new Set();
   const dimmedNodeIds = new Set();
-  const dimmedRegionIds = new Set();
-  const regionEmphasis = {};
 
   for (const node of viewModel.graph.nodes) {
     const base = scoreNodeBase(node);
@@ -211,28 +200,17 @@ export function buildGraphRenderState(viewModel, {
   const sortedAtomic = [...atomicNodes].sort((a, b) => (nodeScores.get(b.id) ?? 0) - (nodeScores.get(a.id) ?? 0));
 
   const atomicVisibleCount = viewportMode === 'overview' ? 16 : viewportMode === 'region' ? 30 : 48;
-  const atomicLabelCount = viewportMode === 'overview' ? 8 : viewportMode === 'region' ? 16 : 28;
 
   for (const cluster of viewModel.concepts.clustered) {
     visibleNodeIds.add(cluster.id);
-    visibleClusterIds.add(cluster.id);
-    labelVisibleNodeIds.add(cluster.id);
   }
 
   for (const node of sortedAtomic.slice(0, atomicVisibleCount)) {
     visibleNodeIds.add(node.id);
-    if (node.regionKey) visibleClusterIds.add(node.regionKey);
   }
 
   for (const id of [...focus.primaryFocusIds, ...focus.nearContextIds, ...focus.activeNodeIds]) {
     visibleNodeIds.add(id);
-    const node = viewModel.graph.nodeById[id];
-    if (node?.regionKey) visibleClusterIds.add(node.regionKey);
-  }
-
-  for (const node of sortedAtomic.slice(0, atomicLabelCount)) labelVisibleNodeIds.add(node.id);
-  for (const id of [...focus.primaryFocusIds, ...focus.nearContextIds, ...focus.activeNodeIds, ...focus.selectedClusterIds]) {
-    labelVisibleNodeIds.add(id);
   }
 
   for (const edge of viewModel.graph.edges) {
@@ -257,21 +235,12 @@ export function buildGraphRenderState(viewModel, {
     if (shouldShow) visibleEdgeIds.add(edge.id);
   }
 
-  for (const cluster of viewModel.concepts.clustered) {
-    const childIds = viewModel.concepts.childrenByClusterId[cluster.id] ?? [];
-    const visibleChildren = childIds.filter((id) => visibleNodeIds.has(id)).length;
-    const activeChildren = childIds.filter((id) => activeNodeIds.has(id)).length;
-    const emphasis = Math.min(1, (visibleChildren / Math.max(1, Math.min(childIds.length, 8))) * 0.55 + activeChildren * 0.18 + (focus.selectedClusterIds.includes(cluster.id) ? 0.45 : 0));
-    regionEmphasis[cluster.id] = emphasis;
-    if (!visibleChildren && !focus.selectedClusterIds.includes(cluster.id) && viewportMode !== 'overview') dimmedRegionIds.add(cluster.id);
-  }
-
   for (const node of viewModel.graph.nodes) {
     if (!visibleNodeIds.has(node.id)) {
       dimmedNodeIds.add(node.id);
       continue;
     }
-    if (!activeNodeIds.has(node.id) && !selectedNodeIds.has(node.id) && !neighborNodeIds.has(node.id) && node.level !== 'clustered' && !labelVisibleNodeIds.has(node.id)) {
+    if (!activeNodeIds.has(node.id) && !selectedNodeIds.has(node.id) && !neighborNodeIds.has(node.id) && node.level !== 'clustered') {
       dimmedNodeIds.add(node.id);
     }
   }
@@ -280,14 +249,8 @@ export function buildGraphRenderState(viewModel, {
   for (const id of [...visibleNodeIds]) {
     if (!cumulative.conceptIds.has(id)) visibleNodeIds.delete(id);
   }
-  for (const id of [...visibleClusterIds]) {
-    if (!cumulative.clusterIds.has(id)) visibleClusterIds.delete(id);
-  }
   for (const id of [...visibleEdgeIds]) {
     if (!cumulative.edgeIds.has(id)) visibleEdgeIds.delete(id);
-  }
-  for (const id of [...labelVisibleNodeIds]) {
-    if (!cumulative.conceptIds.has(id)) labelVisibleNodeIds.delete(id);
   }
 
   const cameraTarget = deriveCameraTarget(viewModel, layout, viewport, {
@@ -305,14 +268,9 @@ export function buildGraphRenderState(viewModel, {
     activeEdgeIds: [...activeEdgeIds],
     selectedNodeIds: [...selectedNodeIds],
     neighborNodeIds: [...neighborNodeIds],
-    labelVisibleNodeIds: [...labelVisibleNodeIds],
-    visibleClusterIds: [...visibleClusterIds],
     dimmedNodeIds: [...dimmedNodeIds],
-    dimmedRegionIds: [...dimmedRegionIds],
-    regionEmphasis,
     nodeScores: Object.fromEntries(nodeScores.entries()),
     cumulativeVisibleConceptIds: [...cumulative.conceptIds],
-    cumulativeVisibleClusterIds: [...cumulative.clusterIds],
     cumulativeVisibleEdgeIds: [...cumulative.edgeIds],
     cameraTarget,
     conceptImportance: viewModel.graph.conceptImportance ?? {},

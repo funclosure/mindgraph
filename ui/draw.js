@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// Draw — canvas rendering: background, clusters, edges, nodes, labels
+// Draw — canvas rendering: background, edges, nodes, labels
 // ---------------------------------------------------------------------------
 
-import { hexToRgba } from './util.js';
 import { computeVisibleLabels } from './labels.js';
+import { clusterColor } from './layout.js';
 
 export function draw(ctx, state) {
   const { viewModel: vm, layout, graphRenderState: grs, viewport, animator } = state;
@@ -15,13 +15,12 @@ export function draw(ctx, state) {
   drawBackground(ctx, viewport);
   ctx.restore();
 
-  // World-space layer: clusters, edges, dots.
+  // World-space layer: edges, dots.
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.translate(state.camera.pan.x, state.camera.pan.y);
   ctx.scale(state.camera.zoom, state.camera.zoom);
 
-  drawClusterBodies(ctx, layout, grs, animator);
   drawEdges(ctx, vm, layout, grs, animator);
   drawAtomicNodes(ctx, vm, layout, grs, animator);
 
@@ -47,47 +46,9 @@ function drawBackground(ctx, viewport) {
   ctx.fillRect(0, 0, w, h);
 }
 
-function drawClusterBodies(ctx, layout, grs, animator) {
-  const dimmedRegions = new Set(grs?.dimmedRegionIds ?? []);
-  const emphasisByRegion = grs?.regionEmphasis ?? {};
-  const visibleClusters = new Set(grs?.cumulativeVisibleClusterIds ?? []);
-  for (const cluster of layout.clusters) {
-    if (!visibleClusters.has(cluster.id)) continue;
-    const animOpacity = animator?.getEntityState(cluster.id)?.opacity ?? 1;
-    if (animOpacity <= 0.001) continue;
-    const animScale = animator?.getEntityState(cluster.id)?.scale ?? 1;
-    const emphasis = emphasisByRegion[cluster.id] ?? 0.35;
-    const isDimmed = dimmedRegions.has(cluster.id);
-    const fillAlpha = (isDimmed ? 0.06 : 0.10 + emphasis * 0.14) * animOpacity;
-    const strokeAlpha = (isDimmed ? 0.16 : 0.28 + emphasis * 0.22) * animOpacity;
-
-    ctx.beginPath();
-    ctx.fillStyle = hexToRgba(cluster.color, fillAlpha);
-    ctx.strokeStyle = hexToRgba(cluster.color, strokeAlpha);
-    ctx.lineWidth = 1.2;
-    ctx.arc(cluster.x, cluster.y, cluster.radius * animScale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.strokeStyle = `rgba(255, 255, 255, ${0.04 * animOpacity})`;
-    ctx.arc(cluster.x, cluster.y, (cluster.radius - 7) * animScale, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-}
-
-function sharedCluster(vm, fromId, toId) {
-  const from = vm.concepts.byId?.[fromId];
-  const to = vm.concepts.byId?.[toId];
-  const fromParent = from?.parentIds?.[0];
-  const toParent = to?.parentIds?.[0];
-  return fromParent && fromParent === toParent;
-}
-
 function drawEdges(ctx, vm, layout, grs, animator) {
   const visible = grs?.visibleEdgeIds ? new Set(grs.visibleEdgeIds) : null;
   const activeEdge = new Set(grs?.activeEdgeIds ?? []);
-  const activeNode = new Set(grs?.activeNodeIds ?? []);
   const selectedNode = new Set(grs?.selectedNodeIds ?? []);
 
   ctx.lineCap = 'round';
@@ -99,28 +60,16 @@ function drawEdges(ctx, vm, layout, grs, animator) {
     const to = layout.nodes[edge.to];
     if (!from || !to) continue;
 
-    const sameCluster = sharedCluster(vm, edge.from, edge.to);
-    const isActive = activeEdge.has(edge.id) || (activeNode.has(edge.from) && activeNode.has(edge.to));
     const touchesSelection = selectedNode.has(edge.from) || selectedNode.has(edge.to);
+    const isActive = activeEdge.has(edge.id);
 
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const norm = Math.max(1, Math.hypot(dx, dy));
-    const lift = sameCluster ? 14 : 38;
-    const cx = (from.x + to.x) / 2 - (dy / norm) * lift;
-    const cy = (from.y + to.y) / 2 + (dx / norm) * lift;
+    const baseAlpha = touchesSelection || isActive ? 0.95 : 0.28;
+    ctx.strokeStyle = `rgba(218, 184, 116, ${baseAlpha * animOpacity})`;
+    ctx.lineWidth = touchesSelection ? 1.4 : isActive ? 1.0 : 0.8;
 
     ctx.beginPath();
     ctx.moveTo(from.x, from.y);
-    ctx.quadraticCurveTo(cx, cy, to.x, to.y);
-    const baseAlpha = touchesSelection || isActive ? 0.95 : sameCluster ? 0.30 : 0.22;
-    const baseColor = touchesSelection || isActive
-      ? `rgba(218, 184, 116, ${baseAlpha * animOpacity})`
-      : sameCluster
-        ? `rgba(212, 188, 135, ${baseAlpha * animOpacity})`
-        : `rgba(143, 183, 199, ${baseAlpha * animOpacity})`;
-    ctx.strokeStyle = baseColor;
-    ctx.lineWidth = touchesSelection ? 2 : isActive ? 1.4 : 0.85;
+    ctx.lineTo(to.x, to.y);
     ctx.stroke();
   }
 }
@@ -144,8 +93,13 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
     const isDimmed = dimmed.has(node.id);
     const isSelected = selected.has(node.id);
 
+    const parentClusterId = node.parentIds?.[0];
+    const fillColor = parentClusterId ? clusterColor(parentClusterId) : '#b8a07a';
+
     ctx.beginPath();
-    ctx.fillStyle = isActive ? '#f4cf86' : '#b8a07a';
+    ctx.fillStyle = isActive
+      ? brightenForActive(fillColor)
+      : fillColor;
     ctx.globalAlpha = (isSelected ? 1 : isActive ? 0.94 : isDimmed ? 0.28 : 0.7) * animOpacity;
     ctx.arc(pos.x, pos.y, radius + (isSelected ? 1.5 : 0), 0, Math.PI * 2);
     ctx.fill();
@@ -180,4 +134,16 @@ function drawLabels(ctx, state) {
     ctx.fillStyle = `rgba(234, 227, 213, ${label.alpha})`;
     ctx.fillText(label.text, label.x, label.y);
   }
+}
+
+function brightenForActive(hex) {
+  // hex is "#RRGGBB" — bump each channel toward white by ~20% for active state.
+  // Approximates a gentle "glow" without re-doing HSL math.
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return hex;
+  const lift = (c) => {
+    const n = Number.parseInt(c, 16);
+    return Math.min(255, Math.round(n + (255 - n) * 0.20)).toString(16).padStart(2, '0');
+  };
+  return `#${lift(m[1])}${lift(m[2])}${lift(m[3])}`;
 }
