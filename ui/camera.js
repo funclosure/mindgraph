@@ -51,7 +51,7 @@ function clamp(v, lo, hi) {
 
 export function zoomAround(camera, screenPoint, factor) {
   const before = screenToWorld(camera, screenPoint);
-  camera.zoom = clamp(camera.zoom * factor, 0.2, 4);
+  camera.zoom = clamp(camera.zoom * factor, 0.2, 8);
   const after = screenToWorld(camera, screenPoint);
   camera.pan.x += (after.x - before.x) * camera.zoom;
   camera.pan.y += (after.y - before.y) * camera.zoom;

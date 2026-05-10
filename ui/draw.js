@@ -46,10 +46,18 @@ function drawBackground(ctx, viewport) {
   ctx.fillRect(0, 0, w, h);
 }
 
+function dotRadius(node) {
+  return Math.max(2.5, Math.min(6, 2.5 + (node?.degree ?? 0) * 0.4));
+}
+
 function drawEdges(ctx, vm, layout, grs, animator) {
   const visible = grs?.visibleEdgeIds ? new Set(grs.visibleEdgeIds) : null;
   const activeEdge = new Set(grs?.activeEdgeIds ?? []);
   const selectedNode = new Set(grs?.selectedNodeIds ?? []);
+
+  // Small visual gap between line endpoint and dot perimeter, so the line
+  // doesn't kiss the dot — feels less crowded at typical zooms.
+  const gap = 1.5;
 
   ctx.lineCap = 'round';
   for (const edge of vm.graph.edges) {
@@ -60,16 +68,33 @@ function drawEdges(ctx, vm, layout, grs, animator) {
     const to = layout.nodes[edge.to];
     if (!from || !to) continue;
 
+    // Back the line off each endpoint by that node's dot radius (+ a small
+    // gap), so edges terminate at the dot's perimeter rather than running
+    // under the dot's interior.
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 0.001) continue;
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const fromR = dotRadius(vm.graph.nodeById[edge.from]) + gap;
+    const toR = dotRadius(vm.graph.nodeById[edge.to]) + gap;
+    if (fromR + toR >= dist) continue; // dots overlap; skip rather than draw a weird stub
+    const x1 = from.x + ux * fromR;
+    const y1 = from.y + uy * fromR;
+    const x2 = to.x - ux * toR;
+    const y2 = to.y - uy * toR;
+
     const touchesSelection = selectedNode.has(edge.from) || selectedNode.has(edge.to);
     const isActive = activeEdge.has(edge.id);
 
-    const baseAlpha = touchesSelection || isActive ? 0.95 : 0.28;
+    const baseAlpha = touchesSelection || isActive ? 0.95 : 0.16;
     ctx.strokeStyle = `rgba(218, 184, 116, ${baseAlpha * animOpacity})`;
-    ctx.lineWidth = touchesSelection ? 1.4 : isActive ? 1.0 : 0.8;
+    ctx.lineWidth = touchesSelection ? 1.4 : isActive ? 1.0 : 0.6;
 
     ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
     ctx.stroke();
   }
 }
@@ -88,7 +113,7 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
     const animOpacity = animator?.getEntityState(node.id)?.opacity ?? 1;
     if (animOpacity <= 0.001) continue;
     const animScale = animator?.getEntityState(node.id)?.scale ?? 1;
-    const radius = Math.max(2.5, Math.min(6, 2.5 + (node.degree ?? 0) * 0.4)) * animScale;
+    const radius = dotRadius(node) * animScale;
     const isActive = active.has(node.id);
     const isDimmed = dimmed.has(node.id);
     const isSelected = selected.has(node.id);
@@ -100,7 +125,7 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
     ctx.fillStyle = isActive
       ? brightenForActive(fillColor)
       : fillColor;
-    ctx.globalAlpha = (isSelected ? 1 : isActive ? 0.94 : isDimmed ? 0.28 : 0.7) * animOpacity;
+    ctx.globalAlpha = (isSelected ? 1 : isActive ? 0.95 : isDimmed ? 0.22 : 0.85) * animOpacity;
     ctx.arc(pos.x, pos.y, radius + (isSelected ? 1.5 : 0), 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;

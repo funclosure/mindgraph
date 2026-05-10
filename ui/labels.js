@@ -29,7 +29,16 @@ export function computeVisibleLabels({
 
   const conceptImportance = renderState?.conceptImportance ?? viewModel.graph.conceptImportance ?? {};
   const activeNodeIds = new Set(renderState?.activeNodeIds ?? []);
-  const cumulative = new Set(renderState?.cumulativeVisibleConceptIds ?? viewModel.graph.nodes.map((n) => n.id));
+  // Labels can only appear for concepts whose dots are actually rendered.
+  // visibleNodeIds is the dot-rendering set (cumulative-gated, capped by
+  // viewport mode). Filtering on it instead of the broader cumulative set
+  // prevents labels-floating-in-empty-space when the dot cap excludes a
+  // bloomed-in concept.
+  const renderedNodeIds = new Set(
+    renderState?.visibleNodeIds
+    ?? renderState?.cumulativeVisibleConceptIds
+    ?? viewModel.graph.nodes.map((n) => n.id),
+  );
 
   // Selection focus mode: if anything is selected, suppress non-neighbor labels entirely.
   const selectedNeighborIds = new Set();
@@ -50,7 +59,7 @@ export function computeVisibleLabels({
   const candidates = [];
   for (const node of viewModel.graph.nodes) {
     if (node.level !== 'atomic') continue;
-    if (!cumulative.has(node.id)) continue;
+    if (!renderedNodeIds.has(node.id)) continue;
 
     const isHovered = hoveredConceptId === node.id;
     const isSelected = selectedConceptId === node.id;
@@ -95,7 +104,11 @@ export function computeVisibleLabels({
     const metrics = ctx.measureText(text);
     const w = metrics.width + LABEL_PADDING_X * 2;
     const h = 14 + LABEL_PADDING_Y * 2;
-    const dotR = dotRadiusFor(cand.node) * z;
+    // Outer visual radius — includes the selection / hover ring so the label
+    // clears the ring at any zoom. ui/draw.js draws the selection ring at
+    // (dotRadius + 4) world units with a 1.6 px stroke; ~5 covers it.
+    const ringExtra = (cand.isSelected || cand.isHovered) ? 5 : 0;
+    const dotR = (dotRadiusFor(cand.node) + ringExtra) * z;
     const left = screenPos.x - w / 2;
     const top = screenPos.y - dotR - 6 - h;
     const rect = {
