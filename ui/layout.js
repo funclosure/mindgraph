@@ -27,6 +27,7 @@ const LINK_STIFFNESS_MEMBERSHIP = 1.5;
 const CENTER_STRENGTH = 0.05;
 const COLLISION_PADDING = 4;
 const NODE_BASE_RADIUS = 4;     // used for collision; render-side radius is computed in draw.js
+const MAX_VELOCITY_PER_ITER = 50;  // explicit-Euler stability cap; see clampVelocities()
 
 export function seededUnit(value) {
   let h = 0;
@@ -107,6 +108,7 @@ export function computeLayout(viewModel) {
     applyLinkForce(edges, positions, velocities);
     applyCenterForce(allNodes, positions, velocities);
     applyCollisionForce(allNodes, positions, velocities);
+    clampVelocities(allNodes, velocities);
     integrate(allNodes, positions, velocities, alpha);
     alpha *= ALPHA_DECAY;
   }
@@ -222,6 +224,30 @@ function applyCollisionForce(nodes, positions, velocities) {
       velocities[a].y -= fy;
       velocities[b].x += fx;
       velocities[b].y += fy;
+    }
+  }
+}
+
+function clampVelocities(nodes, velocities) {
+  // Cap per-iteration velocity magnitude. Without this, the link force's
+  // unbounded `delta = (dist - target) * stiffness` term creates a positive
+  // feedback loop with charge under explicit-Euler integration: a node
+  // pushed slightly out of equilibrium accumulates more force, moves
+  // farther, accumulates still more force, etc. Empirically observed at
+  // ~70 nodes: coordinates blow up to ~1e+65 within 300 iterations.
+  //
+  // 50 px/iter is generous (typical settle-to-equilibrium displacements
+  // are <10 px after the first few iters) but still well below the
+  // explosion threshold.
+  const max = MAX_VELOCITY_PER_ITER;
+  const max2 = max * max;
+  for (const node of nodes) {
+    const v = velocities[node.id];
+    const speed2 = v.x * v.x + v.y * v.y;
+    if (speed2 > max2) {
+      const scale = max / Math.sqrt(speed2);
+      v.x *= scale;
+      v.y *= scale;
     }
   }
 }

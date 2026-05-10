@@ -34,7 +34,7 @@ export function fitCameraToLayout(camera, layout, viewport, padding = 48) {
   const bounds = layout.bounds;
   if (!bounds) return;
   const { minX, minY, maxX, maxY } = bounds;
-  if (!Number.isFinite(minX) || !Number.isFinite(maxY)) return;
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return;
   const worldW = Math.max(1, maxX - minX);
   const worldH = Math.max(1, maxY - minY);
   const screenW = Math.max(1, viewport.width - padding * 2);
