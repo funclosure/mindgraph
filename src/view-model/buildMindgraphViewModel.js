@@ -6,6 +6,34 @@ function durationFromSpan(span) {
   return Math.max(0, (span?.end ?? 0) - (span?.start ?? 0));
 }
 
+function computeConceptImportance(nodes) {
+  // Importance score per the design spec:
+  //   base(c) = 0.4·degreeFactor + 0.3·peakActivation + 0.3·persistence
+  // where degreeFactor is normalised against the max-degree atomic concept,
+  // and peakActivation/persistence are read from concept.stats (clamped to
+  // [0, 1] in case the stats step hasn't run yet).
+  //
+  // Returns Record<conceptId, number> where value ∈ [0, 1].
+  const importance = {};
+  const atomic = nodes.filter((n) => n.level === 'atomic');
+  if (!atomic.length) return importance;
+  const maxDegree = Math.max(1, ...atomic.map((n) => n.degree ?? 0));
+  for (const node of atomic) {
+    const degreeFactor = (node.degree ?? 0) / maxDegree;
+    const peak = clamp01(node.stats?.peakActivation ?? 0);
+    const persistence = clamp01(node.stats?.persistence ?? 0);
+    importance[node.id] = 0.4 * degreeFactor + 0.3 * peak + 0.3 * persistence;
+  }
+  return importance;
+}
+
+function clamp01(n) {
+  if (typeof n !== 'number' || Number.isNaN(n)) return 0;
+  if (n < 0) return 0;
+  if (n > 1) return 1;
+  return n;
+}
+
 function normalizeConcept(rawConcept, level) {
   return {
     id: rawConcept.id,
@@ -250,7 +278,9 @@ function buildGraphVM(conceptsVM, relationsVM) {
     edgesByNodeId[edge.to].push(edge.id);
   }
 
-  return { nodes, edges, nodeById, edgesByNodeId };
+  const conceptImportance = computeConceptImportance(nodes);
+
+  return { nodes, edges, nodeById, edgesByNodeId, conceptImportance };
 }
 
 function buildIndexesVM(conceptsVM, framesVM, transcriptVM) {

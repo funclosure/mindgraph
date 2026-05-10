@@ -285,6 +285,7 @@ interface GraphVM {
   edges: GraphEdgeVM[]
   nodeById: Record<string, GraphNodeVM>
   edgesByNodeId: Record<string, string[]>
+  conceptImportance: Record<string, number>  // base importance score per atomic concept, ∈ [0, 1]
 }
 ```
 
@@ -299,6 +300,7 @@ interface GraphNodeVM {
   stats?: ConceptStatsVM
   regionKey?: string
   visualWeight: number
+  degree: number  // count of incident edges (self-loops count twice, per graph-theory convention)
 }
 ```
 

@@ -315,5 +315,6 @@ export function buildGraphRenderState(viewModel, {
     cumulativeVisibleClusterIds: [...cumulative.clusterIds],
     cumulativeVisibleEdgeIds: [...cumulative.edgeIds],
     cameraTarget,
+    conceptImportance: viewModel.graph.conceptImportance ?? {},
   };
 }
