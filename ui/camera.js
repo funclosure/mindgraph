@@ -31,17 +31,12 @@ export function worldToScreen(camera, point) {
 }
 
 export function fitCameraToLayout(camera, layout, viewport, padding = 48) {
-  const clusters = layout.clusters;
-  if (!clusters.length) return;
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const c of clusters) {
-    minX = Math.min(minX, c.x - c.radius);
-    minY = Math.min(minY, c.y - c.radius);
-    maxX = Math.max(maxX, c.x + c.radius);
-    maxY = Math.max(maxY, c.y + c.radius);
-  }
-  const worldW = maxX - minX;
-  const worldH = maxY - minY;
+  const bounds = layout.bounds;
+  if (!bounds) return;
+  const { minX, minY, maxX, maxY } = bounds;
+  if (!Number.isFinite(minX) || !Number.isFinite(maxY)) return;
+  const worldW = Math.max(1, maxX - minX);
+  const worldH = Math.max(1, maxY - minY);
   const screenW = Math.max(1, viewport.width - padding * 2);
   const screenH = Math.max(1, viewport.height - padding * 2);
   const zoom = Math.min(screenW / worldW, screenH / worldH);

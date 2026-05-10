@@ -37,10 +37,24 @@ export function seededUnit(value) {
 }
 
 export function clusterColor(clusterId) {
-  // Deterministic warm-tone HSL hash. Hue restricted to [25°, 55°] so all
-  // clusters sit in a coherent gold/amber palette.
+  // Deterministic warm-tone hash: hue ∈ [25°, 55°], saturation 35%,
+  // lightness 60%. Returned as #RRGGBB so consumers using hexToRgba()
+  // work unchanged. Same id → same color across reloads.
   const hue = 25 + Math.floor(seededUnit(clusterId) * 30);
-  return `hsl(${hue}, 35%, 60%)`;
+  return hslToHex(hue, 35, 60);
+}
+
+function hslToHex(h, s, l) {
+  // Standard HSL → RGB → hex conversion. h in [0, 360), s/l in [0, 100].
+  const sNorm = s / 100;
+  const lNorm = l / 100;
+  const a = sNorm * Math.min(lNorm, 1 - lNorm);
+  const channel = (n) => {
+    const k = (n + h / 30) % 12;
+    const c = lNorm - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(255 * c).toString(16).padStart(2, '0');
+  };
+  return `#${channel(0)}${channel(8)}${channel(4)}`;
 }
 
 export function computeLayout(viewModel) {
