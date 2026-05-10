@@ -227,6 +227,7 @@ function buildGraphVM(conceptsVM, relationsVM) {
     stats: concept.stats,
     regionKey: concept.level === 'atomic' ? concept.parentIds?.[0] : concept.id,
     visualWeight: concept.stats?.peakActivation ?? 0.5,
+    degree: 0,
   }));
 
   const edges = relationsVM.all.map((relation) => ({
@@ -241,6 +242,8 @@ function buildGraphVM(conceptsVM, relationsVM) {
   const nodeById = Object.fromEntries(nodes.map((node) => [node.id, node]));
   const edgesByNodeId = {};
   for (const edge of edges) {
+    if (nodeById[edge.from]) nodeById[edge.from].degree += 1;
+    if (nodeById[edge.to]) nodeById[edge.to].degree += 1;
     if (!edgesByNodeId[edge.from]) edgesByNodeId[edge.from] = [];
     if (!edgesByNodeId[edge.to]) edgesByNodeId[edge.to] = [];
     edgesByNodeId[edge.from].push(edge.id);
