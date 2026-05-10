@@ -4,13 +4,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, exec } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { createEmptyDocument, summarizeDocument, validateDocument } from '../core/schema.js';
 import { createDocumentFromTranscript } from '../core/transcript.js';
 import { buildTimelineFromTranscript } from '../core/build.js';
 import { getConcept, getFrame, listConcepts, listFrames, mergeFrames, parseJsonValue, recomputeConceptStats, setFrameActivations, upsertConcept, upsertRelation } from '../core/document.js';
 
+const pkg = createRequire(import.meta.url)('../../package.json');
+
 function printHelp() {
-  console.log(`mindgraph v0.1.0
+  console.log(`mindgraph v${pkg.version}
 
 Usage:
   mindgraph --help

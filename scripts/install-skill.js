@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// Postinstall hook: symlink ~/.claude/skills/mindgraph -> this package's
-// skills/mindgraph directory, but only when the package is being installed
-// globally (npm install -g ...).
+// Postinstall hook: symlink ~/.claude/skills/mindgraph -> the installed
+// package's skills/mindgraph directory, but only when the package is being
+// installed globally (npm install -g ...).
 //
-// Self-heals on every global install: if a previous symlink points at a
-// stale path (e.g. a different nvm node version's lib/node_modules), it gets
-// repointed at the current install. If a non-symlink already lives at the
-// target, we leave it alone — the user has put something there deliberately.
+// Self-heals on every global install: if a previous symlink (including a
+// dangling one, e.g. from a different node version's lib/node_modules) lives
+// at the target, it gets repointed at the current install. If a non-symlink
+// already lives at the target, we leave it alone — the user has put it there
+// deliberately.
 
 import { execSync } from 'node:child_process';
 import {
-  existsSync,
   lstatSync,
   mkdirSync,
   readlinkSync,
@@ -21,40 +21,49 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 
-const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const PACKAGE_NAME = 'mindgraph';
+const localPackageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-function isGlobalInstall() {
-  if (process.env.npm_config_global === 'true') return true;
+function getGlobalRoot() {
   try {
-    const globalRoot = execSync('npm root -g', {
+    const root = execSync('npm root -g', {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
-    return globalRoot.length > 0 && packageRoot.startsWith(globalRoot);
+    return root || null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-if (!isGlobalInstall()) {
+const globalRoot = getGlobalRoot();
+const isGlobalInstall =
+  process.env.npm_config_global === 'true' ||
+  (globalRoot !== null && localPackageRoot.startsWith(globalRoot));
+
+if (!isGlobalInstall) {
   // Local dev install or transitive dependency — don't touch ~/.claude.
   process.exit(0);
 }
 
-const skillsDir = join(os.homedir(), '.claude', 'skills');
-const targetLink = join(skillsDir, 'mindgraph');
-const skillSource = join(packageRoot, 'skills', 'mindgraph');
-
-if (!existsSync(skillSource)) {
+if (!globalRoot) {
   console.error(
-    `[mindgraph postinstall] skill source missing at ${skillSource} — nothing to link.`,
+    '[mindgraph postinstall] could not resolve `npm root -g`; skipping skill link.',
   );
   process.exit(0);
 }
 
+// Always point at the *final* install location, not the script's current
+// location — npm may run postinstall in a temp staging dir during git+url
+// installs, and that path vanishes once npm finalizes the move.
+const installedRoot = join(globalRoot, PACKAGE_NAME);
+const skillsDir = join(os.homedir(), '.claude', 'skills');
+const targetLink = join(skillsDir, PACKAGE_NAME);
+const skillSource = join(installedRoot, 'skills', PACKAGE_NAME);
+
 mkdirSync(skillsDir, { recursive: true });
 
-if (existsSync(targetLink)) {
+try {
   const stat = lstatSync(targetLink);
   if (!stat.isSymbolicLink()) {
     console.error(
@@ -63,12 +72,15 @@ if (existsSync(targetLink)) {
     );
     process.exit(0);
   }
-  const current = readlinkSync(targetLink);
-  if (current === skillSource) {
+  if (readlinkSync(targetLink) === skillSource) {
     // Already correct — nothing to do.
     process.exit(0);
   }
+  // Symlink exists but points elsewhere (or is dangling). Remove and replace.
   rmSync(targetLink);
+} catch (e) {
+  if (e.code !== 'ENOENT') throw e;
+  // Target doesn't exist — fall through to create.
 }
 
 symlinkSync(skillSource, targetLink, 'dir');
