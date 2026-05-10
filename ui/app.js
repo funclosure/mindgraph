@@ -32,6 +32,7 @@ const state = {
   layout: undefined,
   graphRenderState: undefined,
   selectedConceptId: undefined,
+  hoveredConceptId: undefined,
   selectedFrameRef: undefined,
   playheadTime: 0,
   activeLevel: 'macro',

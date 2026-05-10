@@ -2,17 +2,20 @@
 // Draw — canvas rendering: background, clusters, edges, nodes, labels
 // ---------------------------------------------------------------------------
 
-import { hexToRgba, wrapLabel } from './util.js';
+import { hexToRgba } from './util.js';
+import { computeVisibleLabels } from './labels.js';
 
 export function draw(ctx, state) {
   const { viewModel: vm, layout, graphRenderState: grs, viewport, animator } = state;
   const dpr = window.devicePixelRatio || 1;
 
+  // Background — screen space.
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawBackground(ctx, viewport);
   ctx.restore();
 
+  // World-space layer: clusters, edges, dots.
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.translate(state.camera.pan.x, state.camera.pan.y);
@@ -21,9 +24,13 @@ export function draw(ctx, state) {
   drawClusterBodies(ctx, layout, grs, animator);
   drawEdges(ctx, vm, layout, grs, animator);
   drawAtomicNodes(ctx, vm, layout, grs, animator);
-  drawClusterLabels(ctx, layout, grs, animator);
-  drawAtomicLabels(ctx, vm, layout, grs, animator);
 
+  ctx.restore();
+
+  // Screen-space layer: labels.
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawLabels(ctx, state);
   ctx.restore();
 }
 
@@ -132,7 +139,7 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
     const animOpacity = animator?.getEntityState(node.id)?.opacity ?? 1;
     if (animOpacity <= 0.001) continue;
     const animScale = animator?.getEntityState(node.id)?.scale ?? 1;
-    const radius = (3.2 + (node.visualWeight ?? 0.5) * 1.8) * animScale;
+    const radius = Math.max(2.5, Math.min(6, 2.5 + (node.degree ?? 0) * 0.4)) * animScale;
     const isActive = active.has(node.id);
     const isDimmed = dimmed.has(node.id);
     const isSelected = selected.has(node.id);
@@ -154,45 +161,23 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
   }
 }
 
-function drawClusterLabels(ctx, layout, grs, animator) {
-  const visibleClusters = new Set(grs?.cumulativeVisibleClusterIds ?? []);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = "500 18px 'Inter', system-ui, sans-serif";
-  for (const cluster of layout.clusters) {
-    if (!visibleClusters.has(cluster.id)) continue;
-    const animOpacity = animator?.getEntityState(cluster.id)?.opacity ?? 1;
-    if (animOpacity <= 0.001) continue;
-    ctx.fillStyle = `rgba(245, 234, 210, ${0.92 * animOpacity})`;
-    const lines = wrapLabel(cluster.label, 2);
-    const lineHeight = 22;
-    const top = -((lines.length - 1) * lineHeight) / 2;
-    lines.forEach((line, i) => {
-      ctx.fillText(line, cluster.x, cluster.y + top + i * lineHeight);
-    });
-  }
-}
-
-function drawAtomicLabels(ctx, vm, layout, grs, animator) {
-  const labelVisible = new Set(grs?.labelVisibleNodeIds ?? vm.graph.nodes.map((n) => n.id));
-  const active = new Set(grs?.activeNodeIds ?? []);
-  const dimmed = new Set(grs?.dimmedNodeIds ?? []);
+function drawLabels(ctx, state) {
+  const labels = computeVisibleLabels({
+    viewModel: state.viewModel,
+    layout: state.layout,
+    camera: state.camera,
+    viewport: state.viewport,
+    renderState: state.graphRenderState,
+    ctx,
+    hoveredConceptId: state.hoveredConceptId,
+    selectedConceptId: state.selectedConceptId,
+  });
 
   ctx.font = "11px 'Inter', system-ui, sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-
-  for (const node of vm.graph.nodes) {
-    if (node.level === 'clustered') continue;
-    if (!labelVisible.has(node.id)) continue;
-    const pos = layout.nodes[node.id];
-    if (!pos) continue;
-    const animOpacity = animator?.getEntityState(node.id)?.opacity ?? 1;
-    if (animOpacity <= 0.001) continue;
-    const isActive = active.has(node.id);
-    const isDimmed = dimmed.has(node.id);
-    const baseAlpha = isDimmed ? 0.34 : isActive ? 0.92 : 0.7;
-    ctx.fillStyle = `rgba(234, 227, 213, ${baseAlpha * animOpacity})`;
-    ctx.fillText(node.label, pos.x, pos.y - 8);
+  for (const label of labels) {
+    ctx.fillStyle = `rgba(234, 227, 213, ${label.alpha})`;
+    ctx.fillText(label.text, label.x, label.y);
   }
 }
