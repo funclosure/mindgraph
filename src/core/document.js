@@ -92,6 +92,50 @@ export function setFrameActivations(doc, { level = 'micro', index, foregroundCon
   return frame;
 }
 
+export function backfillFrameActivations(doc, { fromLevel = 'meso', toLevel = 'micro' } = {}) {
+  // Copy each from-level frame's activations onto every to-level frame whose
+  // span overlaps it most. Intended for the "broadcast down" case (meso → micro
+  // or macro → meso) where finer frames lack their own activation annotations
+  // and should inherit context from their coarser-level parent.
+  //
+  // Each to-frame gets the activations of the from-frame with maximum span
+  // overlap. Existing to-frame activations are REPLACED (this is a backfill,
+  // not a merge) — if the to-frame already had its own annotations they get
+  // overwritten. Callers should not run this on documents whose target level
+  // has been hand-annotated.
+  if (fromLevel === toLevel) {
+    throw new Error('backfill --from and --to must be different frame levels');
+  }
+  const fromFrames = getFrameCollection(doc, fromLevel);
+  const toFrames = getFrameCollection(doc, toLevel);
+
+  let updated = 0;
+  for (const toFrame of toFrames) {
+    if (!toFrame.span) continue;
+    const toStart = toFrame.span.start ?? 0;
+    const toEnd = toFrame.span.end ?? toStart;
+    let best = null;
+    let bestOverlap = 0;
+    for (const fromFrame of fromFrames) {
+      if (!fromFrame.span) continue;
+      const fromStart = fromFrame.span.start ?? 0;
+      const fromEnd = fromFrame.span.end ?? fromStart;
+      const overlap = Math.max(0, Math.min(toEnd, fromEnd) - Math.max(toStart, fromStart));
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        best = fromFrame;
+      }
+    }
+    if (!best) continue;
+    toFrame.foregroundConcepts = (best.foregroundConcepts ?? []).map((a) => ({ ...a }));
+    toFrame.backgroundConcepts = (best.backgroundConcepts ?? []).map((a) => ({ ...a }));
+    toFrame.activeRelations = (best.activeRelations ?? []).map((a) => ({ ...a }));
+    updated += 1;
+  }
+
+  return { updated, total: toFrames.length };
+}
+
 function mergeActivationLists(frames, key) {
   const merged = new Map();
 

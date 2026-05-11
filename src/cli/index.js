@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { createEmptyDocument, summarizeDocument, validateDocument } from '../core/schema.js';
 import { createDocumentFromTranscript } from '../core/transcript.js';
 import { buildTimelineFromTranscript } from '../core/build.js';
-import { getConcept, getFrame, listConcepts, listFrames, mergeFrames, parseJsonValue, recomputeConceptStats, setFrameActivations, upsertConcept, upsertRelation } from '../core/document.js';
+import { backfillFrameActivations, getConcept, getFrame, listConcepts, listFrames, mergeFrames, parseJsonValue, recomputeConceptStats, setFrameActivations, upsertConcept, upsertRelation } from '../core/document.js';
 
 const pkg = createRequire(import.meta.url)('../../package.json');
 
@@ -30,6 +30,7 @@ Usage:
   mindgraph frame show <document-file> --level micro|meso|macro --index <n>
   mindgraph frame set-activations <document-file> --level micro|meso|macro --index <n> [--foreground-json <json>] [--background-json <json>] [--relations-json <json>] [--summary <text>]
   mindgraph frame merge <document-file> --from micro|meso --to meso|macro --start-index <n> --end-index <n> [--summary <text>] [--title <text>]
+  mindgraph frame backfill-activations <document-file> --from meso|macro --to micro|meso
   mindgraph stats recompute <document-file>
   mindgraph view [<document-file>] [--port <n>] [--host <h>]
 
@@ -48,6 +49,7 @@ Commands:
   frame list/show        Inspect frames without opening raw JSON
   frame set-activations  Write weighted concept/relation activations to a frame
   frame merge            Merge lower-level frames into a higher-level frame
+  frame backfill-activations  Broadcast a coarser level's activations onto a finer level's frames
   stats recompute        Recompute concept recurrence and activation stats
   view                   Open the reading UI for a document in the browser
 
@@ -481,6 +483,25 @@ if (command === 'frame' && subcommand === 'set-activations') {
   validateOrExit(doc, documentFile);
   writeJson(documentFile, doc);
   console.log(`Updated activations for ${level}[${indexRaw}].`);
+  process.exit(0);
+}
+
+if (command === 'frame' && subcommand === 'backfill-activations') {
+  const [documentFile, ...flagArgs] = rest;
+  if (!documentFile) {
+    console.error('Missing document file path.');
+    process.exit(1);
+  }
+
+  const flags = parseFlags(flagArgs);
+  const fromLevel = requireFlag(flags, '--from') ?? 'meso';
+  const toLevel = requireFlag(flags, '--to') ?? 'micro';
+
+  const doc = readJson(documentFile);
+  const result = backfillFrameActivations(doc, { fromLevel, toLevel });
+  validateOrExit(doc, documentFile);
+  writeJson(documentFile, doc);
+  console.log(`Backfilled activations from ${fromLevel} to ${toLevel}: updated ${result.updated} of ${result.total} ${toLevel} frames.`);
   process.exit(0);
 }
 
