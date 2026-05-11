@@ -34,7 +34,7 @@ function clamp01(n) {
   return n;
 }
 
-function computeCoOccurrence(framesVM, atomicNodes) {
+function computeCoOccurrence(framesVM, nodes) {
   // Per spec § Spring forces — co-occurrence-driven distance.
   //
   //   score(i, j) = w_micro × Σ duration(f) over micro frames where both i,j ∈ active
@@ -46,9 +46,9 @@ function computeCoOccurrence(framesVM, atomicNodes) {
   //
   // "Active in a frame" matches buildIndexesVM's union of foreground + background.
   const LEVEL_WEIGHTS = { micro: 1, meso: 1, macro: 1 };
-  const DEFAULT_FRAME_DURATION = 30; // matches v1 frame-duration convention for open-ended spans
+  const DEFAULT_FRAME_DURATION = 30; // 30 s fallback for any frame with non-positive computed duration — including open-ended end-of-doc frames
 
-  const atomicIds = new Set(atomicNodes.filter((n) => n.level === 'atomic').map((n) => n.id));
+  const atomicIds = new Set(nodes.filter((n) => n.level === 'atomic').map((n) => n.id));
   const result = {};
 
   for (const level of ['micro', 'meso', 'macro']) {
