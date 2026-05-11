@@ -195,6 +195,11 @@ export function bindEvents(state, render, scheduleDraw) {
     let downStartX = 0;
     let downStartY = 0;
     let dragSwitched = false;
+    // Click-suppression bookkeeping. Shared by both pointerdown listeners
+    // below: the first sets it for the drag/pan fork, the click handler
+    // reads it to suppress click-after-drag, and pointercancel resets it
+    // so a canceled gesture can't leave a stale value behind.
+    let downAt = null;
     canvasEl.addEventListener('pointerdown', (e) => {
       // Capture gesture start position for ALL paths (dot and pan both need it).
       downStartX = e.clientX;
@@ -280,11 +285,11 @@ export function bindEvents(state, render, scheduleDraw) {
         if (moved) state.sim.reheat(0.5);
       }
       dragging = null;
+      downAt = null;  // canceled gesture: don't let a stale downAt fire later
       scheduleDraw();
     });
     canvasEl.style.cursor = 'grab';
 
-    let downAt = null;
     canvasEl.addEventListener('pointerdown', (e) => {
       downAt = { x: e.clientX, y: e.clientY };
     });

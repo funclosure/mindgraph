@@ -103,7 +103,11 @@ export function createAnimator() {
 
     // Advance bloom for any blooming entity.
     let stillAnimating = false;
-    for (const [, s] of entityStates) {
+    // Collect ids whose fade completes this tick so we can prune them from
+    // entityStates after the iteration. Without pruning, faded-out entities
+    // would accumulate in the Map for the lifetime of the session.
+    const faded = [];
+    for (const [id, s] of entityStates) {
       if (s.blooming) {
         const t = (now - s.animStart) * 1000 / BLOOM_DURATION_MS;
         if (t >= 1) {
@@ -121,12 +125,16 @@ export function createAnimator() {
         if (t >= 1) {
           s.opacity = 0;
           s.fading = false;
+          faded.push(id);
         } else {
           s.opacity = 1 - t;
           stillAnimating = true;
         }
       }
     }
+    // Prune entries that just finished fading — keeps entityStates bounded
+    // over a long reading session.
+    for (const id of faded) entityStates.delete(id);
 
     // ── NEW: step the physics simulator ────────────────────────────────────
     if (sim && !sim.isSettled()) {

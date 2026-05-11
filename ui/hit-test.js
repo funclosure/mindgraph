@@ -9,10 +9,16 @@ export function hitTestAt(state, worldPoint) {
     ? new Set(state.graphRenderState.visibleNodeIds)
     : null;
 
+  // Hoist the layout.nodes reference out of the loop — state.layout is a
+  // getter that allocates {nodes, bounds} on every access, so reading it
+  // per-iteration was both wasteful and (via the bounds getter on each
+  // access) triggered an O(n) computeBounds inside the inner loop.
+  const positions = state.layout.nodes;
+
   for (const node of state.viewModel.graph.nodes) {
     if (node.level === 'clustered') continue;
     if (visibleNodes && !visibleNodes.has(node.id)) continue;
-    const pos = state.layout.nodes[node.id];
+    const pos = positions[node.id];
     if (!pos) continue;
     const radius = 6 + (node.visualWeight ?? 0.5) * 1.8;
     const dx = worldPoint.x - pos.x;
