@@ -2,7 +2,7 @@ import {
   buildMindgraphViewModel,
 } from '../src/view-model/buildMindgraphViewModel.js';
 import { buildGraphRenderState } from '../src/view-model/buildGraphRenderState.js';
-import { computeLayout } from './layout.js';
+import { createLayoutSimulator } from './layout.js';
 import { applyDpr, fitCameraToLayout } from './camera.js';
 import { draw } from './draw.js';
 import { bindEvents } from './events.js';
@@ -29,7 +29,8 @@ const ctx = canvas.getContext('2d');
 const state = {
   document: undefined,
   viewModel: undefined,
-  layout: undefined,
+  sim: undefined,                     // the live simulator; layout is a getter defined below
+  // layout is now a getter; defined via Object.defineProperty after sim exists in bootstrap()
   graphRenderState: undefined,
   selectedConceptId: undefined,
   hoveredConceptId: undefined,
@@ -61,7 +62,16 @@ async function bootstrap() {
   state.document = await response.json();
   state.viewModel = buildMindgraphViewModel(state.document);
   state.proseChunks = buildProseChunks(state.viewModel);
-  state.layout = computeLayout(state.viewModel);
+  state.sim = createLayoutSimulator(state.viewModel);
+  Object.defineProperty(state, 'layout', {
+    get() {
+      return {
+        nodes: state.sim.positions,
+        bounds: state.sim.bounds,
+      };
+    },
+    configurable: true,
+  });
   state.playheadTime =
     state.viewModel.frames.macro[0]?.span.start ??
     state.viewModel.frames.meso[0]?.span.start ??
