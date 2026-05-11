@@ -60,6 +60,7 @@ export function createAnimator() {
       cameraTarget,
       cameraMode,
       camera,
+      sim,              // ← new opt
     } = opts;
 
     const conceptSet = new Set(cumulativeVisibleConceptIds);
@@ -81,8 +82,16 @@ export function createAnimator() {
         s.scale = 1;
       }
     } else {
-      // Newly entering ids → schedule a bloom.
-      for (const id of conceptSet) if (!prevConceptSet.has(id)) startBloom(id, now);
+      // Newly entering ids → schedule a bloom + reheat the sim (Q5a-1).
+      for (const id of conceptSet) {
+        if (!prevConceptSet.has(id)) {
+          startBloom(id, now);
+          if (sim) {
+            sim.unpin(id);            // concept rejoins live dynamics
+            sim.reheat(0.20);         // additive with cap; per-event strength from spec § Reheat policy
+          }
+        }
+      }
       for (const id of edgeSet) if (!prevEdgeSet.has(id)) startBloom(id, now);
 
       // Newly leaving ids → schedule a fade.
@@ -117,6 +126,12 @@ export function createAnimator() {
           stillAnimating = true;
         }
       }
+    }
+
+    // ── NEW: step the physics simulator ────────────────────────────────────
+    if (sim && !sim.isSettled()) {
+      sim.step(opts.dt ?? 0);
+      stillAnimating = true;             // sim work means we must redraw next frame
     }
 
     let effectiveTarget = cameraTarget;

@@ -143,6 +143,7 @@ function kickAnimationLoop() {
       camera: state.camera,
       viewport: state.viewport,
       activeLevel: state.activeLevel,
+      sim: state.sim,                                // ← new
       dt,
     });
     draw(ctx, state);
