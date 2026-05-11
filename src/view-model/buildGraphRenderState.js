@@ -35,12 +35,29 @@ function deriveCameraTarget(viewModel, layout, viewport, opts) {
   if (!layout || !viewport) return undefined;
   const { activeLevel, playheadTime, cumulative } = opts;
   const frame = viewModel.selectors.getActiveFrameAtTime(activeLevel, playheadTime);
-  const fg = frame?.foregroundConcepts ?? [];
+  const rawFg = frame?.foregroundConcepts ?? [];
 
   const pointFor = (id) => layout.nodes[id];
 
-  // Case 1: no active frame → fit visible atomic nodes.
-  if (!frame || !fg.length) {
+  // v2 doesn't render cluster anchors as physics nodes — only atomic concepts
+  // have positions in layout.nodes. Macro frames typically nominate clustered
+  // concepts as their foreground (e.g. "Evolutionary-Cognitive Origins"), which
+  // have no position to fit a camera to. Expand each clustered foreground
+  // concept into its atomic children so the camera fits the active region
+  // rather than going dark on undefined-position lookups.
+  const fg = rawFg.flatMap((a) => {
+    const concept = viewModel.concepts.byId[a.id];
+    if (concept?.level === 'atomic') return [a];
+    if (concept?.level === 'clustered') {
+      const childIds = viewModel.concepts.childrenByClusterId[a.id] ?? [];
+      return childIds.map((id) => ({ id, weight: a.weight ?? 0.5 }));
+    }
+    return [];
+  });
+
+  // Helper: fit all cumulatively-visible atomic concepts. Used as Case 1 and
+  // as a defensive fallback when foreground expansion produces no positions.
+  function fitCumulativeAtomic() {
     const visibleIds = [...cumulative.conceptIds].filter((id) => layout.nodes[id]);
     if (!visibleIds.length) return undefined;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -56,17 +73,20 @@ function deriveCameraTarget(viewModel, layout, viewport, opts) {
     return fitTarget(minX, minY, maxX, maxY, cx, cy, viewport, 0.15);
   }
 
-  // Case 2: single foreground concept → focus around its position.
+  // Case 1: no active frame → fit visible atomic nodes.
+  if (!frame || !fg.length) return fitCumulativeAtomic();
+
+  // Case 2: single foreground concept (after expansion) → focus around it.
   if (fg.length === 1) {
     const point = pointFor(fg[0].id);
-    if (!point) return undefined;
+    if (!point) return fitCumulativeAtomic();
     return boundsAroundPoint(point, 200, viewport);
   }
 
   // Case 3: multiple foreground concepts → weighted center, unweighted bbox, padded.
   const points = fg.map((a) => ({ pos: pointFor(a.id), weight: a.weight ?? 0.5 }))
     .filter((p) => p.pos);
-  if (!points.length) return undefined;
+  if (!points.length) return fitCumulativeAtomic();
   const totalWeight = points.reduce((s, p) => s + p.weight, 0) || 1;
   const cx = points.reduce((s, p) => s + p.pos.x * p.weight, 0) / totalWeight;
   const cy = points.reduce((s, p) => s + p.pos.y * p.weight, 0) / totalWeight;
