@@ -135,6 +135,24 @@ For when you want to retune empirically:
 
 All live at the top of `ui/layout.js`. Tunable in one place.
 
+## Co-occurrence is foreground-only
+
+The implementation originally counted any pair appearing in `foreground ∪ background` of the same frame. That conflated "co-topic" with "both peripherally active" and inflated the SCORE_REF noise floor on documents with rich background sets (each background-only frame contributes `C(N, 2)` pair-increments without adding discrimination). Restricting to `foregroundConcepts` only makes the score sharper: "both concepts were the topic at the same time."
+
+On the canonical Episode 1 sample this is a no-op (background is empty everywhere — pre-backfill at meso/macro and post-backfill by inheritance), so the change ships without affecting the released layout. The effect surfaces only on future documents that genuinely annotate background activations.
+
+Background concepts are still represented in the layout via explicit relations (stiffness multiplier), cluster siblings (stiffness multiplier + D_MID fallback), and charge balance — they're just not counted as evidence of co-topic-ness.
+
+## On `firstSeenAt` shifting after backfill
+
+A consequence of `frame backfill-activations --from meso --to micro` worth knowing about: `firstSeenAt` for atomic concepts is derived from the earliest frame appearance (across all three levels) by `deriveFirstSeenAt`. When you backfill, every micro inside a meso inherits that meso's `foregroundConcepts`, so concepts active in the meso end up appearing in many more (earlier-starting) frames than they did before.
+
+In practice this barely shifts `firstSeenAt` because `mergeFrames` constructs meso spans as `meso.span.start = sourceFrames[0].span.start` — so a concept that first appeared in meso N already had `firstSeenAt = first-micro-of-meso-N's-start` whether backfill ran or not. The shift only materially affects concepts that were **hand-annotated only on a specific late micro** of an earlier meso (i.e., the concept's first surfacing was a specific moment inside a meso whose other content is unrelated). Backfill replaces that micro's foreground with the meso's, **destroying** the hand-annotated activation and resetting `firstSeenAt` to the meso's start.
+
+This is consistent with backfill's documented "replaces, not merges" contract: the operator chose to broadcast meso annotations down, so the prior micro-level annotations are by design overwritten. The bloom-in UX consequence (more concepts visible from doc-load, less progressive reveal during early reading) is the explicit downstream effect of that contract — accepted, not worked around.
+
+Don't run backfill on documents whose finer-level frames carry hand-curated activations you want to preserve.
+
 ## Concerns flagged during the merge but not addressed here
 
 Code-review smells that were deferred:

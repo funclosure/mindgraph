@@ -37,14 +37,21 @@ function clamp01(n) {
 function computeCoOccurrence(framesVM, nodes) {
   // Per spec § Spring forces — co-occurrence-driven distance.
   //
-  //   score(i, j) = w_micro × Σ duration(f) over micro frames where both i,j ∈ active
-  //               + w_meso  × Σ duration(f) over meso  frames where both i,j ∈ active
-  //               + w_macro × Σ duration(f) over macro frames where both i,j ∈ active
+  //   score(i, j) = w_micro × Σ duration(f) over micro frames where both i,j ∈ foreground
+  //               + w_meso  × Σ duration(f) over meso  frames where both i,j ∈ foreground
+  //               + w_macro × Σ duration(f) over macro frames where both i,j ∈ foreground
   //
   // Stored sparse: Record<id, Record<id, score>>, only pairs with score > 0.
   // Symmetric — both directions written so the simulator can look up either way.
   //
-  // "Active in a frame" matches buildIndexesVM's union of foreground + background.
+  // **Foreground-only.** The earlier implementation counted any pair appearing
+  // in `foreground ∪ background`. That conflated "co-topic" with "both peripherally
+  // active", and on documents with rich background sets it diluted the SCORE_REF
+  // percentile (background pair-contributions inflate the noise floor without
+  // adding discrimination). Restricting to foreground means co-occurrence
+  // measures "both were the topic of this frame at the same time" — sharper
+  // semantic, and background concepts are still represented in the layout via
+  // explicit relations, cluster siblings, and charge balance.
   const LEVEL_WEIGHTS = { micro: 1, meso: 1, macro: 1 };
   const DEFAULT_FRAME_DURATION = 30; // 30 s fallback for any frame with non-positive computed duration — including open-ended end-of-doc frames
 
@@ -58,10 +65,10 @@ function computeCoOccurrence(framesVM, nodes) {
       const dur = Math.max(0, (frame.span?.end ?? 0) - (frame.span?.start ?? 0)) || DEFAULT_FRAME_DURATION;
       const contribution = weight * dur;
 
-      // Concepts in this frame, atomic-only, deduped.
+      // Concepts in this frame, foreground-only, atomic-only, deduped.
       const ids = [];
       const seen = new Set();
-      for (const activation of [...(frame.foregroundConcepts ?? []), ...(frame.backgroundConcepts ?? [])]) {
+      for (const activation of frame.foregroundConcepts ?? []) {
         const id = activation.id;
         if (!atomicIds.has(id)) continue;
         if (seen.has(id)) continue;

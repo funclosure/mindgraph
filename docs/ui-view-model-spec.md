@@ -292,7 +292,7 @@ interface GraphVM {
 
 ### Co-occurrence matrix
 
-`coOccurrence[a][b]` is the duration-weighted count of frames (across micro + meso + macro) where both atomic concepts `a` and `b` appear together in `foregroundConcepts ∪ backgroundConcepts`. Computed once at VM build time and stored sparsely — only pairs with score > 0 are present, and every present entry is symmetric (`coOccurrence[a][b] === coOccurrence[b][a]`). Drives the reading-UI graph's per-pair spring `ideal_d`: stronger co-occurrence → tighter ideal distance via an exponential decay curve, weakest pairs sit near `D_MAX` (or get the unrelated-pair repulsion).
+`coOccurrence[a][b]` is the duration-weighted count of frames (across micro + meso + macro) where both atomic concepts `a` and `b` appear together in `foregroundConcepts`. Computed once at VM build time and stored sparsely — only pairs with score > 0 are present, and every present entry is symmetric (`coOccurrence[a][b] === coOccurrence[b][a]`). Drives the reading-UI graph's per-pair spring `ideal_d`: stronger co-occurrence → tighter ideal distance via an exponential decay curve, weakest pairs sit near `D_MAX` (or get the unrelated-pair repulsion). Background activations are deliberately excluded so the score measures "co-topic" rather than "both peripherally present" — see `computeCoOccurrence` in `buildMindgraphViewModel.js` for the rationale.
 
 ### Graph nodes
 ```ts
