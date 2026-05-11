@@ -187,14 +187,33 @@ export function bindEvents(state, render, scheduleDraw) {
       render();
     }, { passive: false });
 
-    let dragging = false;
+    // Pan-vs-drag state. dragging.kind === 'pan' means panning the camera;
+    // dragging.kind === 'dot' means dragging a pinned concept.
+    let dragging = null;
     let lastX = 0;
     let lastY = 0;
     let downStartX = 0;
     let downStartY = 0;
     let dragSwitched = false;
     canvasEl.addEventListener('pointerdown', (e) => {
-      dragging = true;
+      const rect = canvasEl.getBoundingClientRect();
+      const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const world = screenToWorld(state.camera, screen);
+      const hit = hitTestAt(state, world);
+
+      if (hit && hit.kind === 'concept' && state.sim) {
+        // Dot drag — pin the concept under the cursor.
+        dragging = { kind: 'dot', id: hit.id };
+        state.sim.pin(hit.id, world);
+        state.sim.alpha = 1.0;
+        canvasEl.setPointerCapture(e.pointerId);
+        canvasEl.style.cursor = 'grabbing';
+        scheduleDraw();
+        return;
+      }
+
+      // Else: pan path (unchanged behavior).
+      dragging = { kind: 'pan' };
       lastX = e.clientX;
       lastY = e.clientY;
       downStartX = e.clientX;
@@ -205,6 +224,18 @@ export function bindEvents(state, render, scheduleDraw) {
     });
     canvasEl.addEventListener('pointermove', (e) => {
       if (!dragging) return;
+
+      if (dragging.kind === 'dot') {
+        const rect = canvasEl.getBoundingClientRect();
+        const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const world = screenToWorld(state.camera, screen);
+        state.sim.pin(dragging.id, world);
+        state.sim.alpha = 1.0;
+        scheduleDraw();
+        return;
+      }
+
+      // Pan path (unchanged).
       if (!dragSwitched) {
         const moved = Math.hypot(e.clientX - downStartX, e.clientY - downStartY);
         if (moved > 4) {
@@ -220,10 +251,32 @@ export function bindEvents(state, render, scheduleDraw) {
     });
     canvasEl.addEventListener('pointerup', (e) => {
       if (!dragging) return;
-      dragging = false;
       try { canvasEl.releasePointerCapture(e.pointerId); } catch (_) {}
       canvasEl.style.cursor = 'grab';
+
+      if (dragging.kind === 'dot' && state.sim) {
+        state.sim.unpin(dragging.id);
+        state.sim.reheat(0.5);
+        dragging = null;
+        scheduleDraw();          // wakes the rAF loop if it was idle
+        return;
+      }
+
+      dragging = null;
       render();
+    });
+    canvasEl.addEventListener('pointercancel', (e) => {
+      // pointercancel fires on iOS scroll interruption, browser-level capture
+      // loss, etc. Treat as a clean release so we don't leave the dot pinned.
+      if (!dragging) return;
+      try { canvasEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      canvasEl.style.cursor = 'grab';
+      if (dragging.kind === 'dot' && state.sim) {
+        state.sim.unpin(dragging.id);
+        state.sim.reheat(0.5);
+      }
+      dragging = null;
+      scheduleDraw();
     });
     canvasEl.style.cursor = 'grab';
 
@@ -242,16 +295,11 @@ export function bindEvents(state, render, scheduleDraw) {
       const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const world = screenToWorld(state.camera, screen);
       const hit = hitTestAt(state, world);
-      // hit.kind is 'concept' | 'cluster' | null. Cluster IDs are also
-      // concept IDs in the view-model (clusters are themselves concepts),
-      // so both kinds resolve through the same selection slot.
       if (hit) {
         state.selectedConceptId = hit.id;
         state.selectedFrameRef = undefined;
         state.cameraMode = 'selection';
-        // Smooth-scroll the prose to the first occurrence of this concept's
-        // mention so the user sees it in context. The scroll-to-playhead
-        // binding will pick up the new position and update graph state.
+        if (state.sim) state.sim.reheat(0.10);     // ← selection nudge
         scrollProseToConcept(state.selectedConceptId);
       } else {
         state.selectedConceptId = undefined;
