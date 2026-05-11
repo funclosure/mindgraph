@@ -354,9 +354,10 @@ function buildPairs(viewModel, atomic) {
       const score = coOccurrence[a]?.[b] ?? 0;
       const conceptA = conceptById[a];
       const conceptB = conceptById[b];
-      const sharesCluster =
-        !!conceptA?.parentIds?.[0] &&
-        conceptA.parentIds[0] === conceptB?.parentIds?.[0];
+      // Sibling = share ANY parent cluster. Schema allows multi-parent atomics
+      // (a concept can belong to several clusters), so primary-parent-only
+      // would silently under-attract concepts that share a secondary cluster.
+      const sharesCluster = haveSharedParent(conceptA, conceptB);
       const relation = hasRelation.has(`${a}|${b}`);
 
       let idealD;
@@ -389,4 +390,18 @@ function buildPairs(viewModel, atomic) {
   }
 
   return pairs;
+}
+
+function haveSharedParent(conceptA, conceptB) {
+  const aParents = conceptA?.parentIds;
+  const bParents = conceptB?.parentIds;
+  if (!Array.isArray(aParents) || !Array.isArray(bParents)) return false;
+  if (aParents.length === 0 || bParents.length === 0) return false;
+  // Short-circuit on the common case where both have one parent.
+  if (aParents.length === 1 && bParents.length === 1) return aParents[0] === bParents[0];
+  const bSet = new Set(bParents);
+  for (const p of aParents) {
+    if (bSet.has(p)) return true;
+  }
+  return false;
 }
