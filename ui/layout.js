@@ -25,6 +25,16 @@ const NODE_BASE_RADIUS = 4;
 const MAX_VELOCITY_PER_ITER = 50;
 const VELOCITY_DECAY = 0.4;
 
+// Sub-stepping. Explicit Euler is unstable when total incident spring stiffness
+// on a node × α exceeds ~2(1+d). With max k ≈ 15 observed on Episode 1 and
+// VELOCITY_DECAY = 0.4, the stability threshold at α=1 is k ≈ 2.8 — well below
+// our worst-case. Sub-stepping each step() into N integrations at α/N drops the
+// effective threshold to k×(α/N) < 2(1+d_substep), where d_substep is the
+// per-substep damping retained such that d_substep^N = VELOCITY_DECAY (preserves
+// macro-frame retention semantics). N=6 covers the observed max with margin.
+const SUBSTEPS = 6;
+const SUBSTEP_DECAY = Math.pow(VELOCITY_DECAY, 1 / SUBSTEPS);
+
 // ───── Distance & stiffness for the new pair-spring model ───────────────────
 const D_MIN = 35;                                // strongest co-occurrence
 const D_MAX = 180;                               // weakest co-occurrence (but spring exists)
@@ -183,7 +193,7 @@ export function createLayoutSimulator(viewModel) {
     }
   }
 
-  function integrate(alpha) {
+  function integrate(alpha, decay = VELOCITY_DECAY) {
     let maxV2 = 0;
     for (const node of nodes) {
       const anchor = pinState.get(node.id);
@@ -198,8 +208,8 @@ export function createLayoutSimulator(viewModel) {
       const v = velocities[node.id];
       p.x += v.x * alpha;
       p.y += v.y * alpha;
-      v.x *= VELOCITY_DECAY;
-      v.y *= VELOCITY_DECAY;
+      v.x *= decay;
+      v.y *= decay;
       const s2 = v.x * v.x + v.y * v.y;
       if (s2 > maxV2) maxV2 = s2;
     }
@@ -228,13 +238,20 @@ export function createLayoutSimulator(viewModel) {
     alpha: 1.0,
     _maxVelocity: 0,
 
-    step(dt /* unused at v2 — single-iter step */) {
-      applyCharge();
-      applySprings();
-      applyCenter();
-      applyCollision();
-      clampVelocity();
-      integrate(this.alpha);
+    step(dt /* unused at v2 — sub-stepped */) {
+      // Sub-step the integration to keep each pair's effective stiffness × α
+      // below the explicit-Euler instability threshold. Forces and velocity-
+      // clamp are recomputed each sub-iteration so the system is allowed to
+      // settle between sub-steps rather than overshoot.
+      const subAlpha = this.alpha / SUBSTEPS;
+      for (let i = 0; i < SUBSTEPS; i += 1) {
+        applyCharge();
+        applySprings();
+        applyCenter();
+        applyCollision();
+        clampVelocity();
+        integrate(subAlpha, SUBSTEP_DECAY);
+      }
       this.alpha *= ALPHA_DECAY_PER_FRAME;
     },
 
