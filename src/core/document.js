@@ -92,6 +92,9 @@ export function setFrameActivations(doc, { level = 'micro', index, foregroundCon
   return frame;
 }
 
+// Frame levels in coarsening order. Index = "rank"; lower index = finer grain.
+const FRAME_LEVEL_RANK = { micro: 0, meso: 1, macro: 2 };
+
 export function backfillFrameActivations(doc, { fromLevel = 'meso', toLevel = 'micro' } = {}) {
   // Copy each from-level frame's activations onto every to-level frame whose
   // span overlaps it most. Intended for the "broadcast down" case (meso → micro
@@ -105,6 +108,22 @@ export function backfillFrameActivations(doc, { fromLevel = 'meso', toLevel = 'm
   // has been hand-annotated.
   if (fromLevel === toLevel) {
     throw new Error('backfill --from and --to must be different frame levels');
+  }
+  const fromRank = FRAME_LEVEL_RANK[fromLevel];
+  const toRank = FRAME_LEVEL_RANK[toLevel];
+  if (fromRank === undefined || toRank === undefined) {
+    throw new Error(`Unknown frame level. Expected one of: micro, meso, macro.`);
+  }
+  if (fromRank < toRank) {
+    // Reverse direction: --from finer --to coarser. This would pick the single
+    // finer-grained frame with maximum overlap (likely a 30 s micro under a
+    // 600 s macro) and OVERWRITE the coarser frame's activations with it —
+    // destructive to hand-curated meso/macro annotations. Reject explicitly;
+    // use `frame merge` instead for aggregating finer into coarser.
+    throw new Error(
+      `backfill is broadcast-down only: --from ${fromLevel} → --to ${toLevel} would overwrite coarser activations with a single finer frame. ` +
+      `Use \`mindgraph frame merge\` to aggregate finer frames into a coarser one.`,
+    );
   }
   const fromFrames = getFrameCollection(doc, fromLevel);
   const toFrames = getFrameCollection(doc, toLevel);
