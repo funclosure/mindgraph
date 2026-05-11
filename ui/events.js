@@ -196,6 +196,10 @@ export function bindEvents(state, render, scheduleDraw) {
     let downStartY = 0;
     let dragSwitched = false;
     canvasEl.addEventListener('pointerdown', (e) => {
+      // Capture gesture start position for ALL paths (dot and pan both need it).
+      downStartX = e.clientX;
+      downStartY = e.clientY;
+
       const rect = canvasEl.getBoundingClientRect();
       const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const world = screenToWorld(state.camera, screen);
@@ -216,8 +220,6 @@ export function bindEvents(state, render, scheduleDraw) {
       dragging = { kind: 'pan' };
       lastX = e.clientX;
       lastY = e.clientY;
-      downStartX = e.clientX;
-      downStartY = e.clientY;
       dragSwitched = false;
       canvasEl.setPointerCapture(e.pointerId);
       canvasEl.style.cursor = 'grabbing';
@@ -256,7 +258,8 @@ export function bindEvents(state, render, scheduleDraw) {
 
       if (dragging.kind === 'dot' && state.sim) {
         state.sim.unpin(dragging.id);
-        state.sim.reheat(0.5);
+        const moved = Math.hypot(e.clientX - downStartX, e.clientY - downStartY) > 4;
+        if (moved) state.sim.reheat(0.5);
         dragging = null;
         scheduleDraw();          // wakes the rAF loop if it was idle
         return;
@@ -273,7 +276,8 @@ export function bindEvents(state, render, scheduleDraw) {
       canvasEl.style.cursor = 'grab';
       if (dragging.kind === 'dot' && state.sim) {
         state.sim.unpin(dragging.id);
-        state.sim.reheat(0.5);
+        const moved = Math.hypot(e.clientX - downStartX, e.clientY - downStartY) > 4;
+        if (moved) state.sim.reheat(0.5);
       }
       dragging = null;
       scheduleDraw();
