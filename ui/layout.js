@@ -116,12 +116,20 @@ export function createLayoutSimulator(viewModel) {
 
   // ───── Force kernels (closed over `positions`, `velocities`, `pairs`, `pinState`) ─────
 
+  // Pinned nodes don't react to forces — integrate() zeros their velocity
+  // every step regardless of what we accumulate. So writing forces into a
+  // pinned node's velocity is wasted work. The force kernels check pinState
+  // for each side and skip the velocity update on pinned endpoints. When
+  // BOTH sides are pinned, skip the pair entirely.
   function applyCharge() {
     const k = CHARGE_STRENGTH;
     for (let i = 0; i < nodes.length; i += 1) {
+      const a = nodes[i].id;
+      const aPinned = pinState.has(a);
       for (let j = i + 1; j < nodes.length; j += 1) {
-        const a = nodes[i].id;
         const b = nodes[j].id;
+        const bPinned = pinState.has(b);
+        if (aPinned && bPinned) continue;
         const pa = positions[a];
         const pb = positions[b];
         let dx = pa.x - pb.x;
@@ -136,16 +144,23 @@ export function createLayoutSimulator(viewModel) {
         const r = Math.sqrt(r2);
         const fx = (dx / r) * f;
         const fy = (dy / r) * f;
-        velocities[a].x += fx;
-        velocities[a].y += fy;
-        velocities[b].x -= fx;
-        velocities[b].y -= fy;
+        if (!aPinned) {
+          velocities[a].x += fx;
+          velocities[a].y += fy;
+        }
+        if (!bPinned) {
+          velocities[b].x -= fx;
+          velocities[b].y -= fy;
+        }
       }
     }
   }
 
   function applySprings() {
     for (const pair of pairs) {
+      const aPinned = pinState.has(pair.a);
+      const bPinned = pinState.has(pair.b);
+      if (aPinned && bPinned) continue;
       const pa = positions[pair.a];
       const pb = positions[pair.b];
       const dx = pb.x - pa.x;
@@ -154,15 +169,20 @@ export function createLayoutSimulator(viewModel) {
       const delta = (dist - pair.idealD) * pair.stiffness;
       const fx = (dx / dist) * delta;
       const fy = (dy / dist) * delta;
-      velocities[pair.a].x += fx;
-      velocities[pair.a].y += fy;
-      velocities[pair.b].x -= fx;
-      velocities[pair.b].y -= fy;
+      if (!aPinned) {
+        velocities[pair.a].x += fx;
+        velocities[pair.a].y += fy;
+      }
+      if (!bPinned) {
+        velocities[pair.b].x -= fx;
+        velocities[pair.b].y -= fy;
+      }
     }
   }
 
   function applyCenter() {
     for (const node of nodes) {
+      if (pinState.has(node.id)) continue;
       const p = positions[node.id];
       velocities[node.id].x -= p.x * CENTER_STRENGTH;
       velocities[node.id].y -= p.y * CENTER_STRENGTH;
@@ -173,9 +193,12 @@ export function createLayoutSimulator(viewModel) {
     const minGap = NODE_BASE_RADIUS * 2 + COLLISION_PADDING;
     const minGap2 = minGap * minGap;
     for (let i = 0; i < nodes.length; i += 1) {
+      const a = nodes[i].id;
+      const aPinned = pinState.has(a);
       for (let j = i + 1; j < nodes.length; j += 1) {
-        const a = nodes[i].id;
         const b = nodes[j].id;
+        const bPinned = pinState.has(b);
+        if (aPinned && bPinned) continue;
         const pa = positions[a];
         const pb = positions[b];
         const dx = pb.x - pa.x;
@@ -186,10 +209,14 @@ export function createLayoutSimulator(viewModel) {
         const overlap = (minGap - dist) * 0.5;
         const fx = (dx / dist) * overlap;
         const fy = (dy / dist) * overlap;
-        velocities[a].x -= fx;
-        velocities[a].y -= fy;
-        velocities[b].x += fx;
-        velocities[b].y += fy;
+        if (!aPinned) {
+          velocities[a].x -= fx;
+          velocities[a].y -= fy;
+        }
+        if (!bPinned) {
+          velocities[b].x += fx;
+          velocities[b].y += fy;
+        }
       }
     }
   }

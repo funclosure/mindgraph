@@ -128,10 +128,18 @@ function render() {
   bindEvents(state, render, kickAnimationLoop);
 }
 
+// If the rAF loop runs this many consecutive frames without settling, something
+// is wrong (sim oscillating, ResizeObserver loop, etc.). Force-stop and warn
+// once so the failure surfaces instead of silently burning a CPU core. 1800
+// frames ≈ 30 s at 60 fps; typical settle is <1 s after the last reheat, so
+// this guard is far above any healthy steady-state.
+const ANIMATION_LOOP_RUNAWAY_FRAMES = 1800;
+
 function kickAnimationLoop() {
   if (state.animationLoopActive) return;
   state.animationLoopActive = true;
   let lastT = performance.now();
+  let runawayFrames = 0;
   function tick(now) {
     const dt = Math.min(0.1, (now - lastT) / 1000);
     lastT = now;
@@ -143,11 +151,21 @@ function kickAnimationLoop() {
       camera: state.camera,
       viewport: state.viewport,
       activeLevel: state.activeLevel,
-      sim: state.sim,                                // ← new
+      sim: state.sim,
       dt,
     });
     draw(ctx, state);
     if (stillAnimating) {
+      runawayFrames += 1;
+      if (runawayFrames >= ANIMATION_LOOP_RUNAWAY_FRAMES) {
+        console.warn(
+          `mindgraph: animation loop ran ${ANIMATION_LOOP_RUNAWAY_FRAMES} frames without settling; force-stopping. ` +
+          `If this happens repeatedly, the simulator's stability margin may be too tight for this document — ` +
+          `try raising SUBSTEPS in ui/layout.js.`,
+        );
+        state.animationLoopActive = false;
+        return;
+      }
       requestAnimationFrame(tick);
     } else {
       state.animationLoopActive = false;
