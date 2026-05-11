@@ -34,6 +34,58 @@ function clamp01(n) {
   return n;
 }
 
+function computeCoOccurrence(framesVM, atomicNodes) {
+  // Per spec § Spring forces — co-occurrence-driven distance.
+  //
+  //   score(i, j) = w_micro × Σ duration(f) over micro frames where both i,j ∈ active
+  //               + w_meso  × Σ duration(f) over meso  frames where both i,j ∈ active
+  //               + w_macro × Σ duration(f) over macro frames where both i,j ∈ active
+  //
+  // Stored sparse: Record<id, Record<id, score>>, only pairs with score > 0.
+  // Symmetric — both directions written so the simulator can look up either way.
+  //
+  // "Active in a frame" matches buildIndexesVM's union of foreground + background.
+  const LEVEL_WEIGHTS = { micro: 1, meso: 1, macro: 1 };
+  const DEFAULT_FRAME_DURATION = 30; // matches v1 frame-duration convention for open-ended spans
+
+  const atomicIds = new Set(atomicNodes.filter((n) => n.level === 'atomic').map((n) => n.id));
+  const result = {};
+
+  for (const level of ['micro', 'meso', 'macro']) {
+    const weight = LEVEL_WEIGHTS[level];
+    const frames = framesVM[level] ?? [];
+    for (const frame of frames) {
+      const dur = Math.max(0, (frame.span?.end ?? 0) - (frame.span?.start ?? 0)) || DEFAULT_FRAME_DURATION;
+      const contribution = weight * dur;
+
+      // Concepts in this frame, atomic-only, deduped.
+      const ids = [];
+      const seen = new Set();
+      for (const activation of [...(frame.foregroundConcepts ?? []), ...(frame.backgroundConcepts ?? [])]) {
+        const id = activation.id;
+        if (!atomicIds.has(id)) continue;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        ids.push(id);
+      }
+
+      // Accumulate over all unordered pairs (i, j) in the frame.
+      for (let i = 0; i < ids.length; i += 1) {
+        for (let j = i + 1; j < ids.length; j += 1) {
+          const a = ids[i];
+          const b = ids[j];
+          if (!result[a]) result[a] = {};
+          if (!result[b]) result[b] = {};
+          result[a][b] = (result[a][b] ?? 0) + contribution;
+          result[b][a] = (result[b][a] ?? 0) + contribution;
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
 function normalizeConcept(rawConcept, level) {
   return {
     id: rawConcept.id,
@@ -245,7 +297,7 @@ function assignFrameAncestry(framesVM) {
   }
 }
 
-function buildGraphVM(conceptsVM, relationsVM) {
+function buildGraphVM(conceptsVM, relationsVM, framesVM) {
   const nodes = [...conceptsVM.clustered, ...conceptsVM.atomic].map((concept) => ({
     id: concept.id,
     label: concept.label,
@@ -279,8 +331,9 @@ function buildGraphVM(conceptsVM, relationsVM) {
   }
 
   const conceptImportance = computeConceptImportance(nodes);
+  const coOccurrence = computeCoOccurrence(framesVM, nodes);
 
-  return { nodes, edges, nodeById, edgesByNodeId, conceptImportance };
+  return { nodes, edges, nodeById, edgesByNodeId, conceptImportance, coOccurrence };
 }
 
 function buildIndexesVM(conceptsVM, framesVM, transcriptVM) {
@@ -474,7 +527,7 @@ export function buildMindgraphViewModel(document) {
   const relations = buildRelationsVM(document);
   const frames = buildFramesVM(document, concepts, relations);
   assignFrameAncestry(frames);
-  const graph = buildGraphVM(concepts, relations);
+  const graph = buildGraphVM(concepts, relations, frames);
   const indexes = buildIndexesVM(concepts, frames, transcript);
   const documentMeta = buildDocumentMetaVM(document, concepts, relations, frames, transcript);
 
