@@ -38,8 +38,23 @@ const SUBSTEP_DECAY = Math.pow(VELOCITY_DECAY, 1 / SUBSTEPS);
 // ───── Distance & stiffness for the new pair-spring model ───────────────────
 const D_MIN = 35;                                // strongest co-occurrence
 const D_MAX = 180;                               // weakest co-occurrence (but spring exists)
-const D_MID = 100;                               // fallback for relation/sibling pairs with score=0
+const D_MID = 60;                                // fallback for relation/sibling pairs with score=0
+                                                 // tuned to match the typical co-occurrence-driven distance under the exp curve
+                                                 // so producer-asserted-but-not-co-occurring pairs don't get exiled to mid-range
+const D_FAR = 150;                               // target distance for genuinely-unrelated pairs
+                                                 // (no co-occurrence, no relation, no sibling). Gives the system an
+                                                 // explicit "stay apart" force so unrelated pairs don't drift into
+                                                 // cluster space via charge balance alone.
+const UNRELATED_STIFFNESS = 0.05;                // gentle — should not dominate cluster-internal springs
 const SCORE_REF_PERCENTILE = 0.9;                // strongest 10% of co-occurring pairs hit D_MIN
+// Distance curve: ideal_d = D_MIN + (D_MAX - D_MIN) × exp(-k × score/scoreRef).
+// Exponential decay (not linear) so even weakly-co-occurring pairs get pulled
+// noticeably in. Avoids the "valley of weakness" where a pair with score = 50%
+// of scoreRef sits at mid-distance and ends up farther than an unrelated pair
+// whose charge-balance happens to put it closer. With k=4: 25%-ref pair → ~88,
+// 50%-ref pair → ~55, 90%-ref pair → ~38. Tune k upward to bunch all springs
+// near D_MIN, downward to spread them out.
+const SCORE_REF_CURVE_K = 4;
 
 const BASE_STIFFNESS = 0.5;
 const RELATION_STIFFNESS_MULT = 1.5;
@@ -345,19 +360,29 @@ function buildPairs(viewModel, atomic) {
       const relation = hasRelation.has(`${a}|${b}`);
 
       let idealD;
+      let stiffness;
       if (score > 0) {
-        const normalized = Math.max(0, Math.min(1, score / scoreRef));
-        idealD = D_MAX - (D_MAX - D_MIN) * normalized;
+        // Exponential pull-in: weak signal still produces a meaningfully short
+        // spring, strong signal asymptotes to D_MIN. Letting `normalized`
+        // exceed 1 just pushes it closer to D_MIN — no clamping needed.
+        const normalized = score / scoreRef;
+        idealD = D_MIN + (D_MAX - D_MIN) * Math.exp(-SCORE_REF_CURVE_K * normalized);
+        stiffness = BASE_STIFFNESS
+          * (relation ? RELATION_STIFFNESS_MULT : 1.0)
+          * (sharesCluster ? SIBLING_STIFFNESS_MULT : 1.0);
       } else if (relation || sharesCluster) {
         idealD = D_MID;
+        stiffness = BASE_STIFFNESS
+          * (relation ? RELATION_STIFFNESS_MULT : 1.0)
+          * (sharesCluster ? SIBLING_STIFFNESS_MULT : 1.0);
       } else {
-        continue;                                 // no spring for this pair
+        // Unrelated pair — gentle repulsive spring at D_FAR. Equivalent to
+        // a "preferred minimum distance" that the system relaxes toward.
+        // Stiffness is low so cluster-internal attractive springs still win
+        // when in conflict.
+        idealD = D_FAR;
+        stiffness = UNRELATED_STIFFNESS;
       }
-
-      const stiffness =
-        BASE_STIFFNESS *
-        (relation ? RELATION_STIFFNESS_MULT : 1.0) *
-        (sharesCluster ? SIBLING_STIFFNESS_MULT : 1.0);
 
       pairs.push({ a, b, idealD, stiffness });
     }
