@@ -293,6 +293,8 @@ Only reach for this when the *transcript* itself has changed. If only the annota
 
 **On scaling.** For very long sources (multi-hour lectures, full books), Phase 2 step 3 (set activations) scales linearly with meso frames. If the source has 100+ meso frames and you're hitting context limits, batch: do the first half, save, do the second half.
 
+**On backfilling activations.** The reading UI's graph layout uses pair co-occurrence at the finest available frame level — concepts that appear together in many micro frames pull toward shorter spring distances. If you've annotated meso (and/or macro) frames but left micro empty (which is typical for any source long enough that per-sentence annotation isn't practical), the UI's clusters won't differentiate well. Run `mindgraph frame backfill-activations <file> --from meso --to micro` after you're done with Phase 2 step 3 (and before `stats recompute`) to broadcast each meso's `foregroundConcepts` down to all the micro frames it spans. The operation is idempotent and finishes in seconds — safe to include in routine workflows on coarse-annotation sources. Re-run `stats recompute` afterwards so derived stats reflect the new activations.
+
 ## Common failure modes
 
 - **`mindgraph` not found.** The user doesn't have the CLI installed. Tell them the install command (above).
@@ -334,6 +336,7 @@ For when you need a refresher on a specific command:
 | `mindgraph frame show <file> --level meso --index 3` | Show one frame |
 | `mindgraph frame set-activations <file> --level meso --index 3 --foreground-json '...'` | Write weighted activations |
 | `mindgraph frame merge <file> --from meso --to macro --start-index 0 --end-index 8 --title "..."` | Merge frames into a higher level |
+| `mindgraph frame backfill-activations <file> --from meso --to micro` | Broadcast a coarser level's activations onto all overlapping finer-level frames (idempotent; replaces, not merges) |
 | `mindgraph stats recompute <file>` | Recompute aggregate stats |
 | `mindgraph view <file>` | Open the reading UI in the browser (this is for the user) |
 

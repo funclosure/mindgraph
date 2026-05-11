@@ -81,12 +81,12 @@ Or directly with Bun before packaging/installing globally:
 bun /path/to/mindgraph/src/cli/index.js ingest transcript ./transcripts/episode-01.txt -o ./graphs/episode-01.mindgraph.json
 ```
 
-## Current v0 scope
+## Current scope
 
-- Canonical JSON document shape
-- CLI for bootstrapping, validating, inspecting, and transcript ingestion
-- Timestamped and untimed transcript parsing into starter frames
-- Foundation for later concept extraction, annotation, and UI playback
+- Canonical `.mindgraph.json` document with atomic + clustered concepts, typed relations, and a three-level frame timeline (micro / meso / macro)
+- CLI covering the full producer pipeline: bootstrap, validate, inspect, ingest transcripts, build timeline, upsert concepts and relations, set frame activations, merge into coarser frames, backfill activations across levels, recompute concept stats
+- Timestamped and untimed transcript parsing (timed lines, captions, untimed paragraphs)
+- Reading-driven UI: continuous-physics force-directed graph, importance-driven screen-space labels, prose panel with click-bidirectional linking, chapter strip with click-to-jump and drift-forward auto-scroll, drag-to-rearrange on the graph
 
 ## Transcript formats currently supported
 
@@ -164,6 +164,7 @@ Current actuator commands:
 - `mindgraph frame list/show ...`
 - `mindgraph frame set-activations ...`
 - `mindgraph frame merge ...`
+- `mindgraph frame backfill-activations ...` (broadcast a coarser level's activations onto a finer level — e.g. copy meso foreground concepts down to all overlapping micro frames)
 - `mindgraph stats recompute ...`
 
 Example of building a meso frame from micro frames:
@@ -218,8 +219,11 @@ What you see:
 
 - The window is split by a CSS grid: thin header on top, graph canvas in the left column, chapter strip below the graph, prose panel on the right.
 - The prose reads like an essay — chapters from macro frames, paragraphs joined from transcript segments. Concept mentions are gold-underlined inline.
-- **Reading drives time.** Scroll the prose; the graph reveals concepts as their `firstSeenAt` thresholds are crossed. Concepts bloom in (opacity + scale, 600 ms easeOutCubic) when first introduced and fade out if you scroll back past them.
+- **Live force-directed graph.** Concept positions emerge from a continuous physics simulation. Co-occurring concepts attract toward shorter ideal distances (exponential curve in co-occurrence strength); producer-asserted relations and cluster siblings modulate spring stiffness; unrelated pairs gently repel. The simulator is *warm when disturbed, sleeps when settled* — it idles at zero CPU when nothing changes and reheats subtly on scroll, selection, or drag.
+- **Reading drives time.** Scroll the prose; the graph reveals concepts as their `firstSeenAt` thresholds are crossed. Newly-revealed concepts bloom in (opacity + scale, 600 ms easeOutCubic) and join live dynamics — neighbors re-settle around the new arrival.
 - **Click-bidirectional linking.** Click a concept word in the prose → the camera flies to that concept on the graph; all its mentions in the prose glow brighter. Click a concept on the graph → the prose smooth-scrolls to its first mention.
+- **Drag to rearrange.** Pointer-down on a concept dot pins it under the cursor; neighbors react in real time. Release un-pins back into live dynamics. Pointer-down on empty canvas pans the camera as before.
+- **Maps-style labels.** Labels render in screen space (constant pixel size regardless of zoom), gated by an importance score × zoom threshold with collision avoidance. At default zoom only a handful of high-importance labels show; zooming in progressively reveals more.
 - **Chapter strip** at the bottom shows macro chapters proportionally. Click any segment to jump.
 - **Drift-forward** (▶ on the chapter strip) auto-scrolls the prose at the source's speech rate, so reading progresses in real time. Manual scroll cancels.
 - **View popover** (gear icon in the header) toggles the camera-cadence level (macro / meso / micro).
@@ -231,4 +235,4 @@ Syntax check:
 npm run ui:check
 ```
 
-The UI loads `examples/out/episode-1-built.mindgraph.json` by default. Point it at a different document by editing `DOC_PATH` in `ui/app.js` (a future flag will make this configurable).
+The UI loads `examples/out/episode-1-built.mindgraph.json` by default. Point it at a different document via the dev server's `--doc` flag (`npm run ui:dev -- --doc /path/to/my.mindgraph.json`), or use the installed CLI directly (`mindgraph view /path/to/my.mindgraph.json`).

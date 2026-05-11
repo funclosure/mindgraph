@@ -43,9 +43,10 @@ Four layers, mapped onto the operating model. When in doubt about where new code
 
 4. **`ui/` + `src/ui/dev-server.js`** — browser shell (consumer-side)
    - `ui/index.html` + `ui/styles.css` + `ui/app.js` — vanilla ES modules, single HTML5 Canvas, hand-written camera + hit-testing + progressive label reveal. No graph engine, no bundler.
-   - `src/ui/dev-server.js` — tiny static server (path-traversal guarded, no-store), `npm run ui:dev` → `http://127.0.0.1:4173`.
+   - `ui/layout.js` is the continuous-physics simulator (`createLayoutSimulator(vm) → sim` with `step/reheat/pin/unpin/isSettled`). `ui/animator.js` drives it on the rAF loop. `ui/labels.js` owns the importance-driven screen-space label policy.
+   - `src/ui/dev-server.js` — tiny static server (path-traversal guarded, no-store), `npm run ui:dev` → `http://127.0.0.1:4173`. Accepts `--doc <path>` to load a different document.
    - `npm run ui:check` parses both for syntax. There is no test runner for the UI yet — verify behavior in the browser.
-   - The canvas v1 spec and plan in `docs/canvas-ui-v1-*.md` are the design and the build log. v1.5 parking lot (animation, topographic backdrop, typed-edge variants, focus reticle, hover preview, breathing labels, cluster collapse, search) is open work.
+   - The current canvas design lives at `docs/superpowers/specs/2026-05-11-graph-rendering-v2-design.md` (v2: continuous physics, co-occurrence-driven distances, screen-space labels, drag-to-pin). Earlier `docs/canvas-ui-v1-*.md` files are historical context — the build log of how the UI got here.
 
 ## Conventions
 
@@ -59,7 +60,9 @@ Four layers, mapped onto the operating model. When in doubt about where new code
 
 Read before substantive UI or VM work. These describe the **intended destination** of the consumer side; cross-check against the as-built `ui/app.js` because the UI is early.
 
-- `docs/ui-view-model-spec.md` — VM contract (concepts, clusters, frames, inspectors). The joint between producer document schema and consumer rendering — re-check this whenever the document schema changes.
+- `docs/superpowers/specs/2026-05-11-graph-rendering-v2-design.md` — **current** graph-rendering design (v2 continuous physics: co-occurrence-driven distances, sub-stepped integrator, screen-space labels, drag-to-pin). Read first when touching the simulator, labels, or render state.
+- `docs/superpowers/specs/2026-05-10-graph-rendering-design.md` — predecessor v1 design (static precompute + Maps-style labels); historical context for the v2 spec.
+- `docs/ui-view-model-spec.md` — VM contract (concepts, clusters, frames, inspectors, co-occurrence matrix). The joint between producer document schema and consumer rendering — re-check this whenever the document schema changes.
 - `docs/ui-component-architecture.md` — component decomposition for the shell
 - `docs/dynamic-graph-interaction-architecture.md` — zoom / pan / level transitions
 - `docs/ui-wireframe-spec.md` — visual wireframes (older; cross-check against above)
