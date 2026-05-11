@@ -152,6 +152,7 @@ Parking-lot items from the v2 spec that remain deferred:
 - Multi-finger drag / pinch-to-zoom on touch
 - Sticky drag (long-press to pin permanently)
 - Reheat on document mutation (requires VM diffing)
+- Dev-only `?perf=1` overlay (avg/max `step()` ms, avg alpha, warm-iter count). The v2 design called for it as a verification gate; deferred at shipping time because `_maxVelocity` plus the rAF runaway guard cover the most-urgent observability needs. Re-open if a perf regression demands granular per-frame instrumentation.
 
 ---
 
