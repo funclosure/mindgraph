@@ -33,11 +33,38 @@ function buildCumulativeVisibility(viewModel, playheadTime) {
 
 function deriveCameraTarget(viewModel, layout, viewport, opts) {
   if (!layout || !viewport) return undefined;
-  const { activeLevel, playheadTime, cumulative } = opts;
+  const { activeLevel, playheadTime, cumulative, selectedConceptId } = opts;
   const frame = viewModel.selectors.getActiveFrameAtTime(activeLevel, playheadTime);
   const rawFg = frame?.foregroundConcepts ?? [];
 
   const pointFor = (id) => layout.nodes[id];
+
+  // Selection takes priority over playhead-foreground for the camera target.
+  // When the user clicks a concept, the camera should focus on what they
+  // selected — not stretch the viewport to include both the selection AND
+  // the currently-active region (which can leave the selected dot tiny in a
+  // corner of a wide zoom-out). Fit a bbox around the selected concept and
+  // its immediate relation neighbors so the local relationship structure
+  // around the selection stays legible.
+  if (selectedConceptId) {
+    const selPoint = pointFor(selectedConceptId);
+    if (selPoint) {
+      const neighborIds = (viewModel.selectors.getConceptNeighbors(selectedConceptId) ?? [])
+        .map((c) => c.id);
+      const points = [selPoint, ...neighborIds.map(pointFor).filter(Boolean)];
+      if (points.length === 1) {
+        return boundsAroundPoint(selPoint, 120, viewport);
+      }
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of points) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
+      return fitTarget(minX, minY, maxX, maxY, selPoint.x, selPoint.y, viewport, 0.2);
+    }
+  }
 
   // v2 doesn't render cluster anchors as physics nodes — only atomic concepts
   // have positions in layout.nodes. Macro frames typically nominate clustered
@@ -284,6 +311,7 @@ export function buildGraphRenderState(viewModel, {
     activeLevel,
     playheadTime,
     cumulative,
+    selectedConceptId,
   });
 
   return {
