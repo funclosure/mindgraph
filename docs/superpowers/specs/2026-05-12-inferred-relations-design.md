@@ -185,16 +185,16 @@ Five commits. Each leaves the project in a working state; the smoke test passes 
 
 ## Parking lot
 
-- **Macro-firstSeenAt — reclassified to a producer-side convention, not a code fix.** The original v0.5.1 candidate identified that `state.activeLevel = 'macro'` plus the cluster-only-macro annotation pattern produced a broken highlighting pipeline. After ingesting the Sean Kelly *Existentialism* transcript end-to-end via v0.5.0 (`./graphs/sean-kelly-existentialism.mindgraph.json`), the empirical finding is that the bug **does not manifest in the natural producer flow**:
-  - `frame merge` aggregates atomic foregrounds from source mesos into the merged macro, so macros carry atomic IDs (not cluster-only) and `getActiveConceptIdsAtTime(time, 'macro')` returns atomic concepts as expected. Highlighting works.
-  - When concepts are upserted with explicit `--first-seen-at <seconds>`, `deriveFirstSeenAt` preserves the explicit value (the `if (typeof concept.firstSeenAt === 'number') return concept` guard), so the macro-spans-back-to-zero collapse can't override the staggered reveal.
+- **Macro-highlighting — initially parked as a convention, later un-parked and fixed in v0.5.2.** The original v0.5.1 candidate identified that `state.activeLevel = 'macro'` plus the cluster-only-macro annotation pattern produced a broken highlighting pipeline. After ingesting the Sean Kelly *Existentialism* transcript via v0.5.0, an empirical test seemed to show the bug didn't manifest in the natural producer flow, so the work was reclassified to a SKILL.md convention (always pass `--first-seen-at`). **That conclusion was wrong.** The test confirmed only that *some* concepts highlighted; it did not check whether highlighting changed *step-by-step* as the reader scrolled within a chapter. Real-world mind-digest users reported the bug remained: at `activeLevel='macro'` the active set is the whole chapter's foreground, which is constant for the duration of a 10-20-minute macro, leaving highlighting feeling frozen.
 
-  The Episode 1 canonical sample apparently combined hand-crafted cluster-only macros *and* missing `firstSeenAt` on atomic concepts — that's when both problems collide. The natural CLI flow (frame merge + concept upsert --first-seen-at) avoids both. The right fix is therefore a SKILL.md convention rather than VM code:
+  **The actual fix (Fix 2 from the original diagnosis — "cascade getActiveConceptIdsAtTime") shipped in v0.5.2.** Two selector functions in `buildMindgraphViewModel.js` were modified to cascade through coarser levels for highlighting purposes:
+  - `getActiveConceptActivationsAtTime(time, 'macro')` now unions the macro frame's foreground with the meso frame's foreground at the current playhead time. Step-by-step highlighting works because the meso frame changes every ~130s as the playhead crosses meso boundaries.
+  - `getActiveRelationActivationsAtTime(time, 'macro')` mirrors the cascade for relation activations.
+  - Camera framing (`getActiveFrameAtTime` / `deriveCameraTarget`) is unaffected — it still uses the macro frame directly for chapter-grain zoom, so the camera-vs-highlighting decoupling the diagnosis called for is preserved.
 
-  - Always pass `--first-seen-at <seconds>` on `concept upsert` (concept's natural first-mention timestamp).
-  - Don't hand-craft cluster-only macro foregrounds — let `frame merge` populate them.
+  The `--first-seen-at` convention from the earlier (mis-classified) v0.5.1 reclassification remains a good convention for staggered concept reveals, but it does NOT substitute for the cascade — it addresses a different sub-problem (firstSeenAt collapse under merged macro foregrounds), not the constant-active-set-within-chapter problem. SKILL.md keeps the convention guidance.
 
-  A defensive code-side fix (skip macros + foreground-only in `deriveFirstSeenAt`) is still reasonable defense-in-depth but no longer load-bearing for shipped UX. Park indefinitely; revisit only if the empirical bug recurs on a document that follows the SKILL.md conventions.
+  **Empirical test that should have been run originally:** scroll the playhead through three positions within a single macro chapter; confirm the highlighted concepts set CHANGES between the positions (not just is non-empty). This is now a documented verification step for future layout / VM changes that touch the active-set pipeline.
 
 ---
 

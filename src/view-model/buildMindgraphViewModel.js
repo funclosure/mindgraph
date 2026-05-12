@@ -426,9 +426,37 @@ function buildSelectors(viewModel) {
   }
 
   function getActiveConceptActivationsAtTime(time, level) {
-    const frame = getActiveFrameAtTime(level, time);
-    if (!frame) return [];
-    return [...frame.foregroundConcepts, ...frame.backgroundConcepts];
+    // Cascade through coarser levels for highlighting: at activeLevel='macro' a
+    // reader scrolling within a chapter still expects step-by-step changes as
+    // they move between paragraphs. Returning ONLY the macro's foreground (which
+    // is constant across the whole chapter) makes highlighting feel frozen for
+    // long stretches. Cascading unions the macro's chapter-grain set with the
+    // current meso's paragraph-grain set — the highlighted concepts then change
+    // every time the playhead crosses a meso boundary, while the chapter-level
+    // context remains visible. Camera framing (getActiveFrameAtTime, used by
+    // deriveCameraTarget) is unaffected — it still uses the macro frame for
+    // chapter-grain zoom.
+    const ids = [];
+    const seen = new Set();
+    const push = (frame) => {
+      if (!frame) return;
+      for (const list of [frame.foregroundConcepts ?? [], frame.backgroundConcepts ?? []]) {
+        for (const a of list) {
+          if (seen.has(a.id)) continue;
+          seen.add(a.id);
+          ids.push(a);
+        }
+      }
+    };
+    if (level === 'macro') {
+      push(getActiveFrameAtTime('macro', time));
+      push(getActiveFrameAtTime('meso', time));
+    } else if (level === 'meso') {
+      push(getActiveFrameAtTime('meso', time));
+    } else {
+      push(getActiveFrameAtTime(level, time));
+    }
+    return ids;
   }
 
   function getActiveConceptIdsAtTime(time, level) {
@@ -436,6 +464,20 @@ function buildSelectors(viewModel) {
   }
 
   function getActiveRelationActivationsAtTime(time, level) {
+    // Mirror the concept-activation cascade: at macro level, include the meso
+    // frame's active relations so per-paragraph relation highlighting works.
+    if (level === 'macro') {
+      const macroFrame = getActiveFrameAtTime('macro', time);
+      const mesoFrame = getActiveFrameAtTime('meso', time);
+      const seen = new Set();
+      const result = [];
+      for (const a of [...(macroFrame?.activeRelations ?? []), ...(mesoFrame?.activeRelations ?? [])]) {
+        if (seen.has(a.id)) continue;
+        seen.add(a.id);
+        result.push(a);
+      }
+      return result;
+    }
     const frame = getActiveFrameAtTime(level, time);
     return frame?.activeRelations ?? [];
   }
