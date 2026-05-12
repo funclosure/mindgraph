@@ -17,9 +17,27 @@
 
 // ───── Cold-start sim constants ─────────────────────────────────────────────
 const ITERATIONS = 300;                          // cold-start iter count (matches v1)
-const CHARGE_STRENGTH = 200;
+// With degree-weighted charge (FA2-style), the repulsion force scales by
+// (deg(a)+1)(deg(b)+1) ≈ 9 for the average pair (avg degree ~2 on Sean Kelly).
+// CHARGE_STRENGTH is therefore set to ~old_value / 9 so the average pair gets
+// approximately the same repulsion as the prior unweighted formulation; hubs
+// (deg up to 11) get proportionally more, peripherals (deg 0-1) proportionally
+// less. This is the canonical FA2 scaling.
+const CHARGE_STRENGTH = 25;
+// Cap the per-pair charge impulse to prevent drag-induced oscillation: when
+// two hubs are forced close (e.g. user dragging a node near another hub), the
+// degree-weighted 1/r² blows up. The cap bounds the per-substep impulse so
+// limit cycles can't form. At canonical equilibrium distances the cap never
+// fires (typical pair force << cap); it only kicks in at close range.
+const CHARGE_FORCE_CAP = 5;
 const CHARGE_MIN_DISTANCE = 4;
 const CENTER_STRENGTH = 0.05;
+// Per-node center-pull is scaled by (1 + degree × CENTER_DEGREE_FACTOR), so
+// hubs are pulled toward the canvas centroid harder than peripherals.
+// Concretely: deg=0 → 1× pull (baseline); deg=11 → 4.3× pull. This produces
+// the natural radial structure: high-centrality concepts at the middle,
+// low-centrality ones on outer rings.
+const CENTER_DEGREE_FACTOR = 0.3;
 const COLLISION_PADDING = 4;
 const NODE_BASE_RADIUS = 4;
 const MAX_VELOCITY_PER_ITER = 50;
@@ -59,6 +77,25 @@ const SCORE_REF_CURVE_K = 4;
 const BASE_STIFFNESS = 0.5;
 const RELATION_STIFFNESS_MULT = 1.5;
 const SIBLING_STIFFNESS_MULT = 1.3;
+// Pairs that co-occur but lack an explicit producer-asserted relation get this
+// added to their idealD, scaled by the higher-degree endpoint. The base offset
+// applies to peripheral-peripheral pairs; hubs push non-related neighbors
+// proportionally farther. Concretely:
+//   idealD += COOCC_NO_RELATION_OFFSET × (1 + maxDeg × 0.2)
+// For peripheral pairs (deg 0-1), offset ≈ 30. For hub-peripheral (max deg 11),
+// offset ≈ 96. This creates a "personal space" around hubs where only their
+// actual relations sit — the click-highlighting and spatial proximity stay
+// aligned even when a high-degree hub frequently co-occurs with unrelated
+// concepts.
+const COOCC_NO_RELATION_OFFSET = 30;
+const COOCC_NO_RELATION_DEGREE_FACTOR = 0.2;
+// Upper bound on idealD for any pair with an explicit relation. Without this
+// cap, a relation pair with weak co-occurrence could land at idealD ≈ 180 from
+// the exp curve — farther than a relation pair with NO co-occurrence at all
+// (which falls through to D_MID = 60). Capping enforces a strict invariant:
+// relation pairs always sit closer than non-relation pairs, regardless of how
+// much they co-occur.
+const RELATION_IDEAL_MAX = 50;
 
 // ───── Live-phase alpha lifecycle ───────────────────────────────────────────
 const HALF_LIFE_FRAMES = 30;                     // 0.5 s at 60 fps
@@ -111,8 +148,22 @@ export function createLayoutSimulator(viewModel) {
 
   const pinState = new Map();                        // id → {x, y} | null
 
-  // Build per-pair spring metadata.
-  const pairs = buildPairs(viewModel, atomic);
+  // Per-node degree (count of incident relation edges among atomic-atomic
+  // pairs only — these are the edges that actually render). Used by:
+  //   (a) buildPairs — scale the non-relation-pair distance offset, so hubs
+  //       push non-related neighbors proportionally farther
+  //   (b) applyCharge — FA2-style degree-weighted Coulomb repulsion
+  const degree = {};
+  for (const node of nodes) degree[node.id] = 0;
+  for (const edge of viewModel.graph.edges ?? []) {
+    if (degree[edge.from] !== undefined && degree[edge.to] !== undefined) {
+      degree[edge.from] += 1;
+      degree[edge.to] += 1;
+    }
+  }
+
+  // Build per-pair spring metadata (uses degree for the no-relation offset).
+  const pairs = buildPairs(viewModel, atomic, degree);
 
   // ───── Force kernels (closed over `positions`, `velocities`, `pairs`, `pinState`) ─────
 
@@ -122,10 +173,17 @@ export function createLayoutSimulator(viewModel) {
   // for each side and skip the velocity update on pinned endpoints. When
   // BOTH sides are pinned, skip the pair entirely.
   function applyCharge() {
+    // Degree-weighted Coulomb repulsion (FA2-style):
+    //   f_repel(a, b) = CHARGE_STRENGTH × (deg(a)+1) × (deg(b)+1) / dist²
+    // High-degree concepts repel each other proportionally harder, claiming
+    // territory and preventing hubs from collapsing into a single blob.
+    // Peripheral concepts (degree 0-1) are mostly governed by the unweighted
+    // base term and stay at canonical distances.
     const k = CHARGE_STRENGTH;
     for (let i = 0; i < nodes.length; i += 1) {
       const a = nodes[i].id;
       const aPinned = pinState.has(a);
+      const aDegFactor = degree[a] + 1;
       for (let j = i + 1; j < nodes.length; j += 1) {
         const b = nodes[j].id;
         const bPinned = pinState.has(b);
@@ -140,7 +198,9 @@ export function createLayoutSimulator(viewModel) {
           dy = (seededUnit(`${a}:${b}:y`) - 0.5) * 0.1;
           r2 = dx * dx + dy * dy + 1;
         }
-        const f = k / r2;
+        const degScale = aDegFactor * (degree[b] + 1);
+        let f = (k * degScale) / r2;
+        if (f > CHARGE_FORCE_CAP) f = CHARGE_FORCE_CAP;
         const r = Math.sqrt(r2);
         const fx = (dx / r) * f;
         const fy = (dy / r) * f;
@@ -184,8 +244,11 @@ export function createLayoutSimulator(viewModel) {
     for (const node of nodes) {
       if (pinState.has(node.id)) continue;
       const p = positions[node.id];
-      velocities[node.id].x -= p.x * CENTER_STRENGTH;
-      velocities[node.id].y -= p.y * CENTER_STRENGTH;
+      // Degree-weighted center pull: hubs at the middle, peripherals on rings.
+      const centerScale = 1 + (degree[node.id] ?? 0) * CENTER_DEGREE_FACTOR;
+      const pull = CENTER_STRENGTH * centerScale;
+      velocities[node.id].x -= p.x * pull;
+      velocities[node.id].y -= p.y * pull;
     }
   }
 
@@ -345,7 +408,7 @@ export function createLayoutSimulator(viewModel) {
 }
 
 // ───── Pair-data precompute ─────────────────────────────────────────────────
-function buildPairs(viewModel, atomic) {
+function buildPairs(viewModel, atomic, degree) {
   const atomicIds = atomic.map((c) => c.id);
   const conceptById = viewModel.concepts.byId;
   const coOccurrence = viewModel.graph.coOccurrence ?? {};
@@ -391,17 +454,36 @@ function buildPairs(viewModel, atomic) {
       let stiffness;
       if (score > 0) {
         // Exponential pull-in: weak signal still produces a meaningfully short
-        // spring, strong signal asymptotes to D_MIN. Letting `normalized`
-        // exceed 1 just pushes it closer to D_MIN — no clamping needed.
+        // spring, strong signal asymptotes to D_MIN.
         const normalized = score / scoreRef;
         idealD = D_MIN + (D_MAX - D_MIN) * Math.exp(-SCORE_REF_CURVE_K * normalized);
+        if (relation) {
+          // Cap relation pairs at RELATION_IDEAL_MAX so a weak-but-positive
+          // co-occurrence can't exile them past the no-relation cap. Producer-
+          // asserted relations are always closer than non-relation pairs.
+          if (idealD > RELATION_IDEAL_MAX) idealD = RELATION_IDEAL_MAX;
+        } else {
+          // No explicit relation — push visibly farther so spatial proximity
+          // matches relation highlighting. Scale by hub degree: a high-degree
+          // hub's "personal space" extends proportionally further out.
+          const maxDeg = Math.max(degree[a] ?? 0, degree[b] ?? 0);
+          idealD += COOCC_NO_RELATION_OFFSET * (1 + maxDeg * COOCC_NO_RELATION_DEGREE_FACTOR);
+        }
+        // Sibling cluster only boosts stiffness when there's a producer-asserted
+        // signal to amplify (relation OR positive co-occurrence). Pure cluster
+        // membership is metadata, not a connection — it shouldn't pull pairs
+        // together on its own. See the fall-through branch below.
         stiffness = BASE_STIFFNESS
           * (relation ? RELATION_STIFFNESS_MULT : 1.0)
           * (sharesCluster ? SIBLING_STIFFNESS_MULT : 1.0);
-      } else if (relation || sharesCluster) {
-        idealD = D_MID;
+      } else if (relation) {
+        // Producer-asserted relation, no measured co-occurrence (e.g. inferred
+        // relations like kierkegaard-influenced-heidegger). Treat as the
+        // closest-but-not-collapsing case — same idealD ceiling as a relation
+        // pair with co-occurrence so the invariant holds.
+        idealD = RELATION_IDEAL_MAX;
         stiffness = BASE_STIFFNESS
-          * (relation ? RELATION_STIFFNESS_MULT : 1.0)
+          * RELATION_STIFFNESS_MULT
           * (sharesCluster ? SIBLING_STIFFNESS_MULT : 1.0);
       } else {
         // Unrelated pair — gentle repulsive spring at D_FAR. Equivalent to

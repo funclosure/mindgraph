@@ -174,4 +174,87 @@ Parking-lot items from the v2 spec that remain deferred:
 
 ---
 
-*Captured 2026-05-11 after the v0.4.0 release. Future tuning rounds should append here as new sections rather than mutate the original v2 spec — the spec records the *design*; this addendum records the *as-shipped*.*
+## v0.5.1 — FA2-style layout with relation-first hierarchy and centrality-radial structure
+
+- **Status:** as-shipped at v0.5.1
+- **Date:** 2026-05-12
+- **Trigger:** Sean Kelly *Existentialism* transcript (~63 atomic concepts, ~62 relations) exposed three limitations of the v0.5.0 + v2-tuning layout:
+  1. Central blob — strongly co-occurring concepts collapsed into a single dense region
+  2. Click-highlight mismatch — clicking a hub lit up relation neighbors, but spatially-close dots included many concepts that *weren't* relation neighbors (just cluster siblings or frequent co-occurrence partners)
+  3. Cluster-only siblinghood pulled concepts together even with no relation and no co-occurrence (Sartre adjacent to Stoicism because both live in `existentialism-core`)
+
+Each issue surfaced an architectural gap the literature already had answers for (Force Atlas 2, hierarchical edge bundling, compound layout). v0.5.1 adopts the FA2-derived fundamentals.
+
+### 1. Degree-weighted Coulomb repulsion (FA2)
+
+`applyCharge` now scales the per-pair force by `(deg(a)+1)(deg(b)+1)`. Hubs repel each other proportionally harder than peripherals, which prevents the central blob: hubs claim territory.
+
+```js
+const f = (CHARGE_STRENGTH * (deg(a)+1) * (deg(b)+1)) / r²
+```
+
+Per-node degree is computed from `viewModel.graph.edges` (atomic-atomic pairs only — the edges that actually render) once at simulator construction.
+
+`CHARGE_STRENGTH` reduced 200 → 25 to compensate for the typical `(deg+1)² ≈ 9` multiplication, so average pairs experience approximately the same repulsion as v0.5.0; hubs get the FA2 territory effect.
+
+### 2. Charge force cap (drag stability)
+
+The degree-weighted `1/r²` term explodes at small `r` (e.g. two hubs forced close by a drag). Without a cap, per-substep impulses overshoot equilibrium and induce limit cycles. Added `CHARGE_FORCE_CAP = 5`: clamps the per-pair force magnitude, so drag-close-range stays stable. At canonical equilibrium distances the cap never fires.
+
+### 3. Relation-first idealD hierarchy
+
+`buildPairs` now enforces a strict invariant: **explicit relations are always closer than non-relation signals**, regardless of co-occurrence strength.
+
+| Pair signal | idealD | Stiffness |
+|---|---|---|
+| Relation (with or without co-occurrence) | min(curve, 50) | BASE × 1.5 × (sibling? 1.3 : 1) |
+| Relation-only (no co-occurrence) | 50 (`RELATION_IDEAL_MAX`) | same |
+| Co-occurrence only, peripheral pair | curve + 30 (offset) | BASE × (sibling? 1.3 : 1) |
+| Co-occurrence only, hub-touching pair | curve + offset × (1 + maxDeg × 0.2) | same |
+| No signal (cluster-only sibling, or unrelated) | 150 (`D_FAR`) | 0.05 |
+
+Three new constants:
+- `RELATION_IDEAL_MAX = 50` — hard upper bound for relation pairs (prevents weak co-occurrence from exiling them past D_MID)
+- `COOCC_NO_RELATION_OFFSET = 30` — base spatial offset for non-relation co-occurrence pairs
+- `COOCC_NO_RELATION_DEGREE_FACTOR = 0.2` — hub multiplier so hubs push non-related neighbors proportionally farther
+
+### 4. Sibling-only branch removed
+
+The previous `else if (relation || sharesCluster)` branch pulled cluster-siblings together at `D_MID = 60` even when they had no other signal. Removed: cluster membership is metadata, not a connection. Sibling stiffness still boosts existing signals (relation + sibling, or co-occurrence + sibling) but no longer pulls pairs together on its own.
+
+Empirically: Sartre ↔ Stoicism (both `existentialism-core`, no relation, no co-occurrence) previously sat at distance 60. Now sits at D_FAR=150 — visually clearly in different neighborhoods.
+
+### 5. Centrality-weighted center pull
+
+`applyCenter` scales the per-node centroid pull by `1 + degree × CENTER_DEGREE_FACTOR`. Hubs experience 3-4× baseline pull toward (0,0); peripherals near-baseline. Result: high-centrality concepts settle centrally; low-centrality concepts orbit at outer rings. This emerges the natural radial structure that bibliometric layouts (VOSviewer, InfraNodus) build deliberately.
+
+`CENTER_DEGREE_FACTOR = 0.3` — tunable knob for how aggressive the radial effect is.
+
+### Constants snapshot (v0.5.1 additions)
+
+| Constant | Value | Role |
+|---|---|---|
+| `CHARGE_STRENGTH` | **25** (was 200) | Base for FA2-style degree-weighted Coulomb |
+| `CHARGE_FORCE_CAP` | 5 | Bounds per-pair impulse; drag stability |
+| `RELATION_IDEAL_MAX` | 50 | Hard cap on relation-pair idealD |
+| `COOCC_NO_RELATION_OFFSET` | 30 | Base spatial offset for co-occurrence-only pairs |
+| `COOCC_NO_RELATION_DEGREE_FACTOR` | 0.2 | Hub-degree scaling on the offset |
+| `CENTER_DEGREE_FACTOR` | 0.3 | Centrality-radial center-pull weighting |
+
+All live at the top of `ui/layout.js`. The `D_MID` constant is now unused by `buildPairs` (the sibling-only branch was the only consumer); kept for backward-compatible reference.
+
+### Empirical verdict
+
+Verified end-to-end on the Sean Kelly transcript:
+- Heidegger, Sartre, Nietzsche, Dostoevsky sit centrally as expected (high degree, strong center pull)
+- Their actual relations (Throneness, Care, Bad Faith, Hell Is Other People, Brothers Karamazov, etc.) form tight neighborhoods at canonical relation distance
+- Peripheral concepts (Stoicism, Apathy, Ayn Rand, Hermann Hesse — low degree, only loose ties) sit on the outer ring
+- Clicking any hub lights up the relation neighbors, and they ARE the spatially closest dots — proximity matches highlighting
+- Drag stays calm (charge cap holds; no oscillation)
+- Episode 1 canonical sample: still legible, just slightly more spread out — no regression
+
+The architecture now matches the canonical FA2-derived approach the literature has converged on for medium-density (~50-100 node) knowledge graphs. Future iteration on edge bundling or compound layout layers naturally on top.
+
+---
+
+*Appended 2026-05-12 at v0.5.1.*
