@@ -15,6 +15,7 @@ export function renderTopbar(vm, document_, state) {
   const proseIcon = state.prosCollapsed ? panelRightOpenIcon() : panelRightCloseIcon();
   const proseTitle = state.prosCollapsed ? 'Show reading panel' : 'Hide reading panel';
   return (
+    `<img class="topbar-logo" src="/assets/mindgraph-icon.svg" alt="mindgraph" width="22" height="22" />` +
     `<h1>${escapeHtml(vm.documentMeta.title)}</h1>` +
     `<span class="topbar-meta">${escapeHtml(speakers)} · ${formatTime(vm.documentMeta.durationSeconds)}</span>` +
     `<div class="topbar-actions">` +

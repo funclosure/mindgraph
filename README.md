@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/mindgraph-icon.svg" alt="mindgraph" width="128" />
+</p>
+
 # mindgraph
 
 An LLM-native CLI and data model for turning transcripts into evolving concept timelines, plus a reading-driven UI for re-entering them.

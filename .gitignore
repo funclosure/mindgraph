@@ -4,6 +4,8 @@ node_modules/
 # Playwright artifacts (screenshots, traces)
 .playwright-mcp/
 *.png
+# Curated screenshots live in docs/screenshots/ and are tracked.
+!docs/screenshots/*.png
 
 # Superpowers brainstorm session artifacts
 .superpowers/

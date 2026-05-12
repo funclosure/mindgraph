@@ -1872,7 +1872,7 @@ Reload `http://127.0.0.1:4173/`. For each scenario, note PASS/FAIL with one-line
 9. **Collapse the prose** (✕ in panel) → prose hides; small re-expand handle on the right edge; click handle → prose returns.
 10. **Collapse the topbar / chapter strip** (⌄ in each) → each shrinks to a small dot button; click dot → restores.
 
-Take a Playwright screenshot of (a) initial load, (b) after scrolling several chapters, (c) after clicking a concept word in the prose. Save under the project root with descriptive names (e.g., `v2-initial.png`, `v2-mid-scroll.png`, `v2-selected.png`). The project's `.gitignore` excludes `*.png`.
+Take a Playwright screenshot of (a) initial load, (b) after scrolling several chapters, (c) after clicking a concept word in the prose. Save under `docs/screenshots/` with descriptive names (e.g., `v2-initial.png`, `v2-mid-scroll.png`, `v2-selected.png`) — that directory is exempted from the global `*.png` ignore in `.gitignore`, so curated screenshots can be committed.
 
 - [ ] **Step 3: Commit any cleanup**
 

@@ -946,7 +946,7 @@ Reload `http://127.0.0.1:4173/`. For each scenario, write PASS / FAIL with one-l
 8. **Resize the window** → graph and strip reflow with the left column; prose stays at its fixed width.
 9. **No emoji glyphs anywhere** — `⚙ ✕ ▶ ⌄ ●` are gone.
 
-Take Playwright screenshots:
+Take Playwright screenshots in `docs/screenshots/`:
 - `v3-final-initial.png` — initial load
 - `v3-final-prose-collapsed.png` — after collapsing prose
 - `v3-final-drift-active.png` — drift button highlighted
