@@ -119,22 +119,32 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
     if (!visible.has(node.id)) continue;
     const pos = layout.nodes[node.id];
     if (!pos) continue;
-    const animOpacity = animator?.getEntityState(node.id)?.opacity ?? 1;
+    const animState = animator?.getEntityState(node.id);
+    const animOpacity = animState?.opacity ?? 1;
     if (animOpacity <= 0.001) continue;
-    const animScale = animator?.getEntityState(node.id)?.scale ?? 1;
+    const animScale = animState?.scale ?? 1;
     const radius = dotRadius(node) * animScale;
     const isActive = active.has(node.id);
     const isDimmed = dimmed.has(node.id);
     const isSelected = selected.has(node.id);
 
+    // Highlight tier (alpha + tint) is eased by the animator across frames so
+    // active↔dim transitions slide instead of snapping. Fall back to inline
+    // target values for the very first frame, before the animator has seeded.
+    const hAlpha = animState?.highlightAlpha ?? (
+      isSelected ? 1 : isActive ? 0.95 : isDimmed ? 0.22 : 0.85
+    );
+    const hTint = animState?.highlightTint ?? (isActive ? 1 : 0);
+
     const parentClusterId = node.parentIds?.[0];
-    const fillColor = parentClusterId ? clusterColor(parentClusterId) : '#b8a07a';
+    const baseColor = parentClusterId ? clusterColor(parentClusterId) : '#b8a07a';
+    const fillColor = hTint > 0.001
+      ? lerpHex(baseColor, brightenForActive(baseColor), hTint)
+      : baseColor;
 
     ctx.beginPath();
-    ctx.fillStyle = isActive
-      ? brightenForActive(fillColor)
-      : fillColor;
-    ctx.globalAlpha = (isSelected ? 1 : isActive ? 0.95 : isDimmed ? 0.22 : 0.85) * animOpacity;
+    ctx.fillStyle = fillColor;
+    ctx.globalAlpha = hAlpha * animOpacity;
     ctx.arc(pos.x, pos.y, radius + (isSelected ? 1.5 : 0), 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
@@ -147,6 +157,23 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
       ctx.stroke();
     }
   }
+}
+
+function lerpHex(a, b, t) {
+  // Per-channel linear interpolation between two "#RRGGBB" strings, returning
+  // the same shape. Drives the smooth tint transition between base cluster
+  // color and brightenForActive() output as an atom moves in/out of the
+  // active set. Both endpoints are precomputed by the caller per frame.
+  const ma = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(a);
+  const mb = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(b);
+  if (!ma || !mb) return a;
+  const clamped = Math.max(0, Math.min(1, t));
+  const blend = (i) => {
+    const x = Number.parseInt(ma[i], 16);
+    const y = Number.parseInt(mb[i], 16);
+    return Math.round(x + (y - x) * clamped).toString(16).padStart(2, '0');
+  };
+  return `#${blend(1)}${blend(2)}${blend(3)}`;
 }
 
 function drawLabels(ctx, state) {

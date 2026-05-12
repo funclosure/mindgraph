@@ -152,6 +152,7 @@ function kickAnimationLoop() {
       viewport: state.viewport,
       activeLevel: state.activeLevel,
       sim: state.sim,
+      highlightTargets: computeHighlightTargets(state),
       dt,
     });
     draw(ctx, state);
@@ -177,6 +178,32 @@ function kickAnimationLoop() {
 // ---------------------------------------------------------------------------
 // Panel updaters
 // ---------------------------------------------------------------------------
+
+function computeHighlightTargets(state) {
+  // Per-atom target alpha + tint for the easing pass in the animator. Tier
+  // semantics: selected wins (alpha 1), then active (alpha 0.95 + tint 1),
+  // then dimmed (alpha 0.22), else revealed default (alpha 0.85). The values
+  // mirror the inline cascade that drawAtomicNodes previously hard-coded —
+  // moving them here lets the animator ease between them across frames.
+  const grs = state.graphRenderState;
+  if (!grs) return undefined;
+  const visible = grs.visibleNodeIds ?? [];
+  if (!visible.length) return {};
+  const active = new Set(grs.activeNodeIds ?? []);
+  const dimmed = new Set(grs.dimmedNodeIds ?? []);
+  const selected = new Set(grs.selectedNodeIds ?? []);
+  const out = {};
+  for (const id of visible) {
+    const isSelected = selected.has(id);
+    const isActive = active.has(id);
+    const isDimmed = dimmed.has(id);
+    out[id] = {
+      alpha: isSelected ? 1.0 : isActive ? 0.95 : isDimmed ? 0.22 : 0.85,
+      tint: isActive ? 1.0 : 0.0,
+    };
+  }
+  return out;
+}
 
 function computeGraphRenderState() {
   return buildGraphRenderState(state.viewModel, {

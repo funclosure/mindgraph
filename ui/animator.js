@@ -18,6 +18,12 @@ function easeOutCubic(t) {
 const BLOOM_DURATION_MS = 600;
 const FADE_DURATION_MS = 200;
 const CAMERA_TIME_CONSTANT_S = 0.23; // ~700ms full convergence
+// Per-atom highlight tier (active/dimmed/selected) eases between target levels
+// instead of snapping. ~180 ms time constant means a flip from default → active
+// converges visibly under 400 ms — fast enough to feel responsive, slow enough
+// to read as a transition rather than a flicker.
+const HIGHLIGHT_TIME_CONSTANT_S = 0.18;
+const HIGHLIGHT_EPSILON = 0.004;
 
 export function createAnimator() {
   const entityStates = new Map(); // id -> { opacity, scale, blooming, fading, animStart }
@@ -61,6 +67,7 @@ export function createAnimator() {
       cameraMode,
       camera,
       sim,              // ← new opt
+      highlightTargets,
     } = opts;
 
     const conceptSet = new Set(cumulativeVisibleConceptIds);
@@ -135,6 +142,36 @@ export function createAnimator() {
     // Prune entries that just finished fading — keeps entityStates bounded
     // over a long reading session.
     for (const id of faded) entityStates.delete(id);
+
+    // ── Highlight-tier easing (color brighten + alpha) ─────────────────────
+    // Target alpha/tint per visible atomic concept come from the caller
+    // (computed off graphRenderState). Each entity's current values ease
+    // toward target with HIGHLIGHT_TIME_CONSTANT_S so active/dim transitions
+    // read as a slide, not a jump. First seed snaps without easing so the
+    // initial bloom doesn't pop through a dim→active sweep.
+    if (highlightTargets) {
+      const dtSec = opts.dt ?? 0;
+      const factor = 1 - Math.exp(-dtSec / HIGHLIGHT_TIME_CONSTANT_S);
+      for (const id in highlightTargets) {
+        const target = highlightTargets[id];
+        const s = getEntityState(id);
+        if (s.highlightAlpha === undefined) {
+          s.highlightAlpha = target.alpha;
+          s.highlightTint = target.tint;
+          continue;
+        }
+        const dA = target.alpha - s.highlightAlpha;
+        const dT = target.tint - s.highlightTint;
+        if (Math.abs(dA) < HIGHLIGHT_EPSILON && Math.abs(dT) < HIGHLIGHT_EPSILON) {
+          s.highlightAlpha = target.alpha;
+          s.highlightTint = target.tint;
+          continue;
+        }
+        s.highlightAlpha += dA * factor;
+        s.highlightTint += dT * factor;
+        stillAnimating = true;
+      }
+    }
 
     // ── NEW: step the physics simulator ────────────────────────────────────
     if (sim && !sim.isSettled()) {
