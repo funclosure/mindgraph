@@ -27,7 +27,7 @@ mindgraph --help
 If the command is not found, install it from a tagged release:
 
 ```bash
-npm install -g github:funclosure/mindgraph#v0.5.1
+npm install -g github:funclosure/mindgraph#v0.5.2
 ```
 
 Tag-pinning is recommended over the unpinned `github:funclosure/mindgraph` form — npm's git-URL install path is fragile across versions, and pinning to a tag gives a stable artifact. Check https://github.com/funclosure/mindgraph for newer tags.
