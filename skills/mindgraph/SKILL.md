@@ -116,8 +116,11 @@ For each atomic concept, upsert:
 mindgraph concept upsert <output-file> \
   --id meaning-crisis \
   --label "Meaning Crisis" \
-  --level atomic
+  --level atomic \
+  --first-seen-at 0
 ```
+
+**Always pass `--first-seen-at <seconds>`** with the concept's natural first-mention timestamp in the transcript. This drives the staggered "concepts reveal as the reader scrolls" effect in the reading UI. If you omit it, the VM derives `firstSeenAt` from frame appearances — which collapses to the chapter start once `frame merge` lifts that concept into a macro's foreground, defeating the staggered reveal. Setting it explicitly is the only way to keep the reveal aligned with the speaker's actual first mention.
 
 Upsert is idempotent — re-running with the same id updates the existing concept. Don't be afraid to refine and re-run.
 
@@ -135,8 +138,11 @@ mindgraph concept upsert <output-file> \
   --id buddhism \
   --label "Buddhism" \
   --level atomic \
-  --parent-ids-json '["cultural-convergences"]'
+  --parent-ids-json '["cultural-convergences"]' \
+  --first-seen-at 240
 ```
+
+(Clustered concepts don't need `--first-seen-at` — they're aggregated from their atomic children. Always pass it on atomic concepts.)
 
 The flag takes a JSON array of cluster ids, so a concept can belong to more than one cluster: `--parent-ids-json '["cultural-convergences","wisdom-traditions"]'`.
 
@@ -340,7 +346,7 @@ For when you need a refresher on a specific command:
 | `mindgraph inspect <file>` | Print summary |
 | `mindgraph ingest transcript <src> -o <file>` | Parse source into segments + micro frames |
 | `mindgraph build timeline <src> -o <file>` | Ingest + create meso windows + suggest next steps |
-| `mindgraph concept upsert <file> --id ... --label ...` | Create or update a concept |
+| `mindgraph concept upsert <file> --id ... --label ... --first-seen-at <s>` | Create or update a concept (always pass `--first-seen-at` on atomic concepts) |
 | `mindgraph concept list <file>` | List concepts |
 | `mindgraph concept show <file> --id ...` | Show one concept |
 | `mindgraph relation upsert <file> --id ... --from ... --to ... --type ... [--provenance source\|inferred]` | Create or update a relation (provenance defaults to source; use `inferred` for common-knowledge connections the speaker assumed — see "On inferred relations") |

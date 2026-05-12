@@ -185,7 +185,16 @@ Five commits. Each leaves the project in a working state; the smoke test passes 
 
 ## Parking lot
 
-- **v0.5.1 — Macro-firstSeenAt fix.** Separate concern discovered while ingesting the Sean Kelly transcript. `state.activeLevel = 'macro'` in `ui/app.js` combines with the cluster-only-macro annotation pattern (which exists so atomic `firstSeenAt` doesn't collapse to chapter-start) to produce a broken highlighting pipeline: `getActiveConceptIdsAtTime(time, 'macro')` returns only cluster ids, no atomic concept is ever "currently active," and the prose highlight signal degrades to global-importance baseline. The cleanest fix is to decouple `firstSeenAt` derivation from the active-set pipeline: `deriveFirstSeenAt` in `buildMindgraphViewModel.js` should (a) skip macro-level frames and (b) restrict to `foregroundConcepts` only (matching the foreground-only co-occurrence policy already shipped in v0.4.1). Macros can then carry rich atomic foregrounds again, fixing the highlighting at macro level without regressing the staggered reveal. Ships as a separate v0.5.1 patch release after v0.5.0; needs its own brief brainstorm-or-plan session.
+- **Macro-firstSeenAt — reclassified to a producer-side convention, not a code fix.** The original v0.5.1 candidate identified that `state.activeLevel = 'macro'` plus the cluster-only-macro annotation pattern produced a broken highlighting pipeline. After ingesting the Sean Kelly *Existentialism* transcript end-to-end via v0.5.0 (`./graphs/sean-kelly-existentialism.mindgraph.json`), the empirical finding is that the bug **does not manifest in the natural producer flow**:
+  - `frame merge` aggregates atomic foregrounds from source mesos into the merged macro, so macros carry atomic IDs (not cluster-only) and `getActiveConceptIdsAtTime(time, 'macro')` returns atomic concepts as expected. Highlighting works.
+  - When concepts are upserted with explicit `--first-seen-at <seconds>`, `deriveFirstSeenAt` preserves the explicit value (the `if (typeof concept.firstSeenAt === 'number') return concept` guard), so the macro-spans-back-to-zero collapse can't override the staggered reveal.
+
+  The Episode 1 canonical sample apparently combined hand-crafted cluster-only macros *and* missing `firstSeenAt` on atomic concepts — that's when both problems collide. The natural CLI flow (frame merge + concept upsert --first-seen-at) avoids both. The right fix is therefore a SKILL.md convention rather than VM code:
+
+  - Always pass `--first-seen-at <seconds>` on `concept upsert` (concept's natural first-mention timestamp).
+  - Don't hand-craft cluster-only macro foregrounds — let `frame merge` populate them.
+
+  A defensive code-side fix (skip macros + foreground-only in `deriveFirstSeenAt`) is still reasonable defense-in-depth but no longer load-bearing for shipped UX. Park indefinitely; revisit only if the empirical bug recurs on a document that follows the SKILL.md conventions.
 
 ---
 
