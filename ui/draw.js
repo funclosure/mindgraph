@@ -92,10 +92,19 @@ function drawEdges(ctx, vm, layout, grs, animator) {
     ctx.strokeStyle = `rgba(218, 184, 116, ${baseAlpha * animOpacity})`;
     ctx.lineWidth = touchesSelection ? 1.4 : isActive ? 1.0 : 0.6;
 
+    // Inferred edges render dashed so the user can tell at a glance which
+    // relations were added by the agent from world knowledge vs derived from
+    // the source. Same color, alpha curve, and width curve as source edges —
+    // only the dash differs. Reset every iteration (defensive: no leak even
+    // if a future change adds a `continue` between setLineDash and stroke).
+    if (edge.provenance === 'inferred') ctx.setLineDash([4, 3]);
+
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
+
+    ctx.setLineDash([]);
   }
 }
 
