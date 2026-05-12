@@ -220,6 +220,19 @@ export function buildGraphRenderState(viewModel, {
 } = {}) {
   const focus = buildFocusSets(viewModel, { selectedConceptId, selectedFrameRef, playheadTime, activeLevel });
   const cumulative = buildCumulativeVisibility(viewModel, playheadTime);
+  // Macro frames nominate clusters (not atoms) in their foreground — that's
+  // the v0.5.x producer convention: cluster ids in macros, atom ids in mesos.
+  // To make that convention legible, fan a clustered foreground entry out to
+  // its member atoms. The result is pure data — what to *render* with this
+  // signal is the renderer's call. Always derived from the macro frame
+  // regardless of activeLevel: chapter context is the same backdrop whether
+  // the reader is zoomed at micro, meso, or macro. Excludes atoms already in
+  // activeNodeIds so consumers can treat the two sets as disjoint tiers.
+  const chapterActiveAtomicIds = deriveChapterActiveAtomicIds(
+    viewModel,
+    playheadTime,
+    new Set(focus.activeNodeIds),
+  );
   const viewportMode = inferViewportMode({ zoomLevel, focusMode: focus.focusMode });
   const nodeScores = new Map();
   const activeEdgeIds = new Set();
@@ -329,5 +342,29 @@ export function buildGraphRenderState(viewModel, {
     cumulativeVisibleEdgeIds: [...cumulative.edgeIds],
     cameraTarget,
     conceptImportance: viewModel.graph.conceptImportance ?? {},
+    chapterActiveAtomicIds,
   };
+}
+
+function deriveChapterActiveAtomicIds(viewModel, playheadTime, excludeAtomicIds) {
+  // string[] of atomic ids belonging to any cluster that appears in the
+  // currently-active macro frame's foregroundConcepts. Disjoint from the
+  // exclude set passed in (the caller scopes that to the per-meso/active
+  // tier so the two sets don't collide).
+  const macroFrame = viewModel.selectors.getActiveFrameAtTime('macro', playheadTime);
+  if (!macroFrame) return [];
+  const out = [];
+  const seen = new Set();
+  for (const activation of macroFrame.foregroundConcepts ?? []) {
+    const concept = viewModel.concepts.byId[activation.id];
+    if (concept?.level !== 'clustered') continue;
+    const childIds = viewModel.concepts.childrenByClusterId[activation.id] ?? [];
+    for (const childId of childIds) {
+      if (excludeAtomicIds.has(childId)) continue;
+      if (seen.has(childId)) continue;
+      seen.add(childId);
+      out.push(childId);
+    }
+  }
+  return out;
 }
