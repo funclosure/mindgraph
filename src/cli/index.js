@@ -25,7 +25,7 @@ Usage:
   mindgraph concept upsert <document-file> --id <id> --label <label> [--level atomic|clustered]
   mindgraph concept list <document-file> [--level atomic|clustered]
   mindgraph concept show <document-file> --id <id> [--level atomic|clustered]
-  mindgraph relation upsert <document-file> --id <id> --from <concept-id> --to <concept-id> --type <type>
+  mindgraph relation upsert <document-file> --id <id> --from <concept-id> --to <concept-id> --type <type> [--provenance source|inferred]
   mindgraph frame list <document-file> [--level micro|meso|macro] [--offset <n>] [--limit <n>]
   mindgraph frame show <document-file> --level micro|meso|macro --index <n>
   mindgraph frame set-activations <document-file> --level micro|meso|macro --index <n> [--foreground-json <json>] [--background-json <json>] [--relations-json <json>] [--summary <text>]
@@ -45,7 +45,7 @@ Commands:
   build timeline         Run a staged transcript→timeline pipeline shell
   concept upsert         Create or update a concept deterministically
   concept list/show      Inspect concepts without opening raw JSON
-  relation upsert        Create or update a relation deterministically
+  relation upsert        Create or update a relation deterministically (use --provenance inferred for common-knowledge connections the speaker assumed)
   frame list/show        Inspect frames without opening raw JSON
   frame set-activations  Write weighted concept/relation activations to a frame
   frame merge            Merge lower-level frames into a higher-level frame
@@ -401,6 +401,7 @@ if (command === 'relation' && subcommand === 'upsert') {
   const label = requireFlag(flags, '--label');
   const description = requireFlag(flags, '--description');
   const metaJson = requireFlag(flags, '--meta-json');
+  const provenance = requireFlag(flags, '--provenance');
 
   const doc = readJson(documentFile);
   upsertRelation(doc, {
@@ -411,10 +412,11 @@ if (command === 'relation' && subcommand === 'upsert') {
     label,
     description,
     meta: metaJson ? parseJsonValue(metaJson, 'meta JSON') : undefined,
+    provenance,
   });
   validateOrExit(doc, documentFile);
   writeJson(documentFile, doc);
-  console.log(`Upserted relation '${id}'.`);
+  console.log(`Upserted relation '${id}'${provenance === 'inferred' ? ' (inferred)' : ''}.`);
   process.exit(0);
 }
 

@@ -48,11 +48,14 @@ export function upsertConcept(doc, { level = 'atomic', id, label, description, a
   return next;
 }
 
-export function upsertRelation(doc, { id, from, to, type, label, description, meta }) {
+export function upsertRelation(doc, { id, from, to, type, label, description, meta, provenance }) {
   if (!id) throw new Error('relation id is required');
   if (!from) throw new Error('relation from is required');
   if (!to) throw new Error('relation to is required');
   if (!type) throw new Error('relation type is required');
+  if (provenance != null && provenance !== 'source' && provenance !== 'inferred') {
+    throw new Error("relation provenance must be 'source' or 'inferred' when provided");
+  }
 
   const relations = doc.relations ?? (doc.relations = []);
   const existing = relations.find((relation) => relation.id === id);
@@ -64,10 +67,17 @@ export function upsertRelation(doc, { id, from, to, type, label, description, me
     ...(label != null ? { label } : {}),
     ...(description != null ? { description } : {}),
     ...(meta != null ? { meta } : {}),
+    ...(provenance === 'inferred' ? { provenance: 'inferred' } : {}),
   };
 
   if (existing) {
     Object.assign(existing, next);
+    // Explicit 'source' on an upsert strips any pre-existing provenance key — caller is
+    // saying "set this relation back to source." Implicit (provenance === undefined) leaves
+    // the existing value alone for idempotency.
+    if (provenance === 'source' && existing.provenance != null) {
+      delete existing.provenance;
+    }
     return existing;
   }
 

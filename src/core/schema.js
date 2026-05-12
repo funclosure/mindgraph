@@ -135,6 +135,9 @@ export function validateDocument(doc) {
     if (!relation?.to) errors.push(`relations[${i}].to is required`);
     if (relation?.from && !conceptIds.has(relation.from)) errors.push(`relations[${i}].from references missing concept '${relation.from}'`);
     if (relation?.to && !conceptIds.has(relation.to)) errors.push(`relations[${i}].to references missing concept '${relation.to}'`);
+    if (relation?.provenance != null && relation.provenance !== 'source' && relation.provenance !== 'inferred') {
+      errors.push(`relations[${i}].provenance must be 'source' or 'inferred' when present`);
+    }
     if (relation?.id) relationIds.add(relation.id);
   }
 
