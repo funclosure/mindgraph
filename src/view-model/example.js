@@ -50,6 +50,9 @@ console.log(JSON.stringify({
     nodeCount: vm.graph.nodes.length,
     edgeCount: vm.graph.edges.length,
     firstCluster: vm.concepts.clustered[0],
+    // Surface a sample edge so a regression in buildGraphVM's edge mapping
+    // (including provenance threading) shows up in vm:example output.
+    firstEdge: vm.graph.edges[0],
   },
   sampleCoOccurrence,
   sampleConceptInspector: conceptVm,

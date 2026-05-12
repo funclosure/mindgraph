@@ -318,8 +318,13 @@ interface GraphEdgeVM {
   type: string
   label?: string
   visualWeight: number
+  provenance?: 'source' | 'inferred'   // missing key ≡ source
 }
 ```
+
+### Provenance
+
+The optional `provenance` field distinguishes source-derived edges (the speaker asserted the relation) from LLM-inferred edges (the agent added the relation from world knowledge — typically biographical or attributional connections the speaker assumed the audience knew). Missing key ≡ `'source'`; only `'inferred'` is ever written. The UI renders inferred edges as dashed lines (`ctx.setLineDash([4, 3])`); layout treats both kinds identically. `RelationVM` does *not* carry this field — the inspector is intentionally provenance-blind in v0.5.0; the canvas dash is the only user surface. See `docs/superpowers/specs/2026-05-12-inferred-relations-design.md`.
 
 ### Visual weight rules (v0)
 For concepts:

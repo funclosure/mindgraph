@@ -304,7 +304,7 @@ function assignFrameAncestry(framesVM) {
   }
 }
 
-function buildGraphVM(conceptsVM, relationsVM, framesVM) {
+function buildGraphVM(conceptsVM, relationsVM, framesVM, rawRelations) {
   const nodes = [...conceptsVM.clustered, ...conceptsVM.atomic].map((concept) => ({
     id: concept.id,
     label: concept.label,
@@ -317,6 +317,14 @@ function buildGraphVM(conceptsVM, relationsVM, framesVM) {
     degree: 0,
   }));
 
+  // Build a quick id → provenance lookup from the raw document relations.
+  // RelationVM intentionally does not carry provenance (the inspector is parked
+  // for v0.5.0); GraphEdgeVM is the only consumer-side surface that exposes it.
+  const provenanceById = {};
+  for (const rel of rawRelations) {
+    if (rel?.id && rel.provenance === 'inferred') provenanceById[rel.id] = 'inferred';
+  }
+
   const edges = relationsVM.all.map((relation) => ({
     id: relation.id,
     from: relation.from,
@@ -324,6 +332,7 @@ function buildGraphVM(conceptsVM, relationsVM, framesVM) {
     type: relation.type,
     label: relation.label,
     visualWeight: 0.5,
+    ...(provenanceById[relation.id] === 'inferred' ? { provenance: 'inferred' } : {}),
   }));
 
   const nodeById = Object.fromEntries(nodes.map((node) => [node.id, node]));
@@ -534,7 +543,7 @@ export function buildMindgraphViewModel(document) {
   const relations = buildRelationsVM(document);
   const frames = buildFramesVM(document, concepts, relations);
   assignFrameAncestry(frames);
-  const graph = buildGraphVM(concepts, relations, frames);
+  const graph = buildGraphVM(concepts, relations, frames, document.relations ?? []);
   const indexes = buildIndexesVM(concepts, frames, transcript);
   const documentMeta = buildDocumentMetaVM(document, concepts, relations, frames, transcript);
 
