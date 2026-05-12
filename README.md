@@ -160,7 +160,7 @@ Current actuator commands:
 
 - `mindgraph concept upsert ...`
 - `mindgraph concept list/show ...`
-- `mindgraph relation upsert ...`
+- `mindgraph relation upsert ...` (use `--provenance inferred` to mark common-knowledge connections the speaker assumed; the UI renders these as dashed edges)
 - `mindgraph frame list/show ...`
 - `mindgraph frame set-activations ...`
 - `mindgraph frame merge ...`

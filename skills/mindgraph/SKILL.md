@@ -291,6 +291,18 @@ Only reach for this when the *transcript* itself has changed. If only the annota
 
 **On idempotency.** All `upsert` and `set-activations` commands are idempotent. Re-running them updates instead of creating duplicates. Use this freely — refine your work in passes.
 
+**On inferred relations.** When you know a connection from world knowledge that the source assumes but doesn't state, add it via `mindgraph relation upsert ... --provenance inferred`. The UI renders these as dashed lines and they participate in the layout at the same stiffness as source-derived edges — adding `inferred` *changes the geometry the user sees*, not just decoration. Treat it as an editorial choice.
+
+**What qualifies.** Inferred relations are *only* for biographical, foundational, or attributional facts the source's audience would treat as common knowledge — facts the speaker is silently presupposing rather than asserting. Examples: "X interpreted Y", "X is a student of Y", "X co-authored Z with W", "X founded movement Z", "X developed concept Y". These are connections any introductory text in the field would state as part of its scaffolding.
+
+**Two tests, apply both.** **(1) Introductory-textbook test** — would an introductory text in this field state this connection as part of the scaffolding the field is built on? If no, don't add it. **(2) Audience-eye-roll gut-check** — would a knowledgeable audience member be mildly bored if the speaker stopped to explain this? If yes, it's table-stakes; safe to add. If they'd lean in because it's contested or interesting, it's not table-stakes — that's the speaker's editorial territory, not yours. Fail-safe to "don't add" when both tests aren't clearly satisfied.
+
+**What does NOT qualify.** Don't infer *inferential bridges*: "X causes Y", "X is similar to Y", "X opposes Y", "X anticipates Y", or any connection that interprets, compares, or evaluates. Those are the speaker's editorial territory — if the speaker didn't make the bridge, you don't either. Don't infer connections that a domain expert *might* assert but isn't field-consensus (specific scholarly theses). Don't infer topical co-occurrence ("both come up in this field") — that's what cluster siblings and co-occurrence already capture.
+
+**Worked example — Sean Kelly *Existentialism* lecture.** Yes-add: `hubert-dreyfus → martin-heidegger` (interprets — Dreyfus is the canonical 20th-century Heidegger interpreter); `søren-kierkegaard → jean-paul-sartre` (influences — Kierkegaard is a foundational existentialist precursor any intro treats as such). No-add: `heidegger → derrida` ("anticipates deconstruction" — specific scholarly thesis, not common knowledge); `sartre ↔ camus` ("opposed each other politically" — inferential bridge, speaker's territory); `existentialism → phenomenology` ("draws methodologically from" — too interpretive, even if defensible).
+
+**Don't activate inferred relations in frames.** Inferred relations exist as latent structural facts — they're visible on the graph once both endpoints have first-appeared, and clicking either endpoint lights them up. Don't add them to any frame's `--relations-json` activations, because the speaker didn't activate them. Adding them to `activeRelations` would say "the speaker is foregrounding the connection they didn't make" — incoherent.
+
 **On scaling.** For very long sources (multi-hour lectures, full books), Phase 2 step 3 (set activations) scales linearly with meso frames. If the source has 100+ meso frames and you're hitting context limits, batch: do the first half, save, do the second half.
 
 **On backfilling activations.** The reading UI's graph layout uses pair co-occurrence at the finest available frame level — concepts that appear together in many micro frames pull toward shorter spring distances. If you've annotated meso (and/or macro) frames but left micro empty (which is typical for any source long enough that per-sentence annotation isn't practical), the UI's clusters won't differentiate well. Run `mindgraph frame backfill-activations <file> --from meso --to micro` after you're done with Phase 2 step 3 (and before `stats recompute`) to broadcast each meso's `foregroundConcepts` down to all the micro frames it spans. The operation is idempotent and finishes in seconds — safe to include in routine workflows on coarse-annotation sources. Re-run `stats recompute` afterwards so derived stats reflect the new activations.
@@ -331,7 +343,7 @@ For when you need a refresher on a specific command:
 | `mindgraph concept upsert <file> --id ... --label ...` | Create or update a concept |
 | `mindgraph concept list <file>` | List concepts |
 | `mindgraph concept show <file> --id ...` | Show one concept |
-| `mindgraph relation upsert <file> --id ... --from ... --to ... --type ...` | Create or update a relation |
+| `mindgraph relation upsert <file> --id ... --from ... --to ... --type ... [--provenance source\|inferred]` | Create or update a relation (provenance defaults to source; use `inferred` for common-knowledge connections the speaker assumed — see "On inferred relations") |
 | `mindgraph frame list <file> --level meso` | List frames at a level |
 | `mindgraph frame show <file> --level meso --index 3` | Show one frame |
 | `mindgraph frame set-activations <file> --level meso --index 3 --foreground-json '...'` | Write weighted activations |
