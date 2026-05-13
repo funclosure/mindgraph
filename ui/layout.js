@@ -17,13 +17,13 @@
 
 // ───── Cold-start sim constants ─────────────────────────────────────────────
 const ITERATIONS = 300;                          // cold-start iter count (matches v1)
-// With degree-weighted charge (FA2-style), the repulsion force scales by
-// (deg(a)+1)(deg(b)+1) ≈ 9 for the average pair (avg degree ~2 on Sean Kelly).
-// CHARGE_STRENGTH is therefore set to ~old_value / 9 so the average pair gets
-// approximately the same repulsion as the prior unweighted formulation; hubs
-// (deg up to 11) get proportionally more, peripherals (deg 0-1) proportionally
-// less. This is the canonical FA2 scaling.
-const CHARGE_STRENGTH = 25;
+// 0.6.0 edge-only attraction: unrelated pairs no longer have a fallback
+// spring (D_FAR is gone). Charge must do all the separation work on its own.
+// Raised from 25 → 60 to compensate; with the FA2 degree-weighting
+// (deg(a)+1)(deg(b)+1), this gives the average pair (≈ deg 2 each) ~540 of
+// effective strength — enough to keep unrelated clusters apart now that no
+// spring is pulling them toward a fixed ideal distance.
+const CHARGE_STRENGTH = 60;
 // Cap the per-pair charge impulse to prevent drag-induced oscillation: when
 // two hubs are forced close (e.g. user dragging a node near another hub), the
 // degree-weighted 1/r² blows up. The cap bounds the per-substep impulse so
@@ -32,12 +32,13 @@ const CHARGE_STRENGTH = 25;
 const CHARGE_FORCE_CAP = 5;
 const CHARGE_MIN_DISTANCE = 4;
 const CENTER_STRENGTH = 0.05;
-// Per-node center-pull is scaled by (1 + degree × CENTER_DEGREE_FACTOR), so
-// hubs are pulled toward the canvas centroid harder than peripherals.
-// Concretely: deg=0 → 1× pull (baseline); deg=11 → 4.3× pull. This produces
-// the natural radial structure: high-centrality concepts at the middle,
-// low-centrality ones on outer rings.
-const CENTER_DEGREE_FACTOR = 0.3;
+// 0.6.0 edge-only attraction: dropped from 0.3 → 0. Pulling hubs toward
+// canvas origin proportionally to degree fights the d3-force/FA2 "hubs find
+// the centroid of their satellites" emergence — geometric averaging over
+// many incident edges already lands hubs near the middle of their cluster
+// naturally, without needing to yank them to (0,0). A uniform base center
+// pull stays to keep the whole graph on-canvas.
+const CENTER_DEGREE_FACTOR = 0;
 const COLLISION_PADDING = 4;
 const NODE_BASE_RADIUS = 4;
 const MAX_VELOCITY_PER_ITER = 50;
@@ -59,11 +60,12 @@ const D_MAX = 180;                               // weakest co-occurrence (but s
 const D_MID = 60;                                // fallback for relation/sibling pairs with score=0
                                                  // tuned to match the typical co-occurrence-driven distance under the exp curve
                                                  // so producer-asserted-but-not-co-occurring pairs don't get exiled to mid-range
-const D_FAR = 150;                               // target distance for genuinely-unrelated pairs
-                                                 // (no co-occurrence, no relation, no sibling). Gives the system an
-                                                 // explicit "stay apart" force so unrelated pairs don't drift into
-                                                 // cluster space via charge balance alone.
-const UNRELATED_STIFFNESS = 0.05;                // gentle — should not dominate cluster-internal springs
+// 0.6.0 edge-only attraction: D_FAR and UNRELATED_STIFFNESS are gone.
+// Unrelated pairs (no co-occurrence, no relation, no sibling) get no spring
+// at all — repulsion alone keeps them apart. This is the FA2/d3-force model:
+// asymmetric pair forces (attract along edges, repel everywhere) produce a
+// single-direction energy gradient that lets the system slide into a deep
+// global minimum, instead of plateauing at "every distance close to ideal".
 const SCORE_REF_PERCENTILE = 0.9;                // strongest 10% of co-occurring pairs hit D_MIN
 // Distance curve: ideal_d = D_MIN + (D_MAX - D_MIN) × exp(-k × score/scoreRef).
 // Exponential decay (not linear) so even weakly-co-occurring pairs get pulled
@@ -485,13 +487,17 @@ function buildPairs(viewModel, atomic, degree) {
         stiffness = BASE_STIFFNESS
           * RELATION_STIFFNESS_MULT
           * (sharesCluster ? SIBLING_STIFFNESS_MULT : 1.0);
+      } else if (sharesCluster) {
+        // Sibling pair with no co-occurrence and no explicit relation. Keep
+        // a gentle sibling spring so cluster members still draw together;
+        // without this, charge would scatter cluster mates that never happen
+        // to co-appear in a frame, breaking the spatial cluster identity the
+        // UI relies on for color-coded grouping.
+        idealD = D_MID;
+        stiffness = BASE_STIFFNESS * SIBLING_STIFFNESS_MULT;
       } else {
-        // Unrelated pair — gentle repulsive spring at D_FAR. Equivalent to
-        // a "preferred minimum distance" that the system relaxes toward.
-        // Stiffness is low so cluster-internal attractive springs still win
-        // when in conflict.
-        idealD = D_FAR;
-        stiffness = UNRELATED_STIFFNESS;
+        // Genuinely unrelated pair — no spring. Charge alone separates them.
+        continue;
       }
 
       pairs.push({ a, b, idealD, stiffness });
