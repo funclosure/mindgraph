@@ -294,6 +294,12 @@ export function buildGraphRenderState(viewModel, {
       bothActive
       || touchesSelected
       || touchesPrimary
+      // Persistent relational backdrop: any edge whose both endpoints are
+      // currently rendered as dots stays visible. drawEdges paints these at
+      // baseAlpha 0.16 (the existing "non-active" branch) so the graph's
+      // topology doesn't flicker on/off as the playhead moves through the
+      // active cascade. Active/selection-adjacent edges still pop bright.
+      || bothVisible
       || (viewportMode !== 'overview' && touchesNear && bothVisible)
       || (viewportMode === 'local' && bothVisible && sameRegion)
       || (viewportMode === 'overview' && bothVisible && touchesPrimary)
