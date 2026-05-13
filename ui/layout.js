@@ -60,12 +60,14 @@ const D_MAX = 180;                               // weakest co-occurrence (but s
 const D_MID = 60;                                // fallback for relation/sibling pairs with score=0
                                                  // tuned to match the typical co-occurrence-driven distance under the exp curve
                                                  // so producer-asserted-but-not-co-occurring pairs don't get exiled to mid-range
-// 0.6.0 edge-only attraction: D_FAR and UNRELATED_STIFFNESS are gone.
-// Unrelated pairs (no co-occurrence, no relation, no sibling) get no spring
-// at all — repulsion alone keeps them apart. This is the FA2/d3-force model:
-// asymmetric pair forces (attract along edges, repel everywhere) produce a
-// single-direction energy gradient that lets the system slide into a deep
-// global minimum, instead of plateauing at "every distance close to ideal".
+// 0.6.0 edge-only attraction: D_FAR's old symmetric "ideal distance" for
+// unrelated pairs is gone. Replaced with a *one-sided* repulsion floor below:
+// unrelated pairs feel a soft push-apart force when closer than UNRELATED_MIN,
+// and zero force beyond it. That keeps the d3-force/FA2 asymmetry intact
+// (one tension axis per pair, single energy gradient) while still preventing
+// unrelated clusters from collapsing into each other via charge balance.
+const UNRELATED_MIN = 110;                       // below this distance, unrelated pairs push apart
+const UNRELATED_REPEL_STIFFNESS = 0.08;          // gentle — must not dominate spring attraction
 const SCORE_REF_PERCENTILE = 0.9;                // strongest 10% of co-occurring pairs hit D_MIN
 // Distance curve: ideal_d = D_MIN + (D_MAX - D_MIN) × exp(-k × score/scoreRef).
 // Exponential decay (not linear) so even weakly-co-occurring pairs get pulled
@@ -228,6 +230,11 @@ export function createLayoutSimulator(viewModel) {
       const dx = pb.x - pa.x;
       const dy = pb.y - pa.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      // repulsionOnly pairs are the "stay apart" floor for genuinely unrelated
+      // nodes. They contribute force only when too close (dist < idealD); at
+      // greater separation they're dormant. That preserves the single
+      // tension-axis property — no long-range attraction outside actual edges.
+      if (pair.repulsionOnly && dist >= pair.idealD) continue;
       const delta = (dist - pair.idealD) * pair.stiffness;
       const fx = (dx / dist) * delta;
       const fy = (dy / dist) * delta;
@@ -496,7 +503,17 @@ function buildPairs(viewModel, atomic, degree) {
         idealD = D_MID;
         stiffness = BASE_STIFFNESS * SIBLING_STIFFNESS_MULT;
       } else {
-        // Genuinely unrelated pair — no spring. Charge alone separates them.
+        // Genuinely unrelated pair — one-sided repulsion floor. The spring
+        // ONLY fires when the pair is closer than UNRELATED_MIN; at greater
+        // distances applySprings skips it. Preserves the d3-force/FA2
+        // single-tension-axis property while ensuring unrelated nodes don't
+        // get pulled into each other's neighborhoods via charge balance.
+        pairs.push({
+          a, b,
+          idealD: UNRELATED_MIN,
+          stiffness: UNRELATED_REPEL_STIFFNESS,
+          repulsionOnly: true,
+        });
         continue;
       }
 
