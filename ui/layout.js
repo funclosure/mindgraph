@@ -6,108 +6,57 @@
 //   seededUnit(value)                         deterministic [0, 1) hash on a string
 //   clusterColor(clusterId)                   deterministic warm-tone hex for a cluster id
 //
-// The simulator is the only stateful module in the canvas pipeline. It owns
-// per-pair spring metadata (ideal_d, stiffness) computed at construction
-// time, positions/velocities arrays, and a single alpha scalar that drives
-// the warm-when-disturbed lifecycle.
-//
-// See docs/superpowers/specs/2026-05-11-graph-rendering-v2-design.md for the
-// full design rationale.
+// v3 uses a gravity-field elastic model: explicit relation springs define the
+// topology, mass-based repulsion gives hubs territory, gentle center gravity
+// keeps the cloud bounded, and resistance lets the graph relax smoothly.
 // ---------------------------------------------------------------------------
 
-// ───── Cold-start sim constants ─────────────────────────────────────────────
-const ITERATIONS = 300;                          // cold-start iter count (matches v1)
-// 0.6.0 edge-only attraction: unrelated pairs no longer have a fallback
-// spring (D_FAR is gone). Charge must do all the separation work on its own.
-// Raised from 25 → 60 to compensate; with the FA2 degree-weighting
-// (deg(a)+1)(deg(b)+1), this gives the average pair (≈ deg 2 each) ~540 of
-// effective strength — enough to keep unrelated clusters apart now that no
-// spring is pulling them toward a fixed ideal distance.
-const CHARGE_STRENGTH = 60;
-// Cap the per-pair charge impulse to prevent drag-induced oscillation: when
-// two hubs are forced close (e.g. user dragging a node near another hub), the
-// degree-weighted 1/r² blows up. The cap bounds the per-substep impulse so
-// limit cycles can't form. At canonical equilibrium distances the cap never
-// fires (typical pair force << cap); it only kicks in at close range.
-const CHARGE_FORCE_CAP = 5;
-const CHARGE_MIN_DISTANCE = 4;
-const CENTER_STRENGTH = 0.05;
-// 0.6.0 edge-only attraction: dropped from 0.3 → 0. Pulling hubs toward
-// canvas origin proportionally to degree fights the d3-force/FA2 "hubs find
-// the centroid of their satellites" emergence — geometric averaging over
-// many incident edges already lands hubs near the middle of their cluster
-// naturally, without needing to yank them to (0,0). A uniform base center
-// pull stays to keep the whole graph on-canvas.
-const CENTER_DEGREE_FACTOR = 0;
-const COLLISION_PADDING = 4;
-const NODE_BASE_RADIUS = 4;
-const MAX_VELOCITY_PER_ITER = 50;
-const VELOCITY_DECAY = 0.4;
+// ───── v3 warm-start + force constants ─────────────────────────────────────
+const WARM_START_ITERATIONS = 70;
+const INITIAL_ALPHA_AFTER_WARM_START = 0.35;
 
-// Sub-stepping. Explicit Euler is unstable when total incident spring stiffness
-// on a node × α exceeds ~2(1+d). With max k ≈ 15 observed on Episode 1 and
-// VELOCITY_DECAY = 0.4, the stability threshold at α=1 is k ≈ 2.8 — well below
-// our worst-case. Sub-stepping each step() into N integrations at α/N drops the
-// effective threshold to k×(α/N) < 2(1+d_substep), where d_substep is the
-// per-substep damping retained such that d_substep^N = VELOCITY_DECAY (preserves
-// macro-frame retention semantics). N=6 covers the observed max with margin.
-const SUBSTEPS = 6;
+const DEGREE_MASS = 0.45;
+const IMPORTANCE_MASS = 0.75;
+const MASS_MAX = 4.0;
+
+const REPEL_K = 75;
+const REPEL_MIN_DISTANCE = 6;
+const REPEL_FORCE_CAP = 6;
+
+const BASE_LINK_DISTANCE = 95;
+const HUB_RING_BONUS = 18;
+const BASE_LINK_STRENGTH = 0.055;
+const HUB_ATTRACTION = 0.18;
+const LINK_STRENGTH_MAX = 0.16;
+const SIBLING_RELATION_MULT = 1.08;
+const COOCC_LINK_BOOST_MAX = 0.35;
+const SCORE_REF_PERCENTILE = 0.9;
+
+// Soft-boundary center gravity. Inside the comfort radius, the relation graph
+// and repulsion field are allowed to organize themselves. Outside it, nodes get
+// a gentle inward pull so disconnected components do not evaporate forever.
+const CENTER_GRAVITY = 0.006;
+const CENTER_MASS_EXP = 0.35;
+const CENTER_COMFORT_RADIUS = 280;
+
+const COLLISION_PADDING = 5;
+const COLLISION_STRENGTH = 0.45;
+const NODE_BASE_RADIUS = 4;
+const MAX_VELOCITY_PER_ITER = 35;
+const VELOCITY_DECAY = 0.82;
+const SUBSTEPS = 4;
 const SUBSTEP_DECAY = Math.pow(VELOCITY_DECAY, 1 / SUBSTEPS);
 
-// ───── Distance & stiffness for the new pair-spring model ───────────────────
-const D_MIN = 35;                                // strongest co-occurrence
-const D_MAX = 180;                               // weakest co-occurrence (but spring exists)
-const D_MID = 60;                                // fallback for relation/sibling pairs with score=0
-                                                 // tuned to match the typical co-occurrence-driven distance under the exp curve
-                                                 // so producer-asserted-but-not-co-occurring pairs don't get exiled to mid-range
-// 0.6.0 edge-only attraction: D_FAR's old symmetric "ideal distance" for
-// unrelated pairs is gone. Replaced with a *one-sided* repulsion floor below:
-// unrelated pairs feel a soft push-apart force when closer than UNRELATED_MIN,
-// and zero force beyond it. That keeps the d3-force/FA2 asymmetry intact
-// (one tension axis per pair, single energy gradient) while still preventing
-// unrelated clusters from collapsing into each other via charge balance.
-const UNRELATED_MIN = 110;                       // below this distance, unrelated pairs push apart
-const UNRELATED_REPEL_STIFFNESS = 0.08;          // gentle — must not dominate spring attraction
-const SCORE_REF_PERCENTILE = 0.9;                // strongest 10% of co-occurring pairs hit D_MIN
-// Distance curve: ideal_d = D_MIN + (D_MAX - D_MIN) × exp(-k × score/scoreRef).
-// Exponential decay (not linear) so even weakly-co-occurring pairs get pulled
-// noticeably in. Avoids the "valley of weakness" where a pair with score = 50%
-// of scoreRef sits at mid-distance and ends up farther than an unrelated pair
-// whose charge-balance happens to put it closer. With k=4: 25%-ref pair → ~88,
-// 50%-ref pair → ~55, 90%-ref pair → ~38. Tune k upward to bunch all springs
-// near D_MIN, downward to spread them out.
-const SCORE_REF_CURVE_K = 4;
+const ALPHA_HALF_LIFE_FRAMES = 75;
+const ALPHA_DECAY_PER_FRAME = Math.pow(0.5, 1 / ALPHA_HALF_LIFE_FRAMES);
+const SETTLED_ALPHA = 0.003;
+const SETTLED_VEL = 0.12;
 
-const BASE_STIFFNESS = 0.5;
-const RELATION_STIFFNESS_MULT = 1.5;
-const SIBLING_STIFFNESS_MULT = 1.3;
-// Pairs that co-occur but lack an explicit producer-asserted relation get this
-// added to their idealD, scaled by the higher-degree endpoint. The base offset
-// applies to peripheral-peripheral pairs; hubs push non-related neighbors
-// proportionally farther. Concretely:
-//   idealD += COOCC_NO_RELATION_OFFSET × (1 + maxDeg × 0.2)
-// For peripheral pairs (deg 0-1), offset ≈ 30. For hub-peripheral (max deg 11),
-// offset ≈ 96. This creates a "personal space" around hubs where only their
-// actual relations sit — the click-highlighting and spatial proximity stay
-// aligned even when a high-degree hub frequently co-occurs with unrelated
-// concepts.
-const COOCC_NO_RELATION_OFFSET = 30;
-const COOCC_NO_RELATION_DEGREE_FACTOR = 0.2;
-// Upper bound on idealD for any pair with an explicit relation. Without this
-// cap, a relation pair with weak co-occurrence could land at idealD ≈ 180 from
-// the exp curve — farther than a relation pair with NO co-occurrence at all
-// (which falls through to D_MID = 60). Capping enforces a strict invariant:
-// relation pairs always sit closer than non-relation pairs, regardless of how
-// much they co-occur.
-const RELATION_IDEAL_MAX = 50;
+const BLOOM_NEIGHBOR_DISTANCE = 80;
+const BLOOM_HUB_DISTANCE_BONUS = 16;
+const BLOOM_JITTER = 22;
 
-// ───── Live-phase alpha lifecycle ───────────────────────────────────────────
-const HALF_LIFE_FRAMES = 30;                     // 0.5 s at 60 fps
-const ALPHA_DECAY_PER_FRAME = Math.pow(0.5, 1 / HALF_LIFE_FRAMES);  // ≈ 0.9772
-const SETTLED_ALPHA = 0.005;
-const SETTLED_VEL = 0.5;
-
-// ───── String hash helpers (unchanged from v1) ──────────────────────────────
+// ───── String hash helpers ─────────────────────────────────────────────────
 export function seededUnit(value) {
   let h = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -138,9 +87,8 @@ function hslToHex(h, s, l) {
 // ───── Simulator factory ────────────────────────────────────────────────────
 export function createLayoutSimulator(viewModel) {
   const atomic = viewModel.concepts.atomic;
-  const nodes = atomic.map((c) => ({ id: c.id }));   // physics participants — atomic only in v2
+  const nodes = atomic.map((c) => ({ id: c.id }));
 
-  // Position + velocity storage.
   const positions = {};
   const velocities = {};
   for (const node of nodes) {
@@ -150,13 +98,8 @@ export function createLayoutSimulator(viewModel) {
     velocities[node.id] = { x: 0, y: 0 };
   }
 
-  const pinState = new Map();                        // id → {x, y} | null
+  const pinState = new Map();
 
-  // Per-node degree (count of incident relation edges among atomic-atomic
-  // pairs only — these are the edges that actually render). Used by:
-  //   (a) buildPairs — scale the non-relation-pair distance offset, so hubs
-  //       push non-related neighbors proportionally farther
-  //   (b) applyCharge — FA2-style degree-weighted Coulomb repulsion
   const degree = {};
   for (const node of nodes) degree[node.id] = 0;
   for (const edge of viewModel.graph.edges ?? []) {
@@ -166,28 +109,14 @@ export function createLayoutSimulator(viewModel) {
     }
   }
 
-  // Build per-pair spring metadata (uses degree for the no-relation offset).
-  const pairs = buildPairs(viewModel, atomic, degree);
+  const mass = buildMass(viewModel, nodes, degree);
+  const relationPairs = buildRelationPairs(viewModel, atomic, degree, mass);
+  const relationNeighborIds = buildRelationNeighborIds(relationPairs);
 
-  // ───── Force kernels (closed over `positions`, `velocities`, `pairs`, `pinState`) ─────
-
-  // Pinned nodes don't react to forces — integrate() zeros their velocity
-  // every step regardless of what we accumulate. So writing forces into a
-  // pinned node's velocity is wasted work. The force kernels check pinState
-  // for each side and skip the velocity update on pinned endpoints. When
-  // BOTH sides are pinned, skip the pair entirely.
   function applyCharge() {
-    // Degree-weighted Coulomb repulsion (FA2-style):
-    //   f_repel(a, b) = CHARGE_STRENGTH × (deg(a)+1) × (deg(b)+1) / dist²
-    // High-degree concepts repel each other proportionally harder, claiming
-    // territory and preventing hubs from collapsing into a single blob.
-    // Peripheral concepts (degree 0-1) are mostly governed by the unweighted
-    // base term and stay at canonical distances.
-    const k = CHARGE_STRENGTH;
     for (let i = 0; i < nodes.length; i += 1) {
       const a = nodes[i].id;
       const aPinned = pinState.has(a);
-      const aDegFactor = degree[a] + 1;
       for (let j = i + 1; j < nodes.length; j += 1) {
         const b = nodes[j].id;
         const bPinned = pinState.has(b);
@@ -197,14 +126,13 @@ export function createLayoutSimulator(viewModel) {
         let dx = pa.x - pb.x;
         let dy = pa.y - pb.y;
         let r2 = dx * dx + dy * dy;
-        if (r2 < CHARGE_MIN_DISTANCE * CHARGE_MIN_DISTANCE) {
-          dx = (seededUnit(`${a}:${b}:x`) - 0.5) * 0.1;
-          dy = (seededUnit(`${a}:${b}:y`) - 0.5) * 0.1;
+        if (r2 < REPEL_MIN_DISTANCE * REPEL_MIN_DISTANCE) {
+          dx = (seededUnit(`${a}:${b}:x`) - 0.5) * REPEL_MIN_DISTANCE;
+          dy = (seededUnit(`${a}:${b}:y`) - 0.5) * REPEL_MIN_DISTANCE;
           r2 = dx * dx + dy * dy + 1;
         }
-        const degScale = aDegFactor * (degree[b] + 1);
-        let f = (k * degScale) / r2;
-        if (f > CHARGE_FORCE_CAP) f = CHARGE_FORCE_CAP;
+        let f = (REPEL_K * (mass[a] ?? 1) * (mass[b] ?? 1)) / r2;
+        if (f > REPEL_FORCE_CAP) f = REPEL_FORCE_CAP;
         const r = Math.sqrt(r2);
         const fx = (dx / r) * f;
         const fy = (dy / r) * f;
@@ -221,7 +149,7 @@ export function createLayoutSimulator(viewModel) {
   }
 
   function applySprings() {
-    for (const pair of pairs) {
+    for (const pair of relationPairs) {
       const aPinned = pinState.has(pair.a);
       const bPinned = pinState.has(pair.b);
       if (aPinned && bPinned) continue;
@@ -230,12 +158,7 @@ export function createLayoutSimulator(viewModel) {
       const dx = pb.x - pa.x;
       const dy = pb.y - pa.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      // repulsionOnly pairs are the "stay apart" floor for genuinely unrelated
-      // nodes. They contribute force only when too close (dist < idealD); at
-      // greater separation they're dormant. That preserves the single
-      // tension-axis property — no long-range attraction outside actual edges.
-      if (pair.repulsionOnly && dist >= pair.idealD) continue;
-      const delta = (dist - pair.idealD) * pair.stiffness;
+      const delta = (dist - pair.restLength) * pair.strength;
       const fx = (dx / dist) * delta;
       const fy = (dy / dist) * delta;
       if (!aPinned) {
@@ -253,9 +176,10 @@ export function createLayoutSimulator(viewModel) {
     for (const node of nodes) {
       if (pinState.has(node.id)) continue;
       const p = positions[node.id];
-      // Degree-weighted center pull: hubs at the middle, peripherals on rings.
-      const centerScale = 1 + (degree[node.id] ?? 0) * CENTER_DEGREE_FACTOR;
-      const pull = CENTER_STRENGTH * centerScale;
+      const radius = Math.hypot(p.x, p.y);
+      if (radius <= CENTER_COMFORT_RADIUS) continue;
+      const m = Math.pow(mass[node.id] ?? 1, CENTER_MASS_EXP);
+      const pull = CENTER_GRAVITY * m * ((radius - CENTER_COMFORT_RADIUS) / radius);
       velocities[node.id].x -= p.x * pull;
       velocities[node.id].y -= p.y * pull;
     }
@@ -278,7 +202,7 @@ export function createLayoutSimulator(viewModel) {
         const d2 = dx * dx + dy * dy;
         if (d2 >= minGap2) continue;
         const dist = Math.sqrt(d2) || 0.01;
-        const overlap = (minGap - dist) * 0.5;
+        const overlap = (minGap - dist) * COLLISION_STRENGTH;
         const fx = (dx / dist) * overlap;
         const fy = (dy / dist) * overlap;
         if (!aPinned) {
@@ -345,19 +269,15 @@ export function createLayoutSimulator(viewModel) {
     return { minX, minY, maxX, maxY };
   }
 
-  // ───── Public sim object ────────────────────────────────────────────────
   const sim = {
-    positions,                                    // mutated in place each step
-    get bounds() { return computeBounds(); },     // recomputed cheap on each access
+    positions,
+    get bounds() { return computeBounds(); },
     alpha: 1.0,
     _maxVelocity: 0,
 
-    step(dt /* unused at v2 — sub-stepped */) {
-      // Sub-step the integration to keep each pair's effective stiffness × α
-      // below the explicit-Euler instability threshold. Forces and velocity-
-      // clamp are recomputed each sub-iteration so the system is allowed to
-      // settle between sub-steps rather than overshoot.
-      const subAlpha = this.alpha / SUBSTEPS;
+    step(dt = 1 / 60) {
+      const dtScale = Math.max(0.25, Math.min(2.0, dt * 60));
+      const subAlpha = (this.alpha * dtScale) / SUBSTEPS;
       for (let i = 0; i < SUBSTEPS; i += 1) {
         applyCharge();
         applySprings();
@@ -366,7 +286,7 @@ export function createLayoutSimulator(viewModel) {
         clampVelocity();
         integrate(subAlpha, SUBSTEP_DECAY);
       }
-      this.alpha *= ALPHA_DECAY_PER_FRAME;
+      this.alpha *= Math.pow(ALPHA_DECAY_PER_FRAME, dtScale);
     },
 
     reheat(strength) {
@@ -381,19 +301,42 @@ export function createLayoutSimulator(viewModel) {
       pinState.delete(id);
     },
 
+    placeForBloom(id, visibleIds = new Set()) {
+      if (!positions[id]) return false;
+      const visible = visibleIds instanceof Set ? visibleIds : new Set(visibleIds ?? []);
+      let bestNeighbor = null;
+      const neighbors = relationNeighborIds.get(id) ?? new Set();
+      for (const neighborId of neighbors) {
+        if (!visible.has(neighborId) || !positions[neighborId]) continue;
+        if (!bestNeighbor || (mass[neighborId] ?? 1) > (mass[bestNeighbor] ?? 1)) bestNeighbor = neighborId;
+      }
+      if (!bestNeighbor) return false;
+
+      const anchor = positions[bestNeighbor];
+      const hubMass = mass[bestNeighbor] ?? 1;
+      const angle = seededUnit(`${id}:bloom-angle`) * Math.PI * 2;
+      const radius = BLOOM_NEIGHBOR_DISTANCE + BLOOM_HUB_DISTANCE_BONUS * Math.max(0, hubMass - 1);
+      const jitter = (seededUnit(`${id}:bloom-jitter`) - 0.5) * BLOOM_JITTER;
+      positions[id].x = anchor.x + Math.cos(angle) * (radius + jitter);
+      positions[id].y = anchor.y + Math.sin(angle) * (radius + jitter);
+      velocities[id].x = 0;
+      velocities[id].y = 0;
+      return true;
+    },
+
     isSettled() {
       return this.alpha < SETTLED_ALPHA && this._maxVelocity < SETTLED_VEL;
     },
   };
 
-  // ───── Cold start — run sim to convergence (~300 iters or alpha floor) ────
-  for (let i = 0; i < ITERATIONS && sim.alpha > 0.001; i += 1) {
-    sim.step(1);
+  // ───── Warm start — enough structure to avoid chaos, not a dead final solve ────
+  for (let i = 0; i < WARM_START_ITERATIONS && sim.alpha > 0.001; i += 1) {
+    sim.step(1 / 60);
   }
 
   // Pin every concept that is NOT initially visible at the document's
-  // starting playhead time. "Initially visible" matches buildCumulativeVisibility's
-  // rule in buildGraphRenderState.js: concept.firstSeenAt <= initialPlayheadTime.
+  // starting playhead time. Invisible concepts keep their warm-start position
+  // until bloom placement moves them near a visible neighbor.
   const initialPlayheadTime =
     viewModel.frames.macro[0]?.span?.start ??
     viewModel.frames.meso[0]?.span?.start ??
@@ -404,124 +347,90 @@ export function createLayoutSimulator(viewModel) {
     if (!visibleAtStart) sim.pin(concept.id, positions[concept.id]);
   }
 
-  // After cold-start + pinning: reset alpha and velocities so the rAF loop
-  // (when wired in Task 3) sees a settled system, not residual cold-start motion.
-  sim.alpha = 0;
-  for (const node of nodes) {
-    velocities[node.id].x = 0;
-    velocities[node.id].y = 0;
-  }
+  sim.alpha = INITIAL_ALPHA_AFTER_WARM_START;
   sim._maxVelocity = 0;
 
   return sim;
 }
 
 // ───── Pair-data precompute ─────────────────────────────────────────────────
-function buildPairs(viewModel, atomic, degree) {
-  const atomicIds = atomic.map((c) => c.id);
+function buildMass(viewModel, nodes, degree) {
+  const importance = viewModel.graph.conceptImportance ?? {};
+  const mass = {};
+  for (const node of nodes) {
+    const deg = degree[node.id] ?? 0;
+    const score = importance[node.id] ?? 0;
+    mass[node.id] = Math.min(
+      MASS_MAX,
+      1 + DEGREE_MASS * Math.sqrt(deg) + IMPORTANCE_MASS * score,
+    );
+  }
+  return mass;
+}
+
+function buildRelationPairs(viewModel, atomic, degree, mass) {
+  const atomicIds = new Set(atomic.map((c) => c.id));
   const conceptById = viewModel.concepts.byId;
   const coOccurrence = viewModel.graph.coOccurrence ?? {};
+  const scoreRef = computeScoreRef(coOccurrence, atomicIds);
+  const pairs = [];
+  const seen = new Set();
 
-  // 1) Compute SCORE_REF: 90th-percentile of positive co-occurrence scores.
+  for (const edge of viewModel.graph.edges ?? []) {
+    if (!atomicIds.has(edge.from) || !atomicIds.has(edge.to)) continue;
+    const key = edge.from < edge.to ? `${edge.from}|${edge.to}` : `${edge.to}|${edge.from}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const a = edge.from;
+    const b = edge.to;
+    const hubMass = Math.max(mass[a] ?? 1, mass[b] ?? 1);
+    const relationWeight = Number.isFinite(edge.weight) ? Math.max(0.2, Math.min(1.5, edge.weight)) : 1;
+    const score = coOccurrence[a]?.[b] ?? coOccurrence[b]?.[a] ?? 0;
+    const coBoost = score > 0
+      ? 1 + COOCC_LINK_BOOST_MAX * Math.sqrt(Math.min(1, score / scoreRef))
+      : 1;
+    const siblingMult = haveSharedParent(conceptById[a], conceptById[b]) ? SIBLING_RELATION_MULT : 1;
+    const restLength = BASE_LINK_DISTANCE + HUB_RING_BONUS * Math.max(0, hubMass - 1);
+    const strength = Math.min(
+      LINK_STRENGTH_MAX,
+      BASE_LINK_STRENGTH
+        * relationWeight
+        * (1 + HUB_ATTRACTION * Math.max(0, hubMass - 1))
+        * coBoost
+        * siblingMult,
+    );
+
+    pairs.push({ a, b, restLength, strength });
+  }
+
+  return pairs;
+}
+
+function computeScoreRef(coOccurrence, atomicIds) {
   const positiveScores = [];
   for (const a of atomicIds) {
     const row = coOccurrence[a];
     if (!row) continue;
     for (const b of Object.keys(row)) {
-      if (a < b) positiveScores.push(row[b]);    // avoid double-counting symmetric pairs
+      if (a < b && atomicIds.has(b) && row[b] > 0) positiveScores.push(row[b]);
     }
   }
   positiveScores.sort((x, y) => x - y);
-  const scoreRef = positiveScores.length
+  return positiveScores.length
     ? positiveScores[Math.min(positiveScores.length - 1, Math.floor(positiveScores.length * SCORE_REF_PERCENTILE))]
-    : 1; // no co-occurrence data → arbitrary positive; fallback springs do the work
+    : 1;
+}
 
-  // 2) Build a quick relation lookup.
-  const hasRelation = new Set();
-  for (const edge of viewModel.graph.edges ?? []) {
-    hasRelation.add(`${edge.from}|${edge.to}`);
-    hasRelation.add(`${edge.to}|${edge.from}`);
+function buildRelationNeighborIds(relationPairs) {
+  const map = new Map();
+  for (const pair of relationPairs) {
+    if (!map.has(pair.a)) map.set(pair.a, new Set());
+    if (!map.has(pair.b)) map.set(pair.b, new Set());
+    map.get(pair.a).add(pair.b);
+    map.get(pair.b).add(pair.a);
   }
-
-  // 3) Walk every unordered atomic pair, decide if a spring exists, build pair record.
-  const pairs = [];
-  for (let i = 0; i < atomicIds.length; i += 1) {
-    for (let j = i + 1; j < atomicIds.length; j += 1) {
-      const a = atomicIds[i];
-      const b = atomicIds[j];
-
-      const score = coOccurrence[a]?.[b] ?? 0;
-      const conceptA = conceptById[a];
-      const conceptB = conceptById[b];
-      // Sibling = share ANY parent cluster. Schema allows multi-parent atomics
-      // (a concept can belong to several clusters), so primary-parent-only
-      // would silently under-attract concepts that share a secondary cluster.
-      const sharesCluster = haveSharedParent(conceptA, conceptB);
-      const relation = hasRelation.has(`${a}|${b}`);
-
-      let idealD;
-      let stiffness;
-      if (score > 0) {
-        // Exponential pull-in: weak signal still produces a meaningfully short
-        // spring, strong signal asymptotes to D_MIN.
-        const normalized = score / scoreRef;
-        idealD = D_MIN + (D_MAX - D_MIN) * Math.exp(-SCORE_REF_CURVE_K * normalized);
-        if (relation) {
-          // Cap relation pairs at RELATION_IDEAL_MAX so a weak-but-positive
-          // co-occurrence can't exile them past the no-relation cap. Producer-
-          // asserted relations are always closer than non-relation pairs.
-          if (idealD > RELATION_IDEAL_MAX) idealD = RELATION_IDEAL_MAX;
-        } else {
-          // No explicit relation — push visibly farther so spatial proximity
-          // matches relation highlighting. Scale by hub degree: a high-degree
-          // hub's "personal space" extends proportionally further out.
-          const maxDeg = Math.max(degree[a] ?? 0, degree[b] ?? 0);
-          idealD += COOCC_NO_RELATION_OFFSET * (1 + maxDeg * COOCC_NO_RELATION_DEGREE_FACTOR);
-        }
-        // Sibling cluster only boosts stiffness when there's a producer-asserted
-        // signal to amplify (relation OR positive co-occurrence). Pure cluster
-        // membership is metadata, not a connection — it shouldn't pull pairs
-        // together on its own. See the fall-through branch below.
-        stiffness = BASE_STIFFNESS
-          * (relation ? RELATION_STIFFNESS_MULT : 1.0)
-          * (sharesCluster ? SIBLING_STIFFNESS_MULT : 1.0);
-      } else if (relation) {
-        // Producer-asserted relation, no measured co-occurrence (e.g. inferred
-        // relations like kierkegaard-influenced-heidegger). Treat as the
-        // closest-but-not-collapsing case — same idealD ceiling as a relation
-        // pair with co-occurrence so the invariant holds.
-        idealD = RELATION_IDEAL_MAX;
-        stiffness = BASE_STIFFNESS
-          * RELATION_STIFFNESS_MULT
-          * (sharesCluster ? SIBLING_STIFFNESS_MULT : 1.0);
-      } else if (sharesCluster) {
-        // Sibling pair with no co-occurrence and no explicit relation. Keep
-        // a gentle sibling spring so cluster members still draw together;
-        // without this, charge would scatter cluster mates that never happen
-        // to co-appear in a frame, breaking the spatial cluster identity the
-        // UI relies on for color-coded grouping.
-        idealD = D_MID;
-        stiffness = BASE_STIFFNESS * SIBLING_STIFFNESS_MULT;
-      } else {
-        // Genuinely unrelated pair — one-sided repulsion floor. The spring
-        // ONLY fires when the pair is closer than UNRELATED_MIN; at greater
-        // distances applySprings skips it. Preserves the d3-force/FA2
-        // single-tension-axis property while ensuring unrelated nodes don't
-        // get pulled into each other's neighborhoods via charge balance.
-        pairs.push({
-          a, b,
-          idealD: UNRELATED_MIN,
-          stiffness: UNRELATED_REPEL_STIFFNESS,
-          repulsionOnly: true,
-        });
-        continue;
-      }
-
-      pairs.push({ a, b, idealD, stiffness });
-    }
-  }
-
-  return pairs;
+  return map;
 }
 
 function haveSharedParent(conceptA, conceptB) {
@@ -529,7 +438,6 @@ function haveSharedParent(conceptA, conceptB) {
   const bParents = conceptB?.parentIds;
   if (!Array.isArray(aParents) || !Array.isArray(bParents)) return false;
   if (aParents.length === 0 || bParents.length === 0) return false;
-  // Short-circuit on the common case where both have one parent.
   if (aParents.length === 1 && bParents.length === 1) return aParents[0] === bParents[0];
   const bSet = new Set(bParents);
   for (const p of aParents) {
