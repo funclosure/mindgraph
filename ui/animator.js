@@ -94,8 +94,9 @@ export function createAnimator() {
         if (!prevConceptSet.has(id)) {
           startBloom(id, now);
           if (sim) {
+            sim.placeForBloom?.(id, prevConceptSet);
             sim.unpin(id);            // concept rejoins live dynamics
-            sim.reheat(0.20);         // additive with cap; per-event strength from spec § Reheat policy
+            sim.reheat(0.28);         // v3: stronger visible join into the elastic field
           }
         }
       }

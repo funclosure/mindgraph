@@ -308,7 +308,7 @@ export function bindEvents(state, render, scheduleDraw) {
         state.selectedConceptId = hit.id;
         state.selectedFrameRef = undefined;
         state.cameraMode = 'selection';
-        if (state.sim) state.sim.reheat(0.10);     // ← selection nudge
+        if (state.sim) state.sim.reheat(0.08);     // v3: subtle selection nudge
         scrollProseToConcept(state.selectedConceptId);
       } else {
         state.selectedConceptId = undefined;
