@@ -264,7 +264,7 @@ export function bindEvents(state, render, scheduleDraw) {
       if (dragging.kind === 'dot' && state.sim) {
         state.sim.unpin(dragging.id);
         const moved = Math.hypot(e.clientX - downStartX, e.clientY - downStartY) > 4;
-        if (moved) state.sim.reheat(0.5);
+        if (moved) state.sim.reheat(0.32);
         dragging = null;
         scheduleDraw();          // wakes the rAF loop if it was idle
         return;
@@ -282,7 +282,7 @@ export function bindEvents(state, render, scheduleDraw) {
       if (dragging.kind === 'dot' && state.sim) {
         state.sim.unpin(dragging.id);
         const moved = Math.hypot(e.clientX - downStartX, e.clientY - downStartY) > 4;
-        if (moved) state.sim.reheat(0.5);
+        if (moved) state.sim.reheat(0.32);
       }
       dragging = null;
       downAt = null;  // canceled gesture: don't let a stale downAt fire later
@@ -308,7 +308,7 @@ export function bindEvents(state, render, scheduleDraw) {
         state.selectedConceptId = hit.id;
         state.selectedFrameRef = undefined;
         state.cameraMode = 'selection';
-        if (state.sim) state.sim.reheat(0.08);     // v3: subtle selection nudge
+        if (state.sim) state.sim.reheat(0.05);     // v3 tuning: very subtle selection nudge
         scrollProseToConcept(state.selectedConceptId);
       } else {
         state.selectedConceptId = undefined;

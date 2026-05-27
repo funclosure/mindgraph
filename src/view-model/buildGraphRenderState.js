@@ -259,14 +259,12 @@ export function buildGraphRenderState(viewModel, {
   const atomicNodes = viewModel.graph.nodes.filter((node) => node.level === 'atomic');
   const sortedAtomic = [...atomicNodes].sort((a, b) => (nodeScores.get(b.id) ?? 0) - (nodeScores.get(a.id) ?? 0));
 
-  // overview: show only the top scorers so the global view stays scannable.
-  // region:   widen as the user pushes in.
-  // local:    no cap — every bloomed-in atomic concept renders. Density is
-  //           managed by ui/labels.js's importance threshold + collision
-  //           avoidance, not by hiding dots.
-  const atomicVisibleCount = viewportMode === 'overview' ? 16
-    : viewportMode === 'region' ? 30
-    : Infinity;
+  // v3: render every bloomed-in atomic dot at every zoom level. The previous
+  // overview/region caps made the graph look broken at default zoom because
+  // dots and their incident edges appeared only after zooming in. Density is
+  // managed by ui/labels.js's importance threshold + collision avoidance, not
+  // by hiding topology.
+  const atomicVisibleCount = Infinity;
 
   for (const cluster of viewModel.concepts.clustered) {
     visibleNodeIds.add(cluster.id);

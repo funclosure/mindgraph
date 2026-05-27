@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLayoutSimulator } from '../ui/layout.js';
+import { buildGraphRenderState } from '../src/view-model/buildGraphRenderState.js';
 
 function concept(id, parentIds = []) {
   return {
@@ -122,4 +123,44 @@ test('step uses dt for smooth alpha decay', () => {
 
   assert.ok(simB.alpha < simA.alpha, `larger dt should decay alpha more: ${simB.alpha} < ${simA.alpha}`);
   assert.ok(simA.alpha > 0.9, `single 60fps frame should not overcool alpha, got ${simA.alpha}`);
+});
+
+test('warm-start alpha is calm enough to ease into first render', () => {
+  const document = vm({ concepts: [concept('a'), concept('b')], edges: [edge('ab', 'a', 'b')] });
+  const sim = createLayoutSimulator(document);
+  assert.ok(sim.alpha <= 0.25, `expected calm initial alpha <= 0.25, got ${sim.alpha}`);
+});
+
+test('overview mode renders all bloomed atomic dots and their visible edges', () => {
+  const concepts = Array.from({ length: 40 }, (_, i) => concept(`n-${i}`));
+  const edges = Array.from({ length: 39 }, (_, i) => edge(`e-${i}`, `n-${i}`, `n-${i + 1}`));
+  const document = vm({ concepts, edges });
+  document.selectors = {
+    getActiveFrameAtTime: () => null,
+    getActiveConceptIdsAtTime: () => [],
+    getActiveRelationActivationsAtTime: () => [],
+    getConceptNeighbors: (id) => edges.flatMap((e) => (
+      e.from === id ? [document.concepts.byId[e.to]] : e.to === id ? [document.concepts.byId[e.from]] : []
+    )),
+    getConceptClusters: () => [],
+    getFrame: () => null,
+    getFrameConcepts: () => [],
+  };
+  const layout = {
+    nodes: Object.fromEntries(concepts.map((c, i) => [c.id, { x: i * 20, y: 0 }])),
+    bounds: { minX: 0, minY: 0, maxX: 780, maxY: 0 },
+  };
+
+  const renderState = buildGraphRenderState(document, {
+    playheadTime: 0,
+    activeLevel: 'macro',
+    zoomLevel: 0.5,
+    layout,
+    viewport: { width: 1000, height: 600 },
+  });
+
+  const visible = new Set(renderState.visibleNodeIds);
+  const visibleEdges = new Set(renderState.visibleEdgeIds);
+  for (const c of concepts) assert.ok(visible.has(c.id), `expected ${c.id} visible in overview`);
+  for (const e of edges) assert.ok(visibleEdges.has(e.id), `expected ${e.id} visible when both endpoints are bloomed`);
 });
