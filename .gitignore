@@ -9,3 +9,6 @@ node_modules/
 
 # Superpowers brainstorm session artifacts
 .superpowers/
+
+# Local produced graph documents / experiments
+graphs/
