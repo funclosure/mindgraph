@@ -35,15 +35,15 @@ test('applyDigestPlan applies concepts, relations, frame activations, macro merg
   const doc = baseDoc();
   const result = applyDigestPlan(doc, {
     concepts: [
-      { id: 'ai-safety', label: 'AI Safety', parentIds: ['alignment'] },
-      { id: 'scaling-laws', label: 'Scaling Laws', parentIds: ['capability'] },
+      { id: 'ai-safety', label: 'AI Safety', parentIds: ['alignment'], grounding: { kind: 'source', sourceSpan: { start: 0, end: 10 }, quote: 'AI safety matters.' } },
+      { id: 'scaling-laws', label: 'Scaling Laws', parentIds: ['capability'], grounding: { kind: 'source', sourceSpan: { start: 20, end: 30 }, quote: 'Scaling laws continue.' } },
     ],
     clusters: [
       { id: 'alignment', label: 'Alignment' },
       { id: 'capability', label: 'Capability' },
     ],
     relations: [
-      { id: 'safety-guides-scaling', from: 'ai-safety', to: 'scaling-laws', type: 'guides' },
+      { id: 'safety-guides-scaling', from: 'ai-safety', to: 'scaling-laws', type: 'guides', grounding: { kind: 'source', sourceSpan: { start: 0, end: 30 }, quote: 'AI safety matters... Scaling laws continue.' } },
     ],
     mesoActivations: [
       { index: 0, foreground: [{ id: 'ai-safety', weight: 1, mode: 'explicit' }] },
@@ -70,6 +70,8 @@ test('applyDigestPlan applies concepts, relations, frame activations, macro merg
   assert.deepEqual(doc.meta.ignoredSpans, [{ start: 10, end: 20, reason: 'sponsor' }]);
   assert.equal(doc.frames.macro[0].title, 'Safety and Scaling');
   assert.equal(doc.frames.micro[0].foregroundConcepts[0].id, 'ai-safety');
+  assert.deepEqual(doc.relations[0].meta.grounding.kind, 'source');
+  assert.deepEqual(doc.concepts.atomic.find((c) => c.id === 'ai-safety').meta.grounding.kind, 'source');
   assert.equal(doc.concepts.atomic.find((c) => c.id === 'ai-safety').stats.recurrenceCount, 2);
 });
 
@@ -77,14 +79,17 @@ test('evaluateDigest reports empty non-ignored frames, inactive relations, unuse
   const doc = baseDoc();
   applyDigestPlan(doc, {
     concepts: [
-      { id: 'ai-safety', label: 'AI Safety' },
+      { id: 'ai-safety', label: 'AI Safety', grounding: { kind: 'source', sourceSpan: { start: 0, end: 10 }, quote: 'AI safety matters.' } },
       { id: 'unused', label: 'Unused Concept' },
     ],
     relations: [
       { id: 'never-active', from: 'ai-safety', to: 'unused', type: 'related' },
+      { id: 'inferred-missing-validation', from: 'unused', to: 'ai-safety', type: 'supports', provenance: 'inferred', grounding: { kind: 'agent-inference', rationale: 'Unused supports AI safety.' } },
+      { id: 'inferred-active', from: 'ai-safety', to: 'unused', type: 'supports', provenance: 'inferred', grounding: { kind: 'agent-inference', rationale: 'Active inferred relation.', validation: { status: 'not-validated', reason: 'fixture' } } },
+      { id: 'bad-web-validated', from: 'unused', to: 'ai-safety', type: 'supports', provenance: 'inferred', grounding: { kind: 'agent-inference', rationale: 'Missing external source list.', validation: { status: 'web-validated', sources: [] } } },
     ],
     mesoActivations: [
-      { index: 0, foreground: [{ id: 'ai-safety', weight: 1, mode: 'explicit' }] },
+      { index: 0, foreground: [{ id: 'ai-safety', weight: 1, mode: 'explicit' }], relations: [{ id: 'inferred-active', weight: 0.5 }] },
     ],
     ignoredSpans: [{ start: 10, end: 20, reason: 'sponsor' }],
     recomputeStats: true,
@@ -95,5 +100,11 @@ test('evaluateDigest reports empty non-ignored frames, inactive relations, unuse
   assert.deepEqual(report.emptyMesoFrameIndexes, [2]);
   assert.deepEqual(report.ignoredMesoFrameIndexes, [1]);
   assert.deepEqual(report.unusedConceptIds, ['unused']);
-  assert.deepEqual(report.inactiveRelationIds, ['never-active']);
+  assert.deepEqual(report.inactiveRelationIds, ['never-active', 'inferred-missing-validation', 'bad-web-validated']);
+  assert.deepEqual(report.grounding.sourceConceptsWithoutGrounding, ['unused']);
+  assert.deepEqual(report.grounding.sourceRelationsWithoutGrounding, ['never-active']);
+  assert.deepEqual(report.grounding.inferredRelationsWithoutValidationStatus, ['inferred-missing-validation']);
+  assert.deepEqual(report.grounding.webValidatedInferredRelationsMissingSources, ['bad-web-validated']);
+  assert.deepEqual(report.grounding.inferredRelationsActiveInFrames, ['inferred-active']);
+  assert.equal(report.grounding.inferredRelationRatio, 0.75);
 });

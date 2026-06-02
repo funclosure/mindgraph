@@ -22,7 +22,7 @@ export function getConceptCollection(doc, level = 'atomic') {
   return concepts;
 }
 
-export function upsertConcept(doc, { level = 'atomic', id, label, description, aliases, firstSeenAt, speakers, stats, parentIds }) {
+export function upsertConcept(doc, { level = 'atomic', id, label, description, aliases, firstSeenAt, speakers, stats, parentIds, meta }) {
   if (!id) throw new Error('concept id is required');
   if (!label) throw new Error('concept label is required');
 
@@ -37,6 +37,7 @@ export function upsertConcept(doc, { level = 'atomic', id, label, description, a
     ...(speakers != null ? { speakers } : {}),
     ...(stats != null ? { stats } : {}),
     ...(parentIds != null ? { parentIds } : {}),
+    ...(meta != null ? { meta } : {}),
   };
 
   if (existing) {

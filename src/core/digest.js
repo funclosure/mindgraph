@@ -15,6 +15,18 @@ function normalizeActivationList(value) {
   return asArray(value).map((item) => ({ ...item }));
 }
 
+function withGroundingMeta(entity) {
+  if (entity?.grounding == null) return entity;
+  const { grounding, meta, ...rest } = entity;
+  return {
+    ...rest,
+    meta: {
+      ...(meta ?? {}),
+      grounding,
+    },
+  };
+}
+
 function applyFrameActivation(doc, level, entry) {
   setFrameActivations(doc, {
     level,
@@ -41,17 +53,17 @@ export function applyDigestPlan(doc, plan = {}) {
   };
 
   for (const cluster of asArray(plan.clusters)) {
-    upsertConcept(doc, { ...cluster, level: 'clustered' });
+    upsertConcept(doc, { ...withGroundingMeta(cluster), level: 'clustered' });
     summary.clustersUpserted += 1;
   }
 
   for (const concept of asArray(plan.concepts)) {
-    upsertConcept(doc, { ...concept, level: concept.level ?? 'atomic' });
+    upsertConcept(doc, { ...withGroundingMeta(concept), level: concept.level ?? 'atomic' });
     summary.conceptsUpserted += 1;
   }
 
   for (const relation of asArray(plan.relations)) {
-    upsertRelation(doc, relation);
+    upsertRelation(doc, withGroundingMeta(relation));
     summary.relationsUpserted += 1;
   }
 
@@ -148,6 +160,31 @@ function collectActiveRelationIds(doc) {
   return ids;
 }
 
+function hasSourceGrounding(entity) {
+  const grounding = entity?.meta?.grounding;
+  return grounding?.kind === 'source'
+    && typeof grounding.sourceSpan?.start === 'number'
+    && typeof grounding.sourceSpan?.end === 'number'
+    && typeof grounding.quote === 'string'
+    && grounding.quote.trim().length > 0;
+}
+
+function hasInferenceRationale(relation) {
+  const grounding = relation?.meta?.grounding;
+  return grounding?.kind === 'agent-inference'
+    && typeof grounding.rationale === 'string'
+    && grounding.rationale.trim().length > 0;
+}
+
+function inferenceValidationStatus(relation) {
+  return relation?.meta?.grounding?.validation?.status;
+}
+
+function webValidationHasSources(relation) {
+  const sources = relation?.meta?.grounding?.validation?.sources;
+  return Array.isArray(sources) && sources.some((source) => source?.url && source?.title);
+}
+
 export function evaluateDigest(doc) {
   const ignoredSpans = asArray(doc.meta?.ignoredSpans);
   const mesoFrames = doc.frames?.meso ?? [];
@@ -167,6 +204,13 @@ export function evaluateDigest(doc) {
   const activatedConceptIds = collectActivatedConceptIds(doc);
   const activeRelationIds = collectActiveRelationIds(doc);
   const concepts = [...(doc.concepts?.atomic ?? []), ...(doc.concepts?.clustered ?? [])];
+  const atomicConcepts = doc.concepts?.atomic ?? [];
+  const relations = doc.relations ?? [];
+  const inferredRelations = relations.filter((relation) => relation.provenance === 'inferred');
+  const sourceRelations = relations.filter((relation) => relation.provenance !== 'inferred');
+  const inferredRelationsActiveInFrames = inferredRelations
+    .filter((relation) => activeRelationIds.has(relation.id))
+    .map((relation) => relation.id);
 
   return {
     counts: {
@@ -187,6 +231,29 @@ export function evaluateDigest(doc) {
     inactiveRelationIds: (doc.relations ?? [])
       .filter((relation) => !activeRelationIds.has(relation.id))
       .map((relation) => relation.id),
+    grounding: {
+      sourceConceptsWithoutGrounding: atomicConcepts
+        .filter((concept) => !hasSourceGrounding(concept))
+        .map((concept) => concept.id),
+      sourceRelationsWithoutGrounding: sourceRelations
+        .filter((relation) => !hasSourceGrounding(relation))
+        .map((relation) => relation.id),
+      inferredRelationIds: inferredRelations.map((relation) => relation.id),
+      inferredRelationRatio: relations.length ? Number((inferredRelations.length / relations.length).toFixed(4)) : 0,
+      inferredRelationsWithoutRationale: inferredRelations
+        .filter((relation) => !hasInferenceRationale(relation))
+        .map((relation) => relation.id),
+      inferredRelationsWithoutValidationStatus: inferredRelations
+        .filter((relation) => !inferenceValidationStatus(relation))
+        .map((relation) => relation.id),
+      inferredRelationsNeedingValidation: inferredRelations
+        .filter((relation) => inferenceValidationStatus(relation) === 'needs-validation')
+        .map((relation) => relation.id),
+      webValidatedInferredRelationsMissingSources: inferredRelations
+        .filter((relation) => inferenceValidationStatus(relation) === 'web-validated' && !webValidationHasSources(relation))
+        .map((relation) => relation.id),
+      inferredRelationsActiveInFrames,
+    },
     topConcepts: concepts
       .filter((concept) => concept.stats?.recurrenceCount > 0)
       .sort((a, b) => (b.stats?.totalActivation ?? 0) - (a.stats?.totalActivation ?? 0))

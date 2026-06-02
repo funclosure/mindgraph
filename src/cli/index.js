@@ -592,6 +592,15 @@ function printDigestEvaluation(report) {
   console.log(`  Empty non-ignored meso frames: ${report.emptyMesoFrameIndexes.length ? report.emptyMesoFrameIndexes.join(', ') : 'none'}`);
   console.log(`  Unused concepts: ${report.unusedConceptIds.length ? report.unusedConceptIds.join(', ') : 'none'}`);
   console.log(`  Inactive relations: ${report.inactiveRelationIds.length ? report.inactiveRelationIds.join(', ') : 'none'}`);
+  console.log('  Grounding:');
+  console.log(`    Source concepts without grounding: ${report.grounding.sourceConceptsWithoutGrounding.length ? report.grounding.sourceConceptsWithoutGrounding.join(', ') : 'none'}`);
+  console.log(`    Source relations without grounding: ${report.grounding.sourceRelationsWithoutGrounding.length ? report.grounding.sourceRelationsWithoutGrounding.join(', ') : 'none'}`);
+  console.log(`    Inferred relations: ${report.grounding.inferredRelationIds.length ? `${report.grounding.inferredRelationIds.length} (${Math.round(report.grounding.inferredRelationRatio * 100)}%) ${report.grounding.inferredRelationIds.join(', ')}` : 'none'}`);
+  console.log(`    Inferred without rationale: ${report.grounding.inferredRelationsWithoutRationale.length ? report.grounding.inferredRelationsWithoutRationale.join(', ') : 'none'}`);
+  console.log(`    Inferred without validation status: ${report.grounding.inferredRelationsWithoutValidationStatus.length ? report.grounding.inferredRelationsWithoutValidationStatus.join(', ') : 'none'}`);
+  console.log(`    Inferred needing validation: ${report.grounding.inferredRelationsNeedingValidation.length ? report.grounding.inferredRelationsNeedingValidation.join(', ') : 'none'}`);
+  console.log(`    Web-validated inferred missing sources: ${report.grounding.webValidatedInferredRelationsMissingSources.length ? report.grounding.webValidatedInferredRelationsMissingSources.join(', ') : 'none'}`);
+  console.log(`    Inferred active in frames: ${report.grounding.inferredRelationsActiveInFrames.length ? report.grounding.inferredRelationsActiveInFrames.join(', ') : 'none'}`);
   console.log('  Top concepts:');
   for (const concept of report.topConcepts.slice(0, 10)) {
     console.log(`    ${concept.id} (${concept.recurrenceCount}×, total=${concept.totalActivation}, peak=${concept.peakActivation})`);
