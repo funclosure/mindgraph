@@ -50,6 +50,25 @@ function dotRadius(node) {
   return Math.max(2.5, Math.min(6, 2.5 + (node?.degree ?? 0) * 0.4));
 }
 
+export function edgeRenderStyle(edge, { touchesSelection = false, isActive = false, animOpacity = 1 } = {}) {
+  const inferred = edge?.provenance === 'inferred';
+  const alpha = touchesSelection || isActive
+    ? 0.95
+    : inferred ? 0.22 : 0.16;
+  const lineWidth = touchesSelection
+    ? 1.4
+    : isActive ? 1.0 : inferred ? 0.8 : 0.6;
+  const dash = inferred
+    ? (touchesSelection || isActive ? [7, 4] : [6, 4])
+    : [];
+  return {
+    alpha,
+    strokeStyle: `rgba(218, 184, 116, ${alpha * animOpacity})`,
+    lineWidth,
+    dash,
+  };
+}
+
 function drawEdges(ctx, vm, layout, grs, animator) {
   const visible = grs?.visibleEdgeIds ? new Set(grs.visibleEdgeIds) : null;
   const activeEdge = new Set(grs?.activeEdgeIds ?? []);
@@ -88,16 +107,15 @@ function drawEdges(ctx, vm, layout, grs, animator) {
     const touchesSelection = selectedNode.has(edge.from) || selectedNode.has(edge.to);
     const isActive = activeEdge.has(edge.id);
 
-    const baseAlpha = touchesSelection || isActive ? 0.95 : 0.16;
-    ctx.strokeStyle = `rgba(218, 184, 116, ${baseAlpha * animOpacity})`;
-    ctx.lineWidth = touchesSelection ? 1.4 : isActive ? 1.0 : 0.6;
+    const style = edgeRenderStyle(edge, { touchesSelection, isActive, animOpacity });
+    ctx.strokeStyle = style.strokeStyle;
+    ctx.lineWidth = style.lineWidth;
 
     // Inferred edges render dashed so the user can tell at a glance which
     // relations were added by the agent from world knowledge vs derived from
-    // the source. Same color, alpha curve, and width curve as source edges —
-    // only the dash differs. Reset every iteration (defensive: no leak even
-    // if a future change adds a `continue` between setLineDash and stroke).
-    if (edge.provenance === 'inferred') ctx.setLineDash([4, 3]);
+    // the source. Passive inferred edges get slightly more alpha/width than
+    // passive source edges so the dash remains legible at overview zoom.
+    ctx.setLineDash(style.dash);
 
     ctx.beginPath();
     ctx.moveTo(x1, y1);

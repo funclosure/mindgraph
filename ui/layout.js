@@ -22,6 +22,8 @@ const MASS_MAX = 4.0;
 const REPEL_K = 75;
 const REPEL_MIN_DISTANCE = 6;
 const REPEL_FORCE_CAP = 6;
+const UNRELATED_MIN_DISTANCE = 88;
+const UNRELATED_SEPARATION_STRENGTH = 0.045;
 
 const BASE_LINK_DISTANCE = 95;
 const HUB_RING_BONUS = 18;
@@ -136,6 +138,45 @@ export function createLayoutSimulator(viewModel) {
         const r = Math.sqrt(r2);
         const fx = (dx / r) * f;
         const fy = (dy / r) * f;
+        if (!aPinned) {
+          velocities[a].x += fx;
+          velocities[a].y += fy;
+        }
+        if (!bPinned) {
+          velocities[b].x -= fx;
+          velocities[b].y -= fy;
+        }
+      }
+    }
+  }
+
+  function areRelationNeighbors(a, b) {
+    return relationNeighborIds.get(a)?.has(b) || false;
+  }
+
+  function applyUnrelatedSeparation() {
+    for (let i = 0; i < nodes.length; i += 1) {
+      const a = nodes[i].id;
+      const aPinned = pinState.has(a);
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const b = nodes[j].id;
+        if (areRelationNeighbors(a, b)) continue;
+        const bPinned = pinState.has(b);
+        if (aPinned && bPinned) continue;
+        const pa = positions[a];
+        const pb = positions[b];
+        let dx = pa.x - pb.x;
+        let dy = pa.y - pb.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= 0.001) {
+          dx = (seededUnit(`${a}:${b}:unrelated-x`) - 0.5) * 0.1;
+          dy = (seededUnit(`${a}:${b}:unrelated-y`) - 0.5) * 0.1;
+          dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        }
+        if (dist >= UNRELATED_MIN_DISTANCE) continue;
+        const push = (UNRELATED_MIN_DISTANCE - dist) * UNRELATED_SEPARATION_STRENGTH;
+        const fx = (dx / dist) * push;
+        const fy = (dy / dist) * push;
         if (!aPinned) {
           velocities[a].x += fx;
           velocities[a].y += fy;
@@ -280,6 +321,7 @@ export function createLayoutSimulator(viewModel) {
       const subAlpha = (this.alpha * dtScale) / SUBSTEPS;
       for (let i = 0; i < SUBSTEPS; i += 1) {
         applyCharge();
+        applyUnrelatedSeparation();
         applySprings();
         applyCenter();
         applyCollision();

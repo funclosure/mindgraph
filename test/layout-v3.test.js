@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLayoutSimulator } from '../ui/layout.js';
 import { buildGraphRenderState } from '../src/view-model/buildGraphRenderState.js';
+import { edgeRenderStyle } from '../ui/draw.js';
 
 function concept(id, parentIds = []) {
   return {
@@ -163,4 +164,33 @@ test('overview mode renders all bloomed atomic dots and their visible edges', ()
   const visibleEdges = new Set(renderState.visibleEdgeIds);
   for (const c of concepts) assert.ok(visible.has(c.id), `expected ${c.id} visible in overview`);
   for (const e of edges) assert.ok(visibleEdges.has(e.id), `expected ${e.id} visible when both endpoints are bloomed`);
+});
+
+test('unrelated concepts that start too close separate beyond local floor', () => {
+  const concepts = Array.from({ length: 12 }, (_, i) => concept(`n-${i}`));
+  const document = vm({ concepts, edges: [] });
+  const sim = createLayoutSimulator(document);
+  concepts.forEach((c, i) => {
+    sim.positions[c.id].x = (i % 4) * 10;
+    sim.positions[c.id].y = Math.floor(i / 4) * 10;
+  });
+  sim.reheat(1);
+  step(sim, 180);
+
+  let minDistance = Infinity;
+  for (let i = 0; i < concepts.length; i += 1) {
+    for (let j = i + 1; j < concepts.length; j += 1) {
+      minDistance = Math.min(minDistance, dist(sim.positions[concepts[i].id], sim.positions[concepts[j].id]));
+    }
+  }
+  assert.ok(minDistance >= 85, `expected crowded unrelated concepts to separate beyond 85, got ${minDistance}`);
+});
+
+test('inferred passive edges render more legibly than source passive edges', () => {
+  const source = edgeRenderStyle({ provenance: undefined }, { touchesSelection: false, isActive: false, animOpacity: 1 });
+  const inferred = edgeRenderStyle({ provenance: 'inferred' }, { touchesSelection: false, isActive: false, animOpacity: 1 });
+
+  assert.deepEqual(inferred.dash, [6, 4]);
+  assert.ok(inferred.alpha > source.alpha, `expected inferred alpha ${inferred.alpha} > source ${source.alpha}`);
+  assert.ok(inferred.lineWidth > source.lineWidth, `expected inferred width ${inferred.lineWidth} > source ${source.lineWidth}`);
 });
