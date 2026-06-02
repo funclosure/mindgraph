@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { createEmptyDocument, summarizeDocument, validateDocument } from '../core/schema.js';
 import { createDocumentFromTranscript } from '../core/transcript.js';
+import { applyDigestPlan, evaluateDigest } from '../core/digest.js';
 import { buildTimelineFromTranscript } from '../core/build.js';
 import { backfillFrameActivations, getConcept, getFrame, listConcepts, listFrames, mergeFrames, parseJsonValue, recomputeConceptStats, setFrameActivations, upsertConcept, upsertRelation } from '../core/document.js';
 
@@ -32,6 +33,8 @@ Usage:
   mindgraph frame merge <document-file> --from micro|meso --to meso|macro --start-index <n> --end-index <n> [--summary <text>] [--title <text>]
   mindgraph frame backfill-activations <document-file> --from meso|macro --to micro|meso
   mindgraph stats recompute <document-file>
+  mindgraph digest apply <document-file> --plan <plan-file>
+  mindgraph digest evaluate <document-file> [--json]
   mindgraph view [<document-file>] [--port <n>] [--host <h>]
 
 When -o is omitted from ingest/build, mindgraph defaults to ./graphs/<slug>.mindgraph.json
@@ -51,6 +54,8 @@ Commands:
   frame merge            Merge lower-level frames into a higher-level frame
   frame backfill-activations  Broadcast a coarser level's activations onto a finer level's frames
   stats recompute        Recompute concept recurrence and activation stats
+  digest apply           Apply a batch digest plan: concepts, relations, activations, macro frames, ignored spans
+  digest evaluate        Report digest quality signals: empty frames, unused concepts, inactive relations, top activations
   view                   Open the reading UI for a document in the browser
 
 Transcript formats currently supported:
@@ -551,6 +556,59 @@ if (command === 'stats' && subcommand === 'recompute') {
   validateOrExit(doc, documentFile);
   writeJson(documentFile, doc);
   console.log(`Recomputed concept stats in ${documentFile}.`);
+  process.exit(0);
+}
+
+if (command === 'digest' && subcommand === 'apply') {
+  const [documentFile, ...flagArgs] = rest;
+  if (!documentFile) {
+    console.error('Missing document file path.');
+    process.exit(1);
+  }
+  const flags = parseFlags(flagArgs);
+  const planFile = requireFlag(flags, '--plan');
+  if (!planFile) {
+    console.error('Missing --plan <plan-file>.');
+    process.exit(1);
+  }
+
+  const doc = readJson(documentFile);
+  const plan = readJson(planFile);
+  const summary = applyDigestPlan(doc, plan);
+  validateOrExit(doc, documentFile);
+  writeJson(documentFile, doc);
+  console.log(`Applied digest plan to ${documentFile}.`);
+  console.log(JSON.stringify(summary, null, 2));
+  process.exit(0);
+}
+
+function printDigestEvaluation(report) {
+  console.log('Digest evaluation');
+  console.log(`  Concepts: ${report.counts.atomicConcepts} atomic, ${report.counts.clusteredConcepts} clustered`);
+  console.log(`  Relations: ${report.counts.relations}`);
+  console.log(`  Frames: ${report.counts.microFrames} micro, ${report.counts.mesoFrames} meso, ${report.counts.macroFrames} macro`);
+  console.log(`  Ignored spans: ${report.ignoredSpans.length}`);
+  console.log(`  Ignored meso frames: ${report.ignoredMesoFrameIndexes.length ? report.ignoredMesoFrameIndexes.join(', ') : 'none'}`);
+  console.log(`  Empty non-ignored meso frames: ${report.emptyMesoFrameIndexes.length ? report.emptyMesoFrameIndexes.join(', ') : 'none'}`);
+  console.log(`  Unused concepts: ${report.unusedConceptIds.length ? report.unusedConceptIds.join(', ') : 'none'}`);
+  console.log(`  Inactive relations: ${report.inactiveRelationIds.length ? report.inactiveRelationIds.join(', ') : 'none'}`);
+  console.log('  Top concepts:');
+  for (const concept of report.topConcepts.slice(0, 10)) {
+    console.log(`    ${concept.id} (${concept.recurrenceCount}×, total=${concept.totalActivation}, peak=${concept.peakActivation})`);
+  }
+}
+
+if (command === 'digest' && subcommand === 'evaluate') {
+  const [documentFile, ...flagArgs] = rest;
+  if (!documentFile) {
+    console.error('Missing document file path.');
+    process.exit(1);
+  }
+  const flags = parseFlags(flagArgs);
+  const doc = readJson(documentFile);
+  const report = evaluateDigest(doc);
+  if (flags['--json']) console.log(JSON.stringify(report, null, 2));
+  else printDigestEvaluation(report);
   process.exit(0);
 }
 
