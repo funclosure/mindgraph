@@ -109,7 +109,21 @@ test('placeForBloom moves a new node near its strongest visible relation neighbo
   const moved = dist(before, after);
   const nearHub = dist(hubBefore, after);
   assert.ok(moved > 1, `expected bloom placement to move node, moved ${moved}`);
-  assert.ok(nearHub >= 60 && nearHub <= 180, `expected bloom node near hub orbit, got ${nearHub}`);
+  assert.ok(nearHub >= 88 && nearHub <= 180, `expected bloom node outside local separation floor near hub orbit, got ${nearHub}`);
+});
+
+test('placeForBloom keeps ordinary new nodes outside unrelated separation floor', () => {
+  const document = vm({
+    concepts: [concept('neighbor'), concept('newbie')],
+    edges: [edge('neighbor-newbie', 'neighbor', 'newbie')],
+  });
+  const sim = createLayoutSimulator(document);
+  const neighborBefore = { ...sim.positions.neighbor };
+
+  sim.placeForBloom('newbie', new Set(['neighbor']));
+
+  const bloomDistance = dist(neighborBefore, sim.positions.newbie);
+  assert.ok(bloomDistance >= 88, `expected ordinary bloom distance outside separation floor, got ${bloomDistance}`);
 });
 
 test('step uses dt for smooth alpha decay', () => {
