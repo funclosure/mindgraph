@@ -8,6 +8,7 @@ import { createRequire } from 'node:module';
 import { createEmptyDocument, summarizeDocument, validateDocument } from '../core/schema.js';
 import { createDocumentFromTranscript } from '../core/transcript.js';
 import { applyDigestPlan, evaluateDigest } from '../core/digest.js';
+import { buildStarterDigestOperation, prepareSourceOperation } from '../core/journey.js';
 import { buildTimelineFromTranscript } from '../core/build.js';
 import { backfillFrameActivations, getConcept, getFrame, listConcepts, listFrames, mergeFrames, parseJsonValue, recomputeConceptStats, setFrameActivations, upsertConcept, upsertRelation } from '../core/document.js';
 
@@ -21,6 +22,8 @@ Usage:
   mindgraph init <output-file>
   mindgraph validate <input-file>
   mindgraph inspect <input-file>
+  mindgraph source import <source> [--workspace <dir>] [--title <title>] [--json]
+  mindgraph digest <source> [-o <output-file>] [--workspace <dir>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>] [--json]
   mindgraph ingest transcript <transcript-file> [-o <output-file>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>]
   mindgraph build timeline <transcript-file> [-o <output-file>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>]
   mindgraph concept upsert <document-file> --id <id> --label <label> [--level atomic|clustered]
@@ -44,6 +47,8 @@ Commands:
   init                   Create an empty starter mindgraph document
   validate               Validate a mindgraph JSON document
   inspect                Print a concise summary of a document
+  source import          Prepare a local file or readable web article for mindgraph ingestion
+  digest                 High-level source→starter-document operation for agent-operated digestion
   ingest transcript      Parse a transcript into a starter document
   build timeline         Run a staged transcript→timeline pipeline shell
   concept upsert         Create or update a concept deterministically
@@ -113,6 +118,18 @@ function validateOrExit(doc, filePath) {
     for (const error of result.errors) console.error(`- ${error}`);
     process.exit(1);
   }
+}
+
+function exitWithOperationResult(result, { json = false, successText } = {}) {
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+  } else if (result.ok) {
+    if (successText) console.log(successText(result));
+  } else {
+    console.error(result.error?.message ?? 'Operation failed.');
+    if (result.error?.recoveryHint) console.error(result.error.recoveryHint);
+  }
+  process.exit(result.ok ? 0 : 1);
 }
 
 function slugify(text) {
@@ -219,6 +236,71 @@ if (command === 'inspect') {
   console.log(`Frames (macro): ${summary.frameCounts.macro}`);
   console.log(`Range: ${formatRange(summary.timeRange)}`);
   process.exit(0);
+}
+
+if (command === 'source' && subcommand === 'import') {
+  const [source, ...flagArgs] = rest;
+  if (!source) {
+    console.error('Missing source.');
+    process.exit(1);
+  }
+  const flags = parseFlags(flagArgs);
+  const result = await prepareSourceOperation({
+    source,
+    workspaceDir: requireFlag(flags, '--workspace') ?? process.cwd(),
+    title: requireFlag(flags, '--title'),
+  });
+  exitWithOperationResult(result, {
+    json: Boolean(flags['--json']),
+    successText: (value) => {
+      if (value.source.supported === false) return `${value.source.reason}\n${value.source.recoveryHint}`;
+      return `Prepared ${value.source.kind} source at ${value.source.preparedPath}`;
+    },
+  });
+}
+
+if (command === 'digest' && subcommand && subcommand !== 'apply' && subcommand !== 'evaluate') {
+  const source = subcommand;
+  const flagArgs = rest;
+  const flags = parseFlags(flagArgs);
+  const explicitOutput = requireFlag(flags, '-o', '--output');
+  const title = requireFlag(flags, '--title');
+  const workspaceDir = requireFlag(flags, '--workspace') ?? process.cwd();
+  const resolved = resolveOutputPath({
+    explicit: explicitOutput,
+    transcriptFile: source,
+    title,
+    cwd: workspaceDir,
+  });
+  if (!resolved) {
+    console.error('Missing output file. Pass -o <output-file>, or run from a workspace containing ./graphs/.');
+    process.exit(1);
+  }
+  if (!resolved.explicit && fs.existsSync(resolved.path)) {
+    console.error(`Output already exists: ${resolved.path}`);
+    console.error('Pass -o <output-file> explicitly to overwrite, or choose a different name.');
+    process.exit(1);
+  }
+
+  const result = await buildStarterDigestOperation({
+    source,
+    outputPath: resolved.path,
+    workspaceDir,
+    title,
+    mode: requireFlag(flags, '--mode'),
+    defaultSpeaker: requireFlag(flags, '--speaker'),
+    wordsPerMinute: requireFlag(flags, '--wpm') ? Number(requireFlag(flags, '--wpm')) : undefined,
+    mesoSize: requireFlag(flags, '--meso-size') ? Number(requireFlag(flags, '--meso-size')) : undefined,
+  });
+  exitWithOperationResult(result, {
+    json: Boolean(flags['--json']),
+    successText: (value) => [
+      `Built starter digest at ${value.documentPath}`,
+      `Source: ${value.source.kind} (${value.source.preparedPath})`,
+      `Frames: ${value.summary.frameCounts.micro} micro, ${value.summary.frameCounts.meso} meso`,
+      'Next: create a DigestPlan, then run mindgraph digest apply <document> --plan <plan-file>',
+    ].join('\n'),
+  });
 }
 
 if (command === 'build' && subcommand === 'timeline') {
