@@ -74,20 +74,22 @@ If the user gives you a path to a transcript file, skip this subsection. If they
 - **PDFs.** Local PDFs: read with the Read tool. Remote PDFs: WebFetch the URL, save the text to `./transcripts/<slug>.txt`.
 - **Fallback.** Ask the user to paste the transcript inline. Save it to `./transcripts/<slug>.txt` so it's available for re-ingest later.
 
-In a `mind-digest`-style workspace, `./transcripts/` is the canonical landing zone — keep all sources there. Outside that convention, place the file wherever the user prefers; the path you pass to `mindgraph build timeline` is what matters.
+In a `mind-digest`-style workspace, `./transcripts/` is the canonical landing zone — keep all sources there. Outside that convention, place the file wherever the user prefers; the path you pass to `mindgraph digest` is what matters.
 
 #### Building the timeline
 
 Take the user's source file and produce a starter document with micro and meso frames already laid out:
 
 ```bash
-mindgraph build timeline <source-file> [-o <output-file>] \
+mindgraph digest <source-file-or-readable-article-url> [-o <output-file>] \
   [--title "Display Title"] \
   [--mode auto|timed-lines|captions|untimed] \
   [--speaker "Speaker Name"] \
   [--wpm 150] \
   [--meso-size 12]
 ```
+
+Prefer `mindgraph digest` over `mindgraph build timeline` for new work. It is the cohesive journey command: it prepares local files or readable article URLs, builds the starter timeline, validates the output, and returns the next agent action. Use `mindgraph build timeline` only when you specifically need the lower-level primitive.
 
 When `-o` is omitted, the CLI defaults to `./graphs/<slug>.mindgraph.json` if a `./graphs/` directory exists in the current working directory (the slug is derived from `--title` or the source filename). In a `mind-digest`-style content workspace this is the recommended form — drop the `-o` and let the convention place the file. Outside a workspace, pass `-o` explicitly.
 

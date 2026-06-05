@@ -85,6 +85,51 @@ Or directly with Bun before packaging/installing globally:
 bun /path/to/mindgraph/src/cli/index.js ingest transcript ./transcripts/episode-01.txt -o ./graphs/episode-01.mindgraph.json
 ```
 
+## Product journey commands
+
+For agent-operated digestion, prefer the high-level journey command:
+
+```bash
+mindgraph digest ./transcripts/episode-01.txt -o ./graphs/episode-01.mindgraph.json --title "Episode 01"
+```
+
+For readable web articles:
+
+```bash
+mindgraph digest https://example.com/article -o ./graphs/article.mindgraph.json --mode untimed
+```
+
+This creates a starter `.mindgraph.json` with transcript segments, micro frames, meso frames, validation, and an agent-facing next step. The LLM agent then creates a structured `DigestPlan`, applies it, evaluates quality, and opens the viewer:
+
+```bash
+mindgraph digest apply ./graphs/episode-01.mindgraph.json --plan ./plans/episode-01.digest-plan.json
+mindgraph digest evaluate ./graphs/episode-01.mindgraph.json --json
+mindgraph view ./graphs/episode-01.mindgraph.json
+```
+
+YouTube URLs are detected, but this slice does not fetch YouTube transcripts directly. Save a transcript with a tool such as `yt-dlp`, then pass the transcript file to `mindgraph digest`.
+
+## MCP usage
+
+mindgraph also ships a minimal MCP server for Claude Desktop and other MCP-capable apps:
+
+```bash
+mindgraph mcp --workspace /path/to/content-workspace
+# or
+mindgraph-mcp --workspace /path/to/content-workspace
+```
+
+Initial tools:
+
+- `mindgraph_prepare_source`
+- `mindgraph_build_starter_digest`
+- `mindgraph_apply_digest_plan`
+- `mindgraph_evaluate_digest`
+- `mindgraph_inspect_document`
+- `mindgraph_open_viewer`
+
+The MCP server is an adapter over the same journey operations as the CLI. It does not require a model API key; the connected agent performs semantic digestion and supplies a `DigestPlan`.
+
 ## Current scope
 
 - Canonical `.mindgraph.json` document with atomic + clustered concepts, typed relations, and a three-level frame timeline (micro / meso / macro)
