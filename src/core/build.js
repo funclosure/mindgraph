@@ -21,7 +21,7 @@ export function buildTimelineFromTranscript({
     wordsPerMinute,
   }));
 
-  if (Number.isInteger(mesoSize) && mesoSize > 1) {
+  if (Number.isInteger(mesoSize) && mesoSize >= 1) {
     for (let startIndex = 0; startIndex < doc.frames.micro.length; startIndex += mesoSize) {
       const endIndex = Math.min(startIndex + mesoSize - 1, doc.frames.micro.length - 1);
       mergeFrames(doc, {
