@@ -10,5 +10,8 @@ node_modules/
 # Superpowers brainstorm session artifacts
 .superpowers/
 
+# Local git worktrees
+.worktrees/
+
 # Local produced graph documents / experiments
 graphs/
