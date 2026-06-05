@@ -24,6 +24,7 @@ Usage:
   mindgraph inspect <input-file>
   mindgraph source import <source> [--workspace <dir>] [--title <title>] [--json]
   mindgraph digest <source> [-o <output-file>] [--workspace <dir>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>] [--json]
+  mindgraph mcp [--workspace <dir>]
   mindgraph ingest transcript <transcript-file> [-o <output-file>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>]
   mindgraph build timeline <transcript-file> [-o <output-file>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>]
   mindgraph concept upsert <document-file> --id <id> --label <label> [--level atomic|clustered]
@@ -49,6 +50,7 @@ Commands:
   inspect                Print a concise summary of a document
   source import          Prepare a local file or readable web article for mindgraph ingestion
   digest                 High-level source→starter-document operation for agent-operated digestion
+  mcp                    Start the mindgraph MCP server over stdio
   ingest transcript      Parse a transcript into a starter document
   build timeline         Run a staged transcript→timeline pipeline shell
   concept upsert         Create or update a concept deterministically
@@ -749,6 +751,12 @@ if (command === 'view') {
   for (const sig of ['SIGINT', 'SIGTERM']) {
     process.on(sig, () => { child.kill(sig); });
   }
+  child.on('exit', (code) => process.exit(code ?? 0));
+} else if (command === 'mcp') {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const serverScript = path.resolve(__dirname, '..', 'mcp', 'server.js');
+  const child = spawn(process.execPath, [serverScript, ...args.slice(1)], { stdio: 'inherit' });
   child.on('exit', (code) => process.exit(code ?? 0));
 } else {
   console.error(`Unknown command: ${args.join(' ')}`);
