@@ -24,13 +24,20 @@ const ANIMATION_KNOBS = [
   { key: 'fadeDurationMs', label: 'Fade duration ms', min: 100, max: 1200, step: 20 },
   { key: 'cameraTimeConstantS', label: 'Camera time constant s', min: 0.05, max: 1.5, step: 0.05 },
   { key: 'highlightTimeConstantS', label: 'Highlight time constant s', min: 0.05, max: 1.2, step: 0.05 },
-  { key: 'bloomReheatStrength', label: 'Spawn force reheat', min: 0, max: 1, step: 0.02 },
+  { key: 'bloomReheatStrength', label: 'Spawn force reheat', min: 0, max: 0.1, step: 0.001 },
 ];
 
 function numberFromInput(input) {
   const step = Number(input.step || 1);
   const value = Number(input.value);
   return Number.isInteger(step) ? Math.round(value) : value;
+}
+
+function formatKnobValue(value, step) {
+  const numericStep = Number(step || 1);
+  if (Number.isInteger(numericStep)) return String(Math.round(value));
+  const decimals = Math.min(6, Math.max(0, String(numericStep).split('.')[1]?.length ?? 0));
+  return Number(value).toFixed(decimals).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 export function createLayoutDebugPanel({ sim, animator, onChange } = {}) {
@@ -94,10 +101,10 @@ export function createLayoutDebugPanel({ sim, animator, onChange } = {}) {
     slider.step = String(knob.step);
     slider.value = String(valueSource()[knob.key]);
     slider.style.cssText = 'grid-column:1 / -1;width:100%';
-    value.value = slider.value;
+    value.value = formatKnobValue(Number(slider.value), slider.step);
     slider.addEventListener('input', () => {
       const next = numberFromInput(slider);
-      value.value = String(next);
+      value.value = formatKnobValue(next, slider.step);
       onInput(knob.key, next);
     });
     row.append(label, value, slider);
@@ -136,13 +143,13 @@ export function createLayoutDebugPanel({ sim, animator, onChange } = {}) {
       const input = inputs.get(knob.key);
       const next = DEFAULT_LAYOUT_CONFIG[knob.key];
       input.slider.value = String(next);
-      input.value.value = String(next);
+      input.value.value = formatKnobValue(next, input.slider.step);
     }
     for (const knob of ANIMATION_KNOBS) {
       const input = inputs.get(knob.key);
       const next = DEFAULT_ANIMATION_CONFIG[knob.key];
       input.slider.value = String(next);
-      input.value.value = String(next);
+      input.value.value = formatKnobValue(next, input.slider.step);
     }
     updateMeta();
     onChange?.();
