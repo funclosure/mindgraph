@@ -42,6 +42,10 @@ export const DEFAULT_LAYOUT_CONFIG = Object.freeze({
   componentCohesionStrength: 0.035,
   componentCohesionComfortRadius: 150,
   componentCohesionMaxComponentSize: 6,
+  alphaHalfLifeFrames: 145,
+  bloomNeighborDistance: 96,
+  bloomHubDistanceBonus: 16,
+  bloomJitter: 22,
 });
 
 const COLLISION_PADDING = 5;
@@ -52,14 +56,9 @@ const VELOCITY_DECAY = 0.70;
 const SUBSTEPS = 4;
 const SUBSTEP_DECAY = Math.pow(VELOCITY_DECAY, 1 / SUBSTEPS);
 
-const ALPHA_HALF_LIFE_FRAMES = 145;
-const ALPHA_DECAY_PER_FRAME = Math.pow(0.5, 1 / ALPHA_HALF_LIFE_FRAMES);
 const SETTLED_ALPHA = 0.003;
 const SETTLED_VEL = 0.12;
 
-const BLOOM_NEIGHBOR_DISTANCE = 96;
-const BLOOM_HUB_DISTANCE_BONUS = 16;
-const BLOOM_JITTER = 22;
 
 // ───── String hash helpers ─────────────────────────────────────────────────
 export function seededUnit(value) {
@@ -358,7 +357,7 @@ export function createLayoutSimulator(viewModel, options = {}) {
         clampVelocity();
         integrate(subAlpha, SUBSTEP_DECAY);
       }
-      this.alpha *= Math.pow(ALPHA_DECAY_PER_FRAME, dtScale);
+      this.alpha *= Math.pow(0.5, dtScale / config.alphaHalfLifeFrames);
     },
 
     reheat(strength) {
@@ -395,8 +394,8 @@ export function createLayoutSimulator(viewModel, options = {}) {
       const anchor = positions[bestNeighbor];
       const hubMass = mass[bestNeighbor] ?? 1;
       const angle = seededUnit(`${id}:bloom-angle`) * Math.PI * 2;
-      const radius = BLOOM_NEIGHBOR_DISTANCE + BLOOM_HUB_DISTANCE_BONUS * Math.max(0, hubMass - 1);
-      const jitter = (seededUnit(`${id}:bloom-jitter`) - 0.5) * BLOOM_JITTER;
+      const radius = config.bloomNeighborDistance + config.bloomHubDistanceBonus * Math.max(0, hubMass - 1);
+      const jitter = (seededUnit(`${id}:bloom-jitter`) - 0.5) * config.bloomJitter;
       positions[id].x = anchor.x + Math.cos(angle) * (radius + jitter);
       positions[id].y = anchor.y + Math.sin(angle) * (radius + jitter);
       velocities[id].x = 0;

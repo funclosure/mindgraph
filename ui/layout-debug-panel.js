@@ -13,6 +13,10 @@ const LAYOUT_KNOBS = [
   { key: 'componentCohesionMaxComponentSize', label: 'Component max size', min: 1, max: 20, step: 1 },
   { key: 'baseLinkStrength', label: 'Base link strength', min: 0.005, max: 0.16, step: 0.005 },
   { key: 'linkStrengthMax', label: 'Link strength max', min: 0.02, max: 0.4, step: 0.01 },
+  { key: 'alphaHalfLifeFrames', label: 'Physics half-life frames', min: 20, max: 400, step: 5 },
+  { key: 'bloomNeighborDistance', label: 'Spawn neighbor distance', min: 20, max: 240, step: 5 },
+  { key: 'bloomHubDistanceBonus', label: 'Spawn hub bonus', min: 0, max: 80, step: 2 },
+  { key: 'bloomJitter', label: 'Spawn jitter', min: 0, max: 80, step: 2 },
 ];
 
 const ANIMATION_KNOBS = [
@@ -20,6 +24,7 @@ const ANIMATION_KNOBS = [
   { key: 'fadeDurationMs', label: 'Fade duration ms', min: 100, max: 1200, step: 20 },
   { key: 'cameraTimeConstantS', label: 'Camera time constant s', min: 0.05, max: 1.5, step: 0.05 },
   { key: 'highlightTimeConstantS', label: 'Highlight time constant s', min: 0.05, max: 1.2, step: 0.05 },
+  { key: 'bloomReheatStrength', label: 'Spawn force reheat', min: 0, max: 1, step: 0.02 },
 ];
 
 function numberFromInput(input) {

@@ -20,6 +20,7 @@ export const DEFAULT_ANIMATION_CONFIG = Object.freeze({
   fadeDurationMs: 320,
   cameraTimeConstantS: 0.42,
   highlightTimeConstantS: 0.30,
+  bloomReheatStrength: 0.08,
 });
 // Per-atom highlight tier (active/dimmed/selected) eases between target levels
 // instead of snapping. A ~300 ms time constant makes active/dim transitions
@@ -98,7 +99,7 @@ export function createAnimator(options = {}) {
           if (sim) {
             sim.placeForBloom?.(id, prevConceptSet);
             sim.unpin(id);            // concept rejoins live dynamics
-            sim.reheat(0.08);         // v3 tuning: calm join into the elastic field
+            sim.reheat(config.bloomReheatStrength); // calm join into the elastic field
           }
         }
       }
