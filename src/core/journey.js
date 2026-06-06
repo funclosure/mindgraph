@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildTimelineFromTranscript } from './build.js';
-import { applyDigestPlan, evaluateDigest } from './digest.js';
+import { applyDigestPlan, evaluateDigest, evaluateUxReadiness } from './digest.js';
 import { summarizeDocument, validateDocument } from './schema.js';
 import { prepareSource } from './source.js';
 
@@ -77,11 +77,13 @@ export async function buildStarterDigestOperation({
       next: 'create-digest-plan',
     };
     ensureValidDocument(doc, outputPath);
+    const ux = evaluateUxReadiness(doc);
     writeJson(outputPath, doc);
     return {
       ok: true,
       source: prepared,
       documentPath: outputPath,
+      readiness: { ux },
       summary: summarizeDocument(doc),
       next: {
         agentAction: 'create-digest-plan',

@@ -134,6 +134,11 @@ function exitWithOperationResult(result, { json = false, successText } = {}) {
   process.exit(result.ok ? 0 : 1);
 }
 
+function formatWarnings(warnings = []) {
+  if (!warnings.length) return '';
+  return ['Warnings:', ...warnings.map((warning) => `  - ${warning.code}: ${warning.message}`)].join('\n');
+}
+
 function slugify(text) {
   return String(text)
     .replace(/\.[^/.]+$/, '')
@@ -300,8 +305,9 @@ if (command === 'digest' && subcommand && subcommand !== 'apply' && subcommand !
       `Built starter digest at ${value.documentPath}`,
       `Source: ${value.source.kind} (${value.source.preparedPath})`,
       `Frames: ${value.summary.frameCounts.micro} micro, ${value.summary.frameCounts.meso} meso`,
+      formatWarnings(value.readiness?.ux?.warnings),
       'Next: create a DigestPlan, then run mindgraph digest apply <document> --plan <plan-file>',
-    ].join('\n'),
+    ].filter(Boolean).join('\n'),
   });
 }
 
@@ -671,6 +677,8 @@ function printDigestEvaluation(report) {
   console.log(`  Concepts: ${report.counts.atomicConcepts} atomic, ${report.counts.clusteredConcepts} clustered`);
   console.log(`  Relations: ${report.counts.relations}`);
   console.log(`  Frames: ${report.counts.microFrames} micro, ${report.counts.mesoFrames} meso, ${report.counts.macroFrames} macro`);
+  console.log(`  UX readiness: ${report.ux?.status ?? 'unknown'}`);
+  for (const warning of report.ux?.warnings ?? []) console.log(`    - ${warning.code}: ${warning.message}`);
   console.log(`  Ignored spans: ${report.ignoredSpans.length}`);
   console.log(`  Ignored meso frames: ${report.ignoredMesoFrameIndexes.length ? report.ignoredMesoFrameIndexes.join(', ') : 'none'}`);
   console.log(`  Empty non-ignored meso frames: ${report.emptyMesoFrameIndexes.length ? report.emptyMesoFrameIndexes.join(', ') : 'none'}`);

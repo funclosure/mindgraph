@@ -51,6 +51,21 @@ test('buildStarterDigestOperation imports source, builds timeline, validates, an
   assert.equal(result.summary.title, 'Wisdom Practice');
   assert.equal(result.summary.frameCounts.micro, 2);
   assert.deepEqual(result.next.agentAction, 'create-digest-plan');
+  assert.equal(result.readiness.ux.status, 'warning');
+  assert.deepEqual(result.readiness.ux.warnings.map((warning) => warning.code), ['few-micro-frames']);
+});
+
+test('buildStarterDigestOperation warns when source collapses to one segment', async () => {
+  const workspace = makeTempWorkspace();
+  const transcript = path.join(workspace, 'source.txt');
+  const output = path.join(workspace, 'graphs', 'flat.mindgraph.json');
+  fs.writeFileSync(transcript, 'One long unstructured article block with no paragraph breaks.', 'utf8');
+
+  const result = await buildStarterDigestOperation({ source: transcript, outputPath: output, workspaceDir: workspace, title: 'Flat Source', mode: 'untimed' });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.readiness.ux.status, 'warning');
+  assert.ok(result.readiness.ux.warnings.some((warning) => warning.code === 'single-segment-source'));
 });
 
 test('apply, evaluate, and inspect operations share one document contract', async () => {
