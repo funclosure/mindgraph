@@ -87,6 +87,7 @@ async function bootstrap() {
   if (DEBUG_LAYOUT) {
     createLayoutDebugPanel({
       sim: state.sim,
+      animator: state.animator,
       onChange: () => {
         fitCameraToLayout(state.camera, state.layout, state.viewport);
         kickAnimationLoop();

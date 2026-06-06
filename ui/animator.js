@@ -15,16 +15,19 @@ function easeOutCubic(t) {
   return 1 - Math.pow(1 - x, 3);
 }
 
-const BLOOM_DURATION_MS = 950;
-const FADE_DURATION_MS = 320;
-const CAMERA_TIME_CONSTANT_S = 0.42; // slower, more gliding convergence
+export const DEFAULT_ANIMATION_CONFIG = Object.freeze({
+  bloomDurationMs: 950,
+  fadeDurationMs: 320,
+  cameraTimeConstantS: 0.42,
+  highlightTimeConstantS: 0.30,
+});
 // Per-atom highlight tier (active/dimmed/selected) eases between target levels
 // instead of snapping. A ~300 ms time constant makes active/dim transitions
 // feel smoother without hiding the user's current reading focus.
-const HIGHLIGHT_TIME_CONSTANT_S = 0.30;
 const HIGHLIGHT_EPSILON = 0.004;
 
-export function createAnimator() {
+export function createAnimator(options = {}) {
+  const config = { ...DEFAULT_ANIMATION_CONFIG, ...(options.config ?? {}) };
   const entityStates = new Map(); // id -> { opacity, scale, blooming, fading, animStart }
   let prevConceptSet = null;
   let prevEdgeSet = null;
@@ -116,7 +119,7 @@ export function createAnimator() {
     const faded = [];
     for (const [id, s] of entityStates) {
       if (s.blooming) {
-        const t = (now - s.animStart) * 1000 / BLOOM_DURATION_MS;
+        const t = (now - s.animStart) * 1000 / config.bloomDurationMs;
         if (t >= 1) {
           s.opacity = 1;
           s.scale = 1;
@@ -128,7 +131,7 @@ export function createAnimator() {
           stillAnimating = true;
         }
       } else if (s.fading) {
-        const t = (now - s.animStart) * 1000 / FADE_DURATION_MS;
+        const t = (now - s.animStart) * 1000 / config.fadeDurationMs;
         if (t >= 1) {
           s.opacity = 0;
           s.fading = false;
@@ -151,7 +154,7 @@ export function createAnimator() {
     // initial bloom doesn't pop through a dim→active sweep.
     if (highlightTargets) {
       const dtSec = opts.dt ?? 0;
-      const factor = 1 - Math.exp(-dtSec / HIGHLIGHT_TIME_CONSTANT_S);
+      const factor = 1 - Math.exp(-dtSec / config.highlightTimeConstantS);
       for (const id in highlightTargets) {
         const target = highlightTargets[id];
         const s = getEntityState(id);
@@ -198,7 +201,7 @@ export function createAnimator() {
       const targetPanX = (opts.viewport?.width ?? 0) / 2 - effectiveTarget.cx * targetZoom;
       const targetPanY = (opts.viewport?.height ?? 0) / 2 - effectiveTarget.cy * targetZoom;
 
-      const factor = 1 - Math.exp(-(opts.dt ?? 0) / CAMERA_TIME_CONSTANT_S);
+      const factor = 1 - Math.exp(-(opts.dt ?? 0) / config.cameraTimeConstantS);
       camera.zoom += (targetZoom - camera.zoom) * factor;
       camera.pan.x += (targetPanX - camera.pan.x) * factor;
       camera.pan.y += (targetPanY - camera.pan.y) * factor;
@@ -218,6 +221,10 @@ export function createAnimator() {
   }
 
   return {
+    config,
+    updateConfig(overrides = {}) {
+      Object.assign(config, overrides);
+    },
     step,
     getEntityState,
     isVisible(id) {

@@ -1,17 +1,25 @@
+import { DEFAULT_ANIMATION_CONFIG } from './animator.js';
 import { DEFAULT_LAYOUT_CONFIG } from './layout.js';
 
-const KNOBS = [
-  { key: 'baseLinkDistance', label: 'Base link distance', min: 40, max: 180, step: 1 },
+const LAYOUT_KNOBS = [
+  { key: 'baseLinkDistance', label: 'Base link distance', min: 20, max: 180, step: 1 },
   { key: 'hubRingBonus', label: 'Hub ring bonus', min: 0, max: 50, step: 1 },
   { key: 'unrelatedMinDistance', label: 'Unrelated min distance', min: 40, max: 180, step: 1 },
   { key: 'unrelatedSeparationStrength', label: 'Unrelated separation', min: 0, max: 0.2, step: 0.005 },
-  { key: 'centerGravity', label: 'Center gravity', min: 0, max: 0.03, step: 0.001 },
-  { key: 'centerComfortRadius', label: 'Center comfort radius', min: 40, max: 500, step: 5 },
+  { key: 'centerGravity', label: 'Center gravity', min: 0, max: 0.05, step: 0.001 },
+  { key: 'centerComfortRadius', label: 'Center comfort radius', min: 20, max: 500, step: 5 },
   { key: 'componentCohesionStrength', label: 'Component cohesion', min: 0, max: 0.12, step: 0.005 },
   { key: 'componentCohesionComfortRadius', label: 'Component comfort radius', min: 40, max: 350, step: 5 },
   { key: 'componentCohesionMaxComponentSize', label: 'Component max size', min: 1, max: 20, step: 1 },
   { key: 'baseLinkStrength', label: 'Base link strength', min: 0.005, max: 0.16, step: 0.005 },
   { key: 'linkStrengthMax', label: 'Link strength max', min: 0.02, max: 0.4, step: 0.01 },
+];
+
+const ANIMATION_KNOBS = [
+  { key: 'bloomDurationMs', label: 'Bloom duration ms', min: 200, max: 2500, step: 50 },
+  { key: 'fadeDurationMs', label: 'Fade duration ms', min: 100, max: 1200, step: 20 },
+  { key: 'cameraTimeConstantS', label: 'Camera time constant s', min: 0.05, max: 1.5, step: 0.05 },
+  { key: 'highlightTimeConstantS', label: 'Highlight time constant s', min: 0.05, max: 1.2, step: 0.05 },
 ];
 
 function numberFromInput(input) {
@@ -20,7 +28,7 @@ function numberFromInput(input) {
   return Number.isInteger(step) ? Math.round(value) : value;
 }
 
-export function createLayoutDebugPanel({ sim, onChange } = {}) {
+export function createLayoutDebugPanel({ sim, animator, onChange } = {}) {
   if (!sim || typeof sim.updateConfig !== 'function') return null;
   const root = document.createElement('aside');
   root.style.cssText = [
@@ -42,7 +50,7 @@ export function createLayoutDebugPanel({ sim, onChange } = {}) {
   ].join(';');
 
   const title = document.createElement('div');
-  title.textContent = 'Layout knobs';
+  title.textContent = 'Tuning knobs';
   title.style.cssText = 'font-weight:700;font-size:13px;margin-bottom:4px';
   root.append(title);
 
@@ -51,50 +59,62 @@ export function createLayoutDebugPanel({ sim, onChange } = {}) {
   root.append(meta);
 
   const inputs = new Map();
-  function currentConfig() {
-    return sim.layoutMeta?.config ?? DEFAULT_LAYOUT_CONFIG;
-  }
+  const currentLayoutConfig = () => sim.layoutMeta?.config ?? DEFAULT_LAYOUT_CONFIG;
+  const currentAnimationConfig = () => animator?.config ?? DEFAULT_ANIMATION_CONFIG;
 
   function updateMeta() {
     const layoutMeta = sim.layoutMeta ?? {};
     meta.textContent = `fragmented=${Boolean(layoutMeta.fragmented)} · components=${layoutMeta.componentCount ?? 'n/a'} · density=${Number(layoutMeta.relationDensity ?? 0).toFixed(2)}`;
   }
 
-  function applyConfig(partial) {
-    sim.updateConfig(partial);
-    updateMeta();
-    onChange?.();
+  function appendSection(label) {
+    const heading = document.createElement('div');
+    heading.textContent = label;
+    heading.style.cssText = 'margin:12px 0 6px;color:#d7bd7b;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;font-size:10px';
+    root.append(heading);
   }
 
-  for (const knob of KNOBS) {
+  function appendKnob(knob, valueSource, onInput) {
     const row = document.createElement('label');
     row.style.cssText = 'display:grid;grid-template-columns:1fr 64px;gap:8px;align-items:center;margin:8px 0';
-
     const label = document.createElement('span');
     label.textContent = knob.label;
     label.style.cssText = 'color:rgba(245,239,227,0.82)';
-
     const value = document.createElement('output');
     value.style.cssText = 'text-align:right;color:#d7bd7b;font-variant-numeric:tabular-nums';
-
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.min = String(knob.min);
     slider.max = String(knob.max);
     slider.step = String(knob.step);
-    slider.value = String(currentConfig()[knob.key] ?? DEFAULT_LAYOUT_CONFIG[knob.key]);
+    slider.value = String(valueSource()[knob.key]);
     slider.style.cssText = 'grid-column:1 / -1;width:100%';
     value.value = slider.value;
-
     slider.addEventListener('input', () => {
       const next = numberFromInput(slider);
       value.value = String(next);
-      applyConfig({ [knob.key]: next });
+      onInput(knob.key, next);
     });
-
     row.append(label, value, slider);
     root.append(row);
     inputs.set(knob.key, { slider, value });
+  }
+
+  appendSection('Layout');
+  for (const knob of LAYOUT_KNOBS) {
+    appendKnob(knob, currentLayoutConfig, (key, next) => {
+      sim.updateConfig({ [key]: next });
+      updateMeta();
+      onChange?.();
+    });
+  }
+
+  appendSection('Animation');
+  for (const knob of ANIMATION_KNOBS) {
+    appendKnob(knob, currentAnimationConfig, (key, next) => {
+      animator?.updateConfig?.({ [key]: next });
+      onChange?.();
+    });
   }
 
   const buttons = document.createElement('div');
@@ -106,9 +126,16 @@ export function createLayoutDebugPanel({ sim, onChange } = {}) {
   reset.style.cssText = buttonStyle();
   reset.addEventListener('click', () => {
     sim.updateConfig(DEFAULT_LAYOUT_CONFIG);
-    for (const knob of KNOBS) {
+    animator?.updateConfig?.(DEFAULT_ANIMATION_CONFIG);
+    for (const knob of LAYOUT_KNOBS) {
       const input = inputs.get(knob.key);
       const next = DEFAULT_LAYOUT_CONFIG[knob.key];
+      input.slider.value = String(next);
+      input.value.value = String(next);
+    }
+    for (const knob of ANIMATION_KNOBS) {
+      const input = inputs.get(knob.key);
+      const next = DEFAULT_ANIMATION_CONFIG[knob.key];
       input.slider.value = String(next);
       input.value.value = String(next);
     }
@@ -121,13 +148,13 @@ export function createLayoutDebugPanel({ sim, onChange } = {}) {
   copy.textContent = 'Copy JSON';
   copy.style.cssText = buttonStyle();
   copy.addEventListener('click', async () => {
-    const json = JSON.stringify(currentConfig(), null, 2);
+    const json = JSON.stringify({ layout: currentLayoutConfig(), animation: currentAnimationConfig() }, null, 2);
     try {
       await navigator.clipboard.writeText(json);
       copy.textContent = 'Copied';
       setTimeout(() => { copy.textContent = 'Copy JSON'; }, 900);
     } catch {
-      console.info('layout config', json);
+      console.info('tuning config', json);
       copy.textContent = 'Logged';
       setTimeout(() => { copy.textContent = 'Copy JSON'; }, 900);
     }
