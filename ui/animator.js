@@ -15,14 +15,13 @@ function easeOutCubic(t) {
   return 1 - Math.pow(1 - x, 3);
 }
 
-const BLOOM_DURATION_MS = 600;
-const FADE_DURATION_MS = 200;
-const CAMERA_TIME_CONSTANT_S = 0.23; // ~700ms full convergence
+const BLOOM_DURATION_MS = 950;
+const FADE_DURATION_MS = 320;
+const CAMERA_TIME_CONSTANT_S = 0.42; // slower, more gliding convergence
 // Per-atom highlight tier (active/dimmed/selected) eases between target levels
-// instead of snapping. ~180 ms time constant means a flip from default → active
-// converges visibly under 400 ms — fast enough to feel responsive, slow enough
-// to read as a transition rather than a flicker.
-const HIGHLIGHT_TIME_CONSTANT_S = 0.18;
+// instead of snapping. A ~300 ms time constant makes active/dim transitions
+// feel smoother without hiding the user's current reading focus.
+const HIGHLIGHT_TIME_CONSTANT_S = 0.30;
 const HIGHLIGHT_EPSILON = 0.004;
 
 export function createAnimator() {
