@@ -13,11 +13,13 @@ import { renderChapterStrip } from './panels/chapter-strip.js';
 import { renderTopbar } from './panels/topbar.js';
 import { renderViewPopover } from './panels/view-popover.js';
 import { attachScrollBinding } from './scroll-binding.js';
+import { createLayoutDebugPanel } from './layout-debug-panel.js';
 
 // The dev server (src/ui/dev-server.js) serves whichever mindgraph
 // document was passed via its --doc flag — or the canonical sample by
 // default — at /doc.json. The UI doesn't need to know the path on disk.
 const DOC_PATH = '/doc.json';
+const DEBUG_LAYOUT = new URLSearchParams(window.location.search).has('debugLayout');
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
@@ -82,6 +84,15 @@ async function bootstrap() {
   fitCameraToLayout(state.camera, state.layout, state.viewport);
   state.cameraMode = 'auto';
   state.animator = createAnimator();
+  if (DEBUG_LAYOUT) {
+    createLayoutDebugPanel({
+      sim: state.sim,
+      onChange: () => {
+        fitCameraToLayout(state.camera, state.layout, state.viewport);
+        kickAnimationLoop();
+      },
+    });
+  }
   render();
   document.querySelector('.app').dataset.proseCollapsed = String(state.prosCollapsed);
 
