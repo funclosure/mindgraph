@@ -23,7 +23,8 @@ The agent noticed this manually. The tool should preserve article structure and 
 2. Ensure article digestion produces multiple transcript segments and frames when the source contains multiple paragraphs.
 3. Add UX-readiness signals to evaluation, separate from schema validity and semantic quality.
 4. Return actionable warnings through CLI and MCP so agents know when to resegment or adjust strategy.
-5. Keep the implementation model-agnostic and deterministic; no provider calls in this slice.
+5. Tune viewer layout so sparse article graphs remain visually cohesive instead of scattering disconnected components across the canvas.
+6. Keep the implementation model-agnostic and deterministic; no provider calls in this slice.
 
 ## Non-goals
 
@@ -130,6 +131,25 @@ Warnings:
 
 This lets MCP agents adapt without relying on natural-language inference.
 
+### 6. Viewer layout should keep sparse graphs cohesive
+
+The current continuous layout allows disconnected or weakly connected components to drift too far apart. This is especially visible for article imports where the source may have sparse relations and weak temporal co-occurrence. The viewer should still preserve local separation, but the whole graph should read as one cohesive field.
+
+Initial tuning target in `ui/layout.js`:
+
+- Increase center gravity from the current gentle pull.
+- Reduce the center comfort radius so inward pull starts earlier.
+- Keep collision and unrelated-node separation strong enough that nodes do not collapse into a pile.
+
+The intended feel is:
+
+```text
+Before: small components scattered across the viewport with large empty regions.
+After: components remain distinct, but are clustered around a shared visual center.
+```
+
+This is a viewer concern, not a document-schema concern. It should be verified against sparse one-article graphs and the canonical sample document.
+
 ## Implementation notes
 
 - Keep source extraction in `src/core/source.js` deterministic and dependency-free.
@@ -137,6 +157,8 @@ This lets MCP agents adapt without relying on natural-language inference.
 - Add tests with a local HTTP server serving HTML with several paragraphs/headings.
 - Add tests for single-block HTML to ensure the warning fires.
 - Add tests for `evaluateDigest` UX warnings.
+- Add or update layout tests for bounds/compactness so sparse disconnected graphs remain within a tighter radius after warm start.
+- Run `npm run ui:check` and inspect the viewer with a sparse article graph screenshot/manual check.
 
 ## Success criteria
 
@@ -144,4 +166,5 @@ This lets MCP agents adapt without relying on natural-language inference.
 - A collapsed single-block source produces an explicit UX-readiness warning.
 - `digest evaluate --json` reports UX readiness.
 - MCP build/evaluate tool responses include readiness signals.
-- Existing smoke tests and digest tests continue to pass.
+- Sparse viewer graphs are visibly more centered and less scattered while still avoiding node overlap.
+- Existing smoke tests, digest tests, layout tests, and UI syntax checks continue to pass.
