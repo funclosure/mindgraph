@@ -108,3 +108,50 @@ test('evaluateDigest reports empty non-ignored frames, inactive relations, unuse
   assert.deepEqual(report.grounding.inferredRelationsActiveInFrames, ['inferred-active']);
   assert.equal(report.grounding.inferredRelationRatio, 0.75);
 });
+
+test('evaluateDigest reports UX warnings for single-segment flat documents', () => {
+  const doc = baseDoc();
+  doc.transcript.segments = [doc.transcript.segments[0]];
+  doc.frames.micro = [doc.frames.micro[0]];
+  doc.frames.meso = [doc.frames.meso[0]];
+  applyDigestPlan(doc, {
+    concepts: [
+      { id: 'a', label: 'A', firstSeenAt: 0 },
+      { id: 'b', label: 'B', firstSeenAt: 0 },
+      { id: 'c', label: 'C', firstSeenAt: 0 },
+    ],
+    mesoActivations: [{ index: 0, foreground: [
+      { id: 'a', weight: 1, mode: 'explicit' },
+      { id: 'b', weight: 1, mode: 'explicit' },
+      { id: 'c', weight: 1, mode: 'explicit' },
+    ] }],
+    recomputeStats: true,
+  });
+
+  const report = evaluateDigest(doc);
+  assert.equal(report.ux.status, 'warning');
+  assert.deepEqual(report.ux.warnings.map((w) => w.code), ['single-segment-source', 'few-micro-frames', 'flat-concept-reveal']);
+  assert.equal(report.ux.transcriptSegments, 1);
+  assert.equal(report.ux.distinctAtomicFirstSeenTimes, 1);
+});
+
+test('evaluateDigest reports ready UX for multi-frame documents with staggered first-seen concepts', () => {
+  const doc = baseDoc();
+  applyDigestPlan(doc, {
+    concepts: [
+      { id: 'ai-safety', label: 'AI Safety', firstSeenAt: 0, grounding: { kind: 'source', sourceSpan: { start: 0, end: 10 }, quote: 'AI safety matters.' } },
+      { id: 'scaling-laws', label: 'Scaling Laws', firstSeenAt: 20, grounding: { kind: 'source', sourceSpan: { start: 20, end: 30 }, quote: 'Scaling laws continue.' } },
+    ],
+    mesoActivations: [
+      { index: 0, foreground: [{ id: 'ai-safety', weight: 1, mode: 'explicit' }] },
+      { index: 2, foreground: [{ id: 'scaling-laws', weight: 1, mode: 'explicit' }] },
+    ],
+    recomputeStats: true,
+  });
+
+  const report = evaluateDigest(doc);
+  assert.equal(report.ux.status, 'ready');
+  assert.deepEqual(report.ux.warnings, []);
+  assert.equal(report.ux.frameCounts.micro, 3);
+  assert.equal(report.ux.distinctAtomicFirstSeenTimes, 2);
+});

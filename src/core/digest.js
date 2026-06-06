@@ -185,6 +185,57 @@ function webValidationHasSources(relation) {
   return Array.isArray(sources) && sources.some((source) => source?.url && source?.title);
 }
 
+export function evaluateUxReadiness(doc) {
+  const transcriptSegments = doc.transcript?.segments?.length ?? 0;
+  const microFrames = doc.frames?.micro?.length ?? 0;
+  const mesoFrames = doc.frames?.meso?.length ?? 0;
+  const macroFrames = doc.frames?.macro?.length ?? 0;
+  const atomicIds = new Set((doc.concepts?.atomic ?? []).map((concept) => concept.id));
+  const activatedAtomicIds = new Set();
+  for (const level of ['micro', 'meso', 'macro']) {
+    for (const frame of doc.frames?.[level] ?? []) {
+      for (const activation of [...(frame.foregroundConcepts ?? []), ...(frame.backgroundConcepts ?? [])]) {
+        if (atomicIds.has(activation.id)) activatedAtomicIds.add(activation.id);
+      }
+    }
+  }
+  const firstSeenTimes = new Set(
+    (doc.concepts?.atomic ?? [])
+      .filter((concept) => activatedAtomicIds.has(concept.id))
+      .map((concept) => concept.firstSeenAt)
+      .filter((value) => typeof value === 'number')
+  );
+  const warnings = [];
+  if (transcriptSegments <= 1) {
+    warnings.push({
+      code: 'single-segment-source',
+      message: 'Source produced only one transcript segment; graph reveal will be flat.',
+      recommendedAction: 'Provide paragraph-separated source text or improve article extraction.',
+    });
+  }
+  if (microFrames < 3) {
+    warnings.push({
+      code: 'few-micro-frames',
+      message: `Document has only ${microFrames} micro frame(s); reading progression will be limited.`,
+      recommendedAction: 'Use paragraph-level source segmentation before digesting.',
+    });
+  }
+  if (activatedAtomicIds.size >= 3 && firstSeenTimes.size <= 1) {
+    warnings.push({
+      code: 'flat-concept-reveal',
+      message: 'Most activated concepts share the same first-seen time; graph reveal will happen all at once.',
+      recommendedAction: 'Set firstSeenAt from paragraph/frame evidence during semantic enrichment.',
+    });
+  }
+  return {
+    status: warnings.length ? 'warning' : 'ready',
+    warnings,
+    frameCounts: { micro: microFrames, meso: mesoFrames, macro: macroFrames },
+    transcriptSegments,
+    distinctAtomicFirstSeenTimes: firstSeenTimes.size,
+  };
+}
+
 export function evaluateDigest(doc) {
   const ignoredSpans = asArray(doc.meta?.ignoredSpans);
   const mesoFrames = doc.frames?.meso ?? [];
@@ -213,6 +264,7 @@ export function evaluateDigest(doc) {
     .map((relation) => relation.id);
 
   return {
+    ux: evaluateUxReadiness(doc),
     counts: {
       atomicConcepts: doc.concepts?.atomic?.length ?? 0,
       clusteredConcepts: doc.concepts?.clustered?.length ?? 0,
