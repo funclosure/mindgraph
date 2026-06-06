@@ -20,7 +20,7 @@ export const DEFAULT_ANIMATION_CONFIG = Object.freeze({
   fadeDurationMs: 320,
   cameraTimeConstantS: 0.42,
   highlightTimeConstantS: 0.30,
-  bloomReheatStrength: 0.08,
+  bloomReheatStrength: 0.005,
 });
 // Per-atom highlight tier (active/dimmed/selected) eases between target levels
 // instead of snapping. A ~300 ms time constant makes active/dim transitions
