@@ -32,6 +32,7 @@
   - Compute relation connected components.
   - Add adaptive component-centroid cohesion for fragmented/sparse graphs.
   - Expose debug/meta shape on simulator for tests.
+  - Note: this plan improves graph cohesion, but it does not fully solve edge-corridor crossings caused by unrelated-node repulsion being shorter/weaker than relation rest length. That should be a follow-up layout task.
 
 - Modify `test/source.test.js`
   - Add article block extraction regression.
@@ -694,6 +695,6 @@ git commit -m "fix: stabilize article readiness layout"
 
 ## Self-review notes
 
-- Spec coverage: covers article block import, UX readiness in evaluation, CLI/MCP/journey surfacing, and adaptive layout cohesion.
+- Spec coverage: covers article block import, UX readiness in evaluation, CLI/MCP/journey surfacing, and adaptive layout cohesion. Edge-corridor avoidance / non-rigid relation attraction is documented as follow-up because it needs a separate force-model design.
 - Placeholder scan: no TODO/TBD placeholders are intentionally present.
 - Type consistency: `evaluateUxReadiness(doc)` is introduced in Task 2, reused by journey in Task 3, and `report.ux` is used by CLI output.

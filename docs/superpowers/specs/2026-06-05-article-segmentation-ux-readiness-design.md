@@ -149,6 +149,8 @@ Initial policy direction in `ui/layout.js`:
 - Apply stronger cohesion only when the graph is fragmented or the warm-start bounds are too large relative to node count.
 - Prefer a component-aware pull, e.g. gently pull each component centroid toward the global center, rather than applying the same inward force to every node.
 - Keep node-level collision and unrelated-node separation strong enough that dense hubs do not collapse.
+- Ensure unrelated-node repulsion is not weaker/shorter than relation attraction. In the current force model, relation springs target a rest length while unrelated separation only acts below a slightly smaller local floor, allowing unrelated nodes to sit inside a relationship corridor.
+- Treat edge/corridor avoidance as the next layout design problem: if node C sits near the line segment A—B for an unrelated relation edge, it should be pushed away from that corridor rather than relying only on point-to-point node repulsion.
 - Keep canonical dense documents as regression fixtures; they should not become tighter just because sparse article graphs need more cohesion.
 
 The intended feel is:
@@ -161,6 +163,8 @@ Dense Meaning Crisis graph after: similarly readable; no global squeeze.
 ```
 
 This is a viewer concern, not a document-schema concern. It should be verified against both sparse one-article graphs and the canonical sample document.
+
+Follow-up layout principle: relationship edges should not behave like rigid sticks in empty space. The renderer should either protect the visual corridor around important edges or move toward a softer attraction-field model where relation proximity is encouraged without creating brittle fixed-length spokes.
 
 ## Implementation notes
 
