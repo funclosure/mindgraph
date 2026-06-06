@@ -227,7 +227,7 @@ test('fragmented sparse graphs settle within a cohesive field', () => {
   step(sim, 260);
 
   assert.equal(sim.layoutMeta.fragmented, true);
-  assert.ok(maxRadius(sim, concepts) < 520, `expected sparse graph max radius < 520, got ${maxRadius(sim, concepts)}`);
+  assert.ok(maxRadius(sim, concepts) < 240, `expected sparse graph max radius < 240, got ${maxRadius(sim, concepts)}`);
 });
 
 test('dense hub graphs preserve breathing room under adaptive cohesion', () => {
