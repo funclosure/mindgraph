@@ -40,6 +40,9 @@ const SCORE_REF_PERCENTILE = 0.9;
 const CENTER_GRAVITY = 0.006;
 const CENTER_MASS_EXP = 0.35;
 const CENTER_COMFORT_RADIUS = 280;
+const COMPONENT_COHESION_STRENGTH = 0.018;
+const COMPONENT_COHESION_COMFORT_RADIUS = 230;
+const COMPONENT_COHESION_MAX_COMPONENT_SIZE = 5;
 
 const COLLISION_PADDING = 5;
 const COLLISION_STRENGTH = 0.45;
@@ -114,6 +117,7 @@ export function createLayoutSimulator(viewModel) {
   const mass = buildMass(viewModel, nodes, degree);
   const relationPairs = buildRelationPairs(viewModel, atomic, degree, mass);
   const relationNeighborIds = buildRelationNeighborIds(relationPairs);
+  const layoutMeta = computeLayoutMeta(nodes, relationPairs, relationNeighborIds);
 
   function applyCharge() {
     for (let i = 0; i < nodes.length; i += 1) {
@@ -226,6 +230,29 @@ export function createLayoutSimulator(viewModel) {
     }
   }
 
+  function applyComponentCohesion() {
+    if (!layoutMeta.fragmented) return;
+    for (const component of layoutMeta.components) {
+      if (component.length > COMPONENT_COHESION_MAX_COMPONENT_SIZE) continue;
+      let cx = 0;
+      let cy = 0;
+      for (const id of component) {
+        cx += positions[id].x;
+        cy += positions[id].y;
+      }
+      cx /= component.length;
+      cy /= component.length;
+      const radius = Math.hypot(cx, cy);
+      if (radius <= COMPONENT_COHESION_COMFORT_RADIUS) continue;
+      const pull = COMPONENT_COHESION_STRENGTH * ((radius - COMPONENT_COHESION_COMFORT_RADIUS) / radius);
+      for (const id of component) {
+        if (pinState.has(id)) continue;
+        velocities[id].x -= cx * pull;
+        velocities[id].y -= cy * pull;
+      }
+    }
+  }
+
   function applyCollision() {
     const minGap = NODE_BASE_RADIUS * 2 + COLLISION_PADDING;
     const minGap2 = minGap * minGap;
@@ -312,6 +339,7 @@ export function createLayoutSimulator(viewModel) {
 
   const sim = {
     positions,
+    layoutMeta,
     get bounds() { return computeBounds(); },
     alpha: 1.0,
     _maxVelocity: 0,
@@ -324,6 +352,7 @@ export function createLayoutSimulator(viewModel) {
         applyUnrelatedSeparation();
         applySprings();
         applyCenter();
+        applyComponentCohesion();
         applyCollision();
         clampVelocity();
         integrate(subAlpha, SUBSTEP_DECAY);
@@ -473,6 +502,39 @@ function buildRelationNeighborIds(relationPairs) {
     map.get(pair.b).add(pair.a);
   }
   return map;
+}
+
+function buildComponents(nodes, relationNeighborIds) {
+  const unseen = new Set(nodes.map((node) => node.id));
+  const components = [];
+  while (unseen.size) {
+    const start = unseen.values().next().value;
+    const stack = [start];
+    unseen.delete(start);
+    const ids = [];
+    while (stack.length) {
+      const id = stack.pop();
+      ids.push(id);
+      for (const neighbor of relationNeighborIds.get(id) ?? []) {
+        if (unseen.has(neighbor)) {
+          unseen.delete(neighbor);
+          stack.push(neighbor);
+        }
+      }
+    }
+    components.push(ids);
+  }
+  return components;
+}
+
+function computeLayoutMeta(nodes, relationPairs, relationNeighborIds) {
+  const components = buildComponents(nodes, relationNeighborIds);
+  const largest = components.reduce((max, component) => Math.max(max, component.length), 0);
+  const nodeCount = nodes.length || 1;
+  const relationDensity = relationPairs.length / Math.max(1, nodeCount);
+  const largestComponentRatio = largest / nodeCount;
+  const fragmented = nodeCount >= 8 && components.length >= 3 && largestComponentRatio < 0.75 && relationDensity < 1.2;
+  return { components, componentCount: components.length, largestComponentRatio, relationDensity, fragmented };
 }
 
 function haveSharedParent(conceptA, conceptB) {

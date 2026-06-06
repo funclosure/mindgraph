@@ -208,3 +208,38 @@ test('inferred passive edges render more legibly than source passive edges', () 
   assert.ok(inferred.alpha > source.alpha, `expected inferred alpha ${inferred.alpha} > source ${source.alpha}`);
   assert.ok(inferred.lineWidth > source.lineWidth, `expected inferred width ${inferred.lineWidth} > source ${source.lineWidth}`);
 });
+
+function maxRadius(sim, concepts) {
+  return Math.max(...concepts.map((c) => Math.hypot(sim.positions[c.id].x, sim.positions[c.id].y)));
+}
+
+test('fragmented sparse graphs settle within a cohesive field', () => {
+  const concepts = Array.from({ length: 12 }, (_, i) => concept(`sparse-${i}`));
+  const edges = [
+    edge('a', 'sparse-0', 'sparse-1'),
+    edge('b', 'sparse-2', 'sparse-3'),
+    edge('c', 'sparse-4', 'sparse-5'),
+    edge('d', 'sparse-6', 'sparse-7'),
+  ];
+  const document = vm({ concepts, edges });
+  const sim = createLayoutSimulator(document);
+  sim.reheat(1);
+  step(sim, 260);
+
+  assert.equal(sim.layoutMeta.fragmented, true);
+  assert.ok(maxRadius(sim, concepts) < 520, `expected sparse graph max radius < 520, got ${maxRadius(sim, concepts)}`);
+});
+
+test('dense hub graphs preserve breathing room under adaptive cohesion', () => {
+  const concepts = [concept('hub'), ...Array.from({ length: 10 }, (_, i) => concept(`dense-${i}`))];
+  const edges = concepts.slice(1).map((c, i) => edge(`dense-edge-${i}`, 'hub', c.id));
+  const document = vm({ concepts, edges, importance: { hub: 1 } });
+  const sim = createLayoutSimulator(document);
+  sim.reheat(1);
+  step(sim, 260);
+
+  const hub = sim.positions.hub;
+  const avgLeafDistance = average(concepts.slice(1).map((c) => dist(hub, sim.positions[c.id])));
+  assert.equal(sim.layoutMeta.fragmented, false);
+  assert.ok(avgLeafDistance > 90, `expected dense hub breathing room > 90, got ${avgLeafDistance}`);
+});
