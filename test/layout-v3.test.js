@@ -243,3 +243,30 @@ test('dense hub graphs preserve breathing room under adaptive cohesion', () => {
   assert.equal(sim.layoutMeta.fragmented, false);
   assert.ok(avgLeafDistance > 90, `expected dense hub breathing room > 90, got ${avgLeafDistance}`);
 });
+
+test('layout config overrides relation rest distance', () => {
+  const document = vm({ concepts: [concept('a'), concept('b')], edges: [edge('ab', 'a', 'b')] });
+  const compact = createLayoutSimulator(document, { config: { baseLinkDistance: 60 } });
+  compact.reheat(1);
+  step(compact, 240);
+
+  const loose = createLayoutSimulator(document, { config: { baseLinkDistance: 140 } });
+  loose.reheat(1);
+  step(loose, 240);
+
+  const compactDistance = dist(compact.positions.a, compact.positions.b);
+  const looseDistance = dist(loose.positions.a, loose.positions.b);
+  assert.ok(looseDistance > compactDistance + 30, `expected loose distance ${looseDistance} > compact ${compactDistance} + 30`);
+  assert.equal(loose.layoutMeta.config.baseLinkDistance, 140);
+});
+
+test('updateConfig changes simulator config and reheats layout', () => {
+  const document = vm({ concepts: [concept('a'), concept('b')], edges: [edge('ab', 'a', 'b')] });
+  const sim = createLayoutSimulator(document, { config: { baseLinkDistance: 60 } });
+  sim.alpha = 0;
+
+  sim.updateConfig({ baseLinkDistance: 130 });
+
+  assert.equal(sim.layoutMeta.config.baseLinkDistance, 130);
+  assert.ok(sim.alpha > 0, `expected updateConfig to reheat, got alpha ${sim.alpha}`);
+});
