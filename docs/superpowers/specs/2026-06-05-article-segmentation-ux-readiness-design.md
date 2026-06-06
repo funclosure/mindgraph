@@ -131,24 +131,36 @@ Warnings:
 
 This lets MCP agents adapt without relying on natural-language inference.
 
-### 6. Viewer layout should keep sparse graphs cohesive
+### 6. Viewer layout should use adaptive cohesion, not stronger global gravity
 
-The current continuous layout allows disconnected or weakly connected components to drift too far apart. This is especially visible for article imports where the source may have sparse relations and weak temporal co-occurrence. The viewer should still preserve local separation, but the whole graph should read as one cohesive field.
+The current continuous layout allows disconnected or weakly connected components to drift too far apart. This is especially visible for article imports where the source may have sparse relations and weak temporal co-occurrence. However, testing the canonical Meaning Crisis sample shows the opposite failure mode: simply increasing global center gravity makes healthy dense graph regions feel too tight.
 
-Initial tuning target in `ui/layout.js`:
+The layout fix should therefore be adaptive rather than a constant bump.
 
-- Increase center gravity from the current gentle pull.
-- Reduce the center comfort radius so inward pull starts earlier.
-- Keep collision and unrelated-node separation strong enough that nodes do not collapse into a pile.
+Desired behavior:
+
+- Dense hubs, such as “Meaning Crisis”, keep enough local breathing room for labels and edges to remain legible.
+- Sparse disconnected or weakly connected components do not drift far off-canvas or create large empty regions.
+- The whole graph reads as a coherent field, but local clusters remain distinct.
+
+Initial policy direction in `ui/layout.js`:
+
+- Compute graph-shape signals during simulator setup: node count, relation density, connected component count, largest component ratio, and current warm-start bounds.
+- Apply stronger cohesion only when the graph is fragmented or the warm-start bounds are too large relative to node count.
+- Prefer a component-aware pull, e.g. gently pull each component centroid toward the global center, rather than applying the same inward force to every node.
+- Keep node-level collision and unrelated-node separation strong enough that dense hubs do not collapse.
+- Keep canonical dense documents as regression fixtures; they should not become tighter just because sparse article graphs need more cohesion.
 
 The intended feel is:
 
 ```text
-Before: small components scattered across the viewport with large empty regions.
-After: components remain distinct, but are clustered around a shared visual center.
+Sparse article graph before: small components scattered across the viewport with large empty regions.
+Sparse article graph after: components remain distinct, but orbit closer to a shared visual center.
+Dense Meaning Crisis graph before: readable clustered hubs.
+Dense Meaning Crisis graph after: similarly readable; no global squeeze.
 ```
 
-This is a viewer concern, not a document-schema concern. It should be verified against sparse one-article graphs and the canonical sample document.
+This is a viewer concern, not a document-schema concern. It should be verified against both sparse one-article graphs and the canonical sample document.
 
 ## Implementation notes
 
