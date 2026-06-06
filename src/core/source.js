@@ -27,28 +27,44 @@ function decodeHtmlEntities(text) {
     .replace(/&#39;/g, "'");
 }
 
-function extractTitle(html, fallback) {
-  const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1];
-  const title = h1 ?? html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? fallback;
-  return htmlToText(title).split('\n').map((line) => line.trim()).filter(Boolean)[0] ?? fallback;
-}
-
-export function htmlToText(html) {
-  const withoutNoise = String(html)
+function stripNoise(html) {
+  return String(html)
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
     .replace(/<header[\s\S]*?<\/header>/gi, ' ')
     .replace(/<footer[\s\S]*?<\/footer>/gi, ' ');
-  const article = withoutNoise.match(/<article[^>]*>([\s\S]*?)<\/article>/i)?.[1] ?? withoutNoise;
-  return decodeHtmlEntities(article)
-    .replace(/<\/(h1|h2|h3|p|li|blockquote)>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n\s+/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
+}
+
+function cleanBlock(html) {
+  return decodeHtmlEntities(String(html).replace(/<[^>]+>/g, ' '))
+    .replace(/[ \t\n\r]+/g, ' ')
     .trim();
+}
+
+export function extractArticleBlocks(html) {
+  const withoutNoise = stripNoise(html);
+  const article = withoutNoise.match(/<article[^>]*>([\s\S]*?)<\/article>/i)?.[1] ?? withoutNoise;
+  const blocks = [];
+  const blockPattern = /<(h1|h2|h3|h4|p|li|blockquote)[^>]*>([\s\S]*?)<\/\1>/gi;
+  let match;
+  while ((match = blockPattern.exec(article))) {
+    const block = cleanBlock(match[2]);
+    if (block) blocks.push(block);
+  }
+  if (blocks.length) return blocks;
+  const fallback = cleanBlock(article);
+  return fallback ? [fallback] : [];
+}
+
+export function htmlToText(html) {
+  return extractArticleBlocks(html).join('\n\n');
+}
+
+function extractTitle(html, fallback) {
+  const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1];
+  const title = h1 ?? html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? fallback;
+  return htmlToText(title).split('\n').map((line) => line.trim()).filter(Boolean)[0] ?? fallback;
 }
 
 async function prepareWebSource({ source, workspaceDir, title }) {
@@ -56,8 +72,9 @@ async function prepareWebSource({ source, workspaceDir, title }) {
   if (!response.ok) throw new Error(`Failed to fetch source: HTTP ${response.status} ${response.statusText}`);
   const html = await response.text();
   const resolvedTitle = title || extractTitle(html, new URL(source).hostname);
-  const text = htmlToText(html);
-  if (!text) throw new Error(`Fetched source did not contain readable text: ${source}`);
+  const blocks = extractArticleBlocks(html);
+  if (!blocks.length) throw new Error(`Fetched source did not contain readable text: ${source}`);
+  const text = blocks.join('\n\n');
   const transcriptsDir = path.join(workspaceDir, 'transcripts');
   fs.mkdirSync(transcriptsDir, { recursive: true });
   const preparedPath = path.join(transcriptsDir, `${slugifySourceTitle(resolvedTitle)}.txt`);

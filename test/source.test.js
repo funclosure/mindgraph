@@ -81,3 +81,46 @@ test('prepareSource returns a structured unsupported result for YouTube in this 
   assert.match(result.reason, /YouTube transcript import is not built into this slice/);
   assert.match(result.recoveryHint, /provide a transcript file/);
 });
+
+test('extractArticleBlocks preserves headings, paragraphs, list items, and blockquotes', async () => {
+  const { extractArticleBlocks } = await import('../src/core/source.js');
+  const blocks = extractArticleBlocks(`<!doctype html>
+    <html><body><article>
+      <h1>Main Title</h1>
+      <p>First paragraph with <strong>inline</strong> text.</p>
+      <h2>Second Section</h2>
+      <ul><li>First item</li><li>Second item</li></ul>
+      <blockquote>Quoted idea.</blockquote>
+    </article></body></html>`);
+
+  assert.deepEqual(blocks, [
+    'Main Title',
+    'First paragraph with inline text.',
+    'Second Section',
+    'First item',
+    'Second item',
+    'Quoted idea.',
+  ]);
+});
+
+test('prepareSource writes readable web article blocks separated by blank lines', async () => {
+  const workspace = makeTempWorkspace();
+  const server = http.createServer((req, res) => {
+    res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.end(`<!doctype html><html><body><article>
+      <h1>Structured Article</h1>
+      <p>Paragraph one.</p>
+      <p>Paragraph two.</p>
+      <p>Paragraph three.</p>
+    </article></body></html>`);
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  try {
+    const result = await prepareSource({ source: `http://127.0.0.1:${address.port}/structured`, workspaceDir: workspace });
+    const saved = fs.readFileSync(result.preparedPath, 'utf8');
+    assert.match(saved, /Structured Article\n\nParagraph one\.\n\nParagraph two\.\n\nParagraph three\./);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
