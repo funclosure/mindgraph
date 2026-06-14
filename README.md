@@ -120,6 +120,14 @@ mindgraph authoring compile examples/authoring/recursive-self-improvement.mindgr
 
 The Markdown file is the editing surface. The compiled JSON is the runtime artifact for validation, view-model construction, and future reader/workbench UI work.
 
+For a plain article or pasted text file, draft the editable Markdown and compiled JSON in one pass:
+
+```bash
+mindgraph authoring draft ./article.txt -o graphs/article.mindgraph.md --title "Article Title" --compile graphs/article.mindgraph.json
+```
+
+The draft command is deterministic bootstrap, not a final semantic digest. It creates a valid source-first graph shell so the next iteration can happen in `.mindgraph.md`.
+
 ## MCP usage
 
 mindgraph also ships a minimal MCP server for Claude Desktop and other MCP-capable apps:

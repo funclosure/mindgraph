@@ -12,6 +12,7 @@ import { buildStarterDigestOperation, prepareSourceOperation } from '../core/jou
 import { buildTimelineFromTranscript } from '../core/build.js';
 import { backfillFrameActivations, getConcept, getFrame, listConcepts, listFrames, mergeFrames, parseJsonValue, recomputeConceptStats, setFrameActivations, upsertConcept, upsertRelation } from '../core/document.js';
 import { compileAuthoringMarkdown } from '../core/authoring/compile.js';
+import { createAuthoringDraftFromText } from '../core/authoring/draft.js';
 import { formatSourceFirstValidationErrors } from '../core/authoring/schema.js';
 
 const pkg = createRequire(import.meta.url)('../../package.json');
@@ -26,6 +27,7 @@ Usage:
   mindgraph inspect <input-file>
   mindgraph authoring validate <input-file.md> [--json]
   mindgraph authoring compile <input-file.md> -o <output-file.json> [--json]
+  mindgraph authoring draft <input-file.txt> -o <output-file.md> [--title <title>] [--source-id <id>] [--compile <output-file.json>] [--json]
   mindgraph source import <source> [--workspace <dir>] [--title <title>] [--json]
   mindgraph digest <source> [-o <output-file>] [--workspace <dir>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>] [--json]
   mindgraph mcp [--workspace <dir>]
@@ -54,6 +56,7 @@ Commands:
   inspect                Print a concise summary of a document
   authoring validate     Validate a source-first mindgraph Markdown authoring document
   authoring compile      Compile mindgraph Markdown authoring to source-first runtime JSON
+  authoring draft        Draft editable source-first Markdown from a plain article/text file
   source import          Prepare a local file or readable web article for mindgraph ingestion
   digest                 High-level source→starter-document operation for agent-operated digestion
   mcp                    Start the mindgraph MCP server over stdio
@@ -296,6 +299,63 @@ if (command === 'authoring' && subcommand === 'compile') {
   writeJson(outputFile, result.document);
   if (flags['--json']) console.log(JSON.stringify({ ok: true, inputFile, outputFile, validation: result.validation }, null, 2));
   else console.log(`Compiled ${inputFile} to ${outputFile}`);
+  process.exit(0);
+}
+
+if (command === 'authoring' && subcommand === 'draft') {
+  const [inputFile, ...flagArgs] = rest;
+  if (!inputFile) {
+    console.error('Missing input file path.');
+    process.exit(1);
+  }
+  const flags = parseFlags(flagArgs);
+  const outputFile = requireFlag(flags, '-o', '--output');
+  if (!outputFile) {
+    console.error('Missing -o <output-file.md>.');
+    process.exit(1);
+  }
+
+  const compileOutputFile = requireFlag(flags, '--compile');
+  const text = fs.readFileSync(inputFile, 'utf8');
+  let draft;
+  try {
+    draft = createAuthoringDraftFromText(text, {
+      title: requireFlag(flags, '--title'),
+      sourceId: requireFlag(flags, '--source-id'),
+      sourcePath: inputFile,
+      runtime: compileOutputFile ? path.basename(compileOutputFile) : undefined,
+    });
+  } catch (error) {
+    if (flags['--json']) console.log(JSON.stringify({ ok: false, error: { message: error.message } }, null, 2));
+    else console.error(error.message);
+    process.exit(1);
+  }
+
+  if (!draft.validation.ok) {
+    if (flags['--json']) console.log(JSON.stringify({ ok: false, validation: draft.validation }, null, 2));
+    else {
+      console.error(`INVALID DRAFT: ${inputFile}`);
+      console.error(formatSourceFirstValidationErrors(draft.validation));
+    }
+    process.exit(1);
+  }
+
+  fs.mkdirSync(path.dirname(outputFile), { recursive: true });
+  fs.writeFileSync(outputFile, draft.markdown, 'utf8');
+  if (compileOutputFile) writeJson(compileOutputFile, draft.document);
+
+  if (flags['--json']) {
+    console.log(JSON.stringify({
+      ok: true,
+      inputFile,
+      outputFile,
+      ...(compileOutputFile ? { compiledFile: compileOutputFile } : {}),
+      validation: draft.validation,
+    }, null, 2));
+  } else {
+    console.log(`Drafted ${inputFile} to ${outputFile}`);
+    if (compileOutputFile) console.log(`Compiled ${outputFile} to ${compileOutputFile}`);
+  }
   process.exit(0);
 }
 
