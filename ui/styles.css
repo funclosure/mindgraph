@@ -157,23 +157,6 @@ button { cursor: pointer; color: inherit; }
   background: rgba(231, 203, 141, 0.85);
   box-shadow: 0 0 12px rgba(231, 203, 141, 0.4);
 }
-.strip .strip-drift {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: rgba(245, 234, 210, 0.7);
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-}
-.strip .strip-drift:hover { color: var(--text); }
-.strip .strip-drift.is-on {
-  background: rgba(244, 207, 134, 0.18);
-  border-color: rgba(244, 207, 134, 0.45);
-  color: var(--gold-bright);
-}
 
 .prose {
   grid-area: prose;
@@ -187,16 +170,29 @@ button { cursor: pointer; color: inherit; }
   color: rgba(232, 226, 211, 0.9);
 }
 .prose-article > :first-child { margin-top: 0; }
-.prose-chapter {
+.prose-overview {
   font-size: 1.08rem;
   font-weight: 600;
   color: var(--gold-bright);
   margin: 28px 0 10px;
   letter-spacing: 0.01em;
 }
-.prose-chapter:first-child { margin-top: 0; }
+.prose-overview:first-child { margin-top: 0; }
+.prose-block {
+  position: relative;
+  margin: 0 -14px 18px;
+  padding: 6px 12px 10px;
+  border-radius: 4px;
+  transition: background-color 160ms ease;
+}
+.prose-block.is-current {
+  background: rgba(244, 207, 134, 0.06);
+}
+.prose-block.is-current .prose-para {
+  color: rgba(255, 250, 238, 0.98);
+}
 .prose-para {
-  margin: 0 0 16px;
+  margin: 0;
 }
 .concept {
   color: var(--gold);

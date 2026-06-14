@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Prose panel renderer — chapters + paragraphs + concept-mention spans
+// Prose panel renderer — overview headings + paragraphs + concept-mention spans
 // ---------------------------------------------------------------------------
 
 import { escapeHtml } from '../util.js';
@@ -7,20 +7,33 @@ import { escapeHtml } from '../util.js';
 export function renderProse(chunks, state) {
   const activeIds = new Set(state.graphRenderState?.activeNodeIds ?? []);
   const selectedId = state.selectedConceptId;
-  const html = chunks.map((chunk) => renderChunk(chunk, activeIds, selectedId)).join('');
+  const playheadTime = state.playheadTime ?? 0;
+  const html = chunks.map((chunk) => renderChunk(chunk, activeIds, selectedId, playheadTime)).join('');
   return `<article class="prose-article">${html}</article>`;
 }
 
-function renderChunk(chunk, activeIds, selectedId) {
-  if (chunk.kind === 'chapter') {
-    return `<h2 class="prose-chapter" data-time-start="${chunk.timeSpan.start}">${escapeHtml(chunk.title)}</h2>`;
+function renderChunk(chunk, activeIds, selectedId, playheadTime) {
+  if (chunk.kind === 'overview') {
+    return `<h2 class="prose-overview" data-time-start="${chunk.timeSpan.start}">${escapeHtml(chunk.title)}</h2>`;
   }
-  return renderParagraph(chunk, activeIds, selectedId);
+  return renderParagraph(chunk, activeIds, selectedId, playheadTime);
 }
 
-function renderParagraph(para, activeIds, selectedId) {
+function renderParagraph(para, activeIds, selectedId, playheadTime) {
   const inner = renderParagraphInner(para.text, para.conceptMentions, activeIds, selectedId);
-  return `<p class="prose-para" data-time-start="${para.timeSpan.start}" data-time-end="${para.timeSpan.end}">${inner}</p>`;
+  const isCurrent = isTimeInSpan(playheadTime, para.timeSpan);
+  const cls = ['prose-block'];
+  if (isCurrent) cls.push('is-current');
+  return (
+    `<section class="${cls.join(' ')}" data-time-start="${para.timeSpan.start}" data-time-end="${para.timeSpan.end}">` +
+      `<p class="prose-para">${inner}</p>` +
+    `</section>`
+  );
+}
+
+function isTimeInSpan(time, span) {
+  if (!span || typeof time !== 'number') return false;
+  return time >= span.start && time < span.end;
 }
 
 function renderParagraphInner(text, mentions, activeIds, selectedId) {

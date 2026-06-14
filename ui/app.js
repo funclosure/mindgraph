@@ -9,7 +9,7 @@ import { bindEvents } from './events.js';
 import { createAnimator } from './animator.js';
 import { buildProseChunks } from '../src/view-model/buildProseChunks.js';
 import { renderProse } from './panels/prose.js';
-import { renderChapterStrip } from './panels/chapter-strip.js';
+import { renderOverviewStrip } from './panels/overview-strip.js';
 import { renderTopbar } from './panels/topbar.js';
 import { renderViewPopover } from './panels/view-popover.js';
 import { attachScrollBinding } from './scroll-binding.js';
@@ -39,7 +39,6 @@ const state = {
   selectedFrameRef: undefined,
   playheadTime: 0,
   activeLevel: 'macro',
-  isPlaying: false,
   viewPopoverOpen: false,
   prosCollapsed: false,
   camera: { zoom: 1, pan: { x: 0, y: 0 } },
@@ -63,6 +62,9 @@ async function bootstrap() {
   if (!response.ok) throw new Error(`HTTP ${response.status} loading ${DOC_PATH}`);
   state.document = await response.json();
   state.viewModel = buildMindgraphViewModel(state.document);
+  if (state.document.kind === 'mindgraph.source-first') {
+    state.activeLevel = 'readerStep';
+  }
   state.proseChunks = buildProseChunks(state.viewModel);
   state.sim = createLayoutSimulator(state.viewModel);
   Object.defineProperty(state, 'layout', {
@@ -75,8 +77,10 @@ async function bootstrap() {
     configurable: true,
   });
   state.playheadTime =
-    state.viewModel.frames.macro[0]?.span.start ??
-    state.viewModel.frames.meso[0]?.span.start ??
+    state.viewModel.sourceFlow?.overview?.[0]?.span.start ??
+    state.viewModel.sourceFlow?.sections?.[0]?.span.start ??
+    state.viewModel.frames?.macro?.[0]?.span.start ??
+    state.viewModel.frames?.meso?.[0]?.span.start ??
     0;
   state.viewport = applyDpr(canvas, ctx);
   // Initial fit uses the layout-fitter as a sensible start; the animator
@@ -134,7 +138,7 @@ function render() {
   state.graphRenderState = computeGraphRenderState();
   updateTopbar();
   updateProsePanel();
-  updateChapterStrip();
+  updateOverviewStrip();
   updateViewPopover();
   kickAnimationLoop();
   bindEvents(state, render, kickAnimationLoop);
@@ -244,10 +248,10 @@ function updateProsePanel() {
   el.scrollTop = saved;
 }
 
-function updateChapterStrip() {
-  const el = document.getElementById('chapter-strip');
+function updateOverviewStrip() {
+  const el = document.getElementById('overview-strip');
   if (!el) return;
-  el.innerHTML = renderChapterStrip(state.viewModel, state);
+  el.innerHTML = renderOverviewStrip(state.viewModel, state);
 }
 
 function updateViewPopover() {

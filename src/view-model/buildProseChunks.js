@@ -1,10 +1,10 @@
-// Pure helper — no DOM. Returns an array of { kind: 'chapter' | 'paragraph', ... }.
+// Pure helper — no DOM. Returns an array of { kind: 'overview' | 'paragraph', ... }.
 
 /**
- * @typedef {Object} ChapterChunk
- * @property {'chapter'} kind
- * @property {string} title          - From macro frame title
- * @property {Object} macroFrameRef  - { level: 'macro', index: number }
+ * @typedef {Object} OverviewChunk
+ * @property {'overview'} kind
+ * @property {string} title          - From overview frame title
+ * @property {Object} overviewFrameRef - { level: 'overview' | 'macro', index: number }
  * @property {Object} timeSpan       - { start: number, end: number }
  *
  * @typedef {Object} ParagraphChunk
@@ -14,41 +14,42 @@
  * @property {string[]} segmentIds                      - Source transcript segment ids
  * @property {Object} timeSpan                          - { start, end } union of segments
  * @property {Array<{start: number, end: number, conceptId: string}>} conceptMentions
+ * @property {Object} [focus]                           - Current reader-step focus for this paragraph
  */
 
 const PARAGRAPH_WORD_TARGET = 150;
 const PARAGRAPH_WORD_HARD_CEILING = 220;
 
 export function buildProseChunks(vm) {
-  const macro = vm.frames?.macro ?? [];
+  const overview = vm.sourceFlow?.overview ?? vm.frames?.macro ?? [];
   const segments = vm.transcript?.segments ?? [];
   const chunks = [];
   if (!segments.length) return chunks;
 
-  // Sort macro by start time so chapters are in narrative order.
-  const macroSorted = [...macro].sort((a, b) => a.span.start - b.span.start);
-  let macroCursor = 0;
+  // Sort overview frames by start time so headings are in narrative order.
+  const overviewSorted = [...overview].sort((a, b) => a.span.start - b.span.start);
+  let overviewCursor = 0;
 
   let para = newParagraph();
 
   for (let i = 0; i < segments.length; i += 1) {
     const seg = segments[i];
 
-    // Emit chapter heading for any macro chunk whose start ≤ seg.start.
-    while (macroCursor < macroSorted.length && macroSorted[macroCursor].span.start <= seg.start) {
-      // Flush the in-progress paragraph before the chapter heading.
+    // Emit overview heading for any overview chunk whose start ≤ seg.start.
+    while (overviewCursor < overviewSorted.length && overviewSorted[overviewCursor].span.start <= seg.start) {
+      // Flush the in-progress paragraph before the overview heading.
       if (para.segmentIds.length) {
         chunks.push(finalizeParagraph(para, vm));
         para = newParagraph();
       }
-      const macroFrame = macroSorted[macroCursor];
+      const overviewFrame = overviewSorted[overviewCursor];
       chunks.push({
-        kind: 'chapter',
-        title: macroFrame.title || `Chapter ${macroCursor + 1}`,
-        macroFrameRef: macroFrame.ref,
-        timeSpan: { start: macroFrame.span.start, end: macroFrame.span.end },
+        kind: 'overview',
+        title: overviewFrame.title || `Overview ${overviewCursor + 1}`,
+        overviewFrameRef: overviewFrame.ref,
+        timeSpan: { start: overviewFrame.span.start, end: overviewFrame.span.end },
       });
-      macroCursor += 1;
+      overviewCursor += 1;
     }
 
     // Paragraph break on speaker change.
@@ -100,6 +101,7 @@ function newParagraph() {
 
 function finalizeParagraph(para, vm) {
   para.conceptMentions = computeMentions(para.text, para.segmentIds, vm);
+  para.focus = computeFocus(para.timeSpan.start, vm);
   return para;
 }
 
@@ -146,6 +148,38 @@ function computeMentions(text, segmentIds, vm) {
     }
   }
   return deduped;
+}
+
+function computeFocus(time, vm) {
+  const frame = vm.selectors?.getActiveFrameAtTime?.('readerStep', time);
+  if (!frame) return undefined;
+  const concepts = (frame.foregroundConcepts ?? [])
+    .map((activation) => {
+      const concept = vm.concepts.byId?.[activation.id];
+      if (!concept) return undefined;
+      return {
+        id: activation.id,
+        label: concept.label,
+        weight: activation.weight,
+        ...(activation.mode ? { mode: activation.mode } : {}),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 4);
+  if (!concepts.length && !frame.summary) return undefined;
+  return {
+    timeLabel: formatClock(time),
+    summary: frame.summary ?? '',
+    concepts,
+  };
+}
+
+function formatClock(seconds) {
+  const total = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 function escapeRegExp(s) {

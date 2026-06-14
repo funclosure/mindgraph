@@ -1,10 +1,9 @@
 // ---------------------------------------------------------------------------
-// Events — bindEvents, playback controls, toolbar + canvas interactions
+// Events — bindEvents, toolbar + canvas interactions
 // ---------------------------------------------------------------------------
 
 import { screenToWorld, zoomAround, applyDpr } from './camera.js';
 import { hitTestAt } from './hit-test.js';
-import { startDrift, stopDrift, isDriftActive } from './drift.js';
 
 function resizeCanvasNow(state) {
   // Synchronously match the canvas's pixel buffer to its CSS box.
@@ -17,11 +16,11 @@ function resizeCanvasNow(state) {
   state.viewport = applyDpr(canvas, ctx);
 }
 
-function scrollProseToChapter(macroIndex) {
+function scrollProseToOverview(overviewIndex) {
   const container = document.getElementById('prose');
   if (!container) return;
-  const headings = container.querySelectorAll('.prose-chapter');
-  const heading = headings[macroIndex];
+  const headings = container.querySelectorAll('.prose-overview');
+  const heading = headings[overviewIndex];
   if (!heading) return;
   const containerRect = container.getBoundingClientRect();
   const headingRect = heading.getBoundingClientRect();
@@ -48,16 +47,6 @@ function cssEscape(s) {
   // Defensive escape for selectors. Modern browsers have CSS.escape; fall back.
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(s);
   return String(s).replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch.charCodeAt(0).toString(16)} `);
-}
-
-function computePixelsPerSecond(container, vm) {
-  // Pixels-per-second so the prose advances at speech rate. For timed
-  // sources we use the document duration. For untimed sources the
-  // producer's wordsPerMinute (default 150) yields synthetic spans whose
-  // total still equals durationSeconds — same formula works.
-  const totalSec = Math.max(1, vm.documentMeta.durationSeconds);
-  const totalPx = Math.max(1, container.scrollHeight - container.clientHeight);
-  return totalPx / totalSec;
 }
 
 // bindEvents is called every render because innerHTML replaces DOM nodes and
@@ -137,37 +126,19 @@ export function bindEvents(state, render, scheduleDraw) {
     });
   });
 
-  document.querySelectorAll('[data-action="jump-chapter"]').forEach((btn) => {
+  document.querySelectorAll('[data-action="jump-overview"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const idx = Number(btn.dataset.macroIndex);
-      const frame = state.viewModel.frames.macro?.[idx];
+      const idx = Number(btn.dataset.overviewIndex);
+      const overviewLevel = state.viewModel.sourceFlow ? 'overview' : 'macro';
+      const frame = state.viewModel.sourceFlow?.overview?.[idx] ?? state.viewModel.frames?.macro?.[idx];
       if (!frame) return;
       state.playheadTime = frame.span.start;
-      state.selectedFrameRef = { level: 'macro', index: idx };
+      state.selectedFrameRef = { level: overviewLevel, index: idx };
       state.selectedConceptId = undefined;
       state.cameraMode = 'selection';
-      // Smooth-scroll the prose to the chapter heading. The scroll-binding
+      // Smooth-scroll the prose to the overview heading. The scroll-binding
       // will then re-confirm the playhead from the centered paragraph.
-      scrollProseToChapter(idx);
-      render();
-    });
-  });
-
-  document.querySelectorAll('[data-action="toggle-drift"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const container = document.getElementById('prose');
-      if (!container) return;
-      if (isDriftActive()) {
-        stopDrift();
-        render();
-        return;
-      }
-      const pps = computePixelsPerSecond(container, state.viewModel);
-      startDrift({
-        container,
-        pixelsPerSecond: pps,
-        onCancel: () => render(),
-      });
+      scrollProseToOverview(idx);
       render();
     });
   });

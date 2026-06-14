@@ -8,9 +8,17 @@ function isSourceFirstDocument(document) {
   return document?.kind === 'mindgraph.source-first';
 }
 
-function spanForIndexes(startIndex, count) {
-  const start = startIndex * SOURCE_FIRST_SEGMENT_SECONDS;
-  const end = Math.max(start + SOURCE_FIRST_SEGMENT_SECONDS, (startIndex + Math.max(1, count)) * SOURCE_FIRST_SEGMENT_SECONDS);
+function sourceFirstSegmentSeconds(document, blockCount) {
+  const durationSeconds = document?.meta?.durationSeconds;
+  if (typeof durationSeconds === 'number' && Number.isFinite(durationSeconds) && durationSeconds > 0 && blockCount > 0) {
+    return durationSeconds / blockCount;
+  }
+  return SOURCE_FIRST_SEGMENT_SECONDS;
+}
+
+function spanForIndexes(startIndex, count, segmentSeconds = SOURCE_FIRST_SEGMENT_SECONDS) {
+  const start = startIndex * segmentSeconds;
+  const end = Math.max(start + segmentSeconds, (startIndex + Math.max(1, count)) * segmentSeconds);
   return { start, end };
 }
 
@@ -40,10 +48,11 @@ function relationActivationFromStep(step, relationIdSet) {
 
 function normalizeSourceFirstForViewModel(document) {
   const orderedBlocks = [...(document.sourceBlocks ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const segmentSeconds = sourceFirstSegmentSeconds(document, orderedBlocks.length);
   const blockIndexById = Object.fromEntries(orderedBlocks.map((block, index) => [block.id, index]));
   const blockSpanById = {};
   const segments = orderedBlocks.map((block, index) => {
-    const span = spanForIndexes(index, 1);
+    const span = spanForIndexes(index, 1, segmentSeconds);
     blockSpanById[block.id] = span;
     return {
       id: block.id,
@@ -56,7 +65,7 @@ function normalizeSourceFirstForViewModel(document) {
 
   const firstSeenByBlockId = Object.fromEntries(Object.entries(blockSpanById).map(([id, span]) => [id, span.start]));
   const relationIdSet = new Set((document.relations ?? []).map((relation) => relation.id));
-  const micro = (document.readerSteps ?? []).map((step, index) => {
+  const readerSteps = (document.readerSteps ?? []).map((step, index) => {
     const sortedBlockIds = [...(step.sourceBlockIds ?? [])].sort((a, b) => (blockIndexById[a] ?? 0) - (blockIndexById[b] ?? 0));
     const span = unionSpan(sortedBlockIds.map((id) => blockSpanById[id]));
     return {
@@ -74,17 +83,17 @@ function normalizeSourceFirstForViewModel(document) {
       backgroundConcepts: [],
       activeRelations: relationActivationFromStep(step, relationIdSet),
       sourceFrameRefs: [],
-      meta: { sourceFirstStepId: step.id, microIndex: index },
+      meta: { sourceFirstStepId: step.id, readerStepIndex: index },
     };
   });
 
-  const microIndexByStepId = Object.fromEntries((document.readerSteps ?? []).map((step, index) => [step.id, index]));
-  const meso = (document.sections ?? []).map((section, index) => {
+  const readerStepIndexById = Object.fromEntries((document.readerSteps ?? []).map((step, index) => [step.id, index]));
+  const sections = (document.sections ?? []).map((section, index) => {
     const sourceFrameRefs = (section.readerStepIds ?? [])
-      .map((stepId) => microIndexByStepId[stepId])
-      .filter((microIndex) => microIndex != null)
-      .map((microIndex) => ({ level: 'micro', index: microIndex }));
-    const childFrames = sourceFrameRefs.map((ref) => micro[ref.index]).filter(Boolean);
+      .map((stepId) => readerStepIndexById[stepId])
+      .filter((readerStepIndex) => readerStepIndex != null)
+      .map((readerStepIndex) => ({ level: 'readerStep', index: readerStepIndex }));
+    const childFrames = sourceFrameRefs.map((ref) => readerSteps[ref.index]).filter(Boolean);
     const span = unionSpan(childFrames.map((frame) => frame.span));
     return {
       id: section.id,
@@ -97,22 +106,22 @@ function normalizeSourceFirstForViewModel(document) {
       activeRelations: mergeRelationActivations(childFrames.flatMap((frame) => frame.activeRelations)),
       sourceSegmentIds: unique(childFrames.flatMap((frame) => frame.sourceSegmentIds)),
       sourceFrameRefs,
-      meta: { sourceFirstSectionId: section.id, mesoIndex: index },
+      meta: { sourceFirstSectionId: section.id, sectionIndex: index },
     };
   });
 
-  const macroSpan = unionSpan(meso.map((frame) => frame.span));
-  const macro = [{
+  const overviewSpan = unionSpan(sections.map((frame) => frame.span));
+  const overview = [{
     id: 'source-first-overview',
     title: document.title ?? 'Untitled Mindgraph',
-    t: macroSpan.start,
-    span: macroSpan,
+    t: overviewSpan.start,
+    span: overviewSpan,
     summary: (document.sections ?? []).map((section) => section.summary).filter(Boolean).join(' '),
-    foregroundConcepts: mergeConceptActivations(meso.flatMap((frame) => frame.foregroundConcepts)),
+    foregroundConcepts: mergeConceptActivations(sections.flatMap((frame) => frame.foregroundConcepts)),
     backgroundConcepts: [],
-    activeRelations: mergeRelationActivations(meso.flatMap((frame) => frame.activeRelations)),
-    sourceSegmentIds: unique(meso.flatMap((frame) => frame.sourceSegmentIds)),
-    sourceFrameRefs: meso.map((_, index) => ({ level: 'meso', index })),
+    activeRelations: mergeRelationActivations(sections.flatMap((frame) => frame.activeRelations)),
+    sourceSegmentIds: unique(sections.flatMap((frame) => frame.sourceSegmentIds)),
+    sourceFrameRefs: sections.map((_, index) => ({ level: 'section', index })),
     meta: { sourceFirst: true },
   }];
 
@@ -128,7 +137,7 @@ function normalizeSourceFirstForViewModel(document) {
       atomic: (document.concepts?.atomic ?? []).map((concept) => toLegacyConcept(concept, firstSeenByBlockId)),
       clustered: document.concepts?.clustered ?? [],
     },
-    frames: { micro, meso, macro },
+    sourceFlow: { readerSteps, sections, overview },
   };
 }
 
@@ -186,7 +195,14 @@ function clamp01(n) {
   return n;
 }
 
-function computeCoOccurrence(framesVM, nodes) {
+function flowFrames(timelineVM) {
+  if (!timelineVM) return [];
+  return Object.values(timelineVM)
+    .filter(Array.isArray)
+    .flat();
+}
+
+function computeCoOccurrence(timelineVM, nodes) {
   // Per spec § Spring forces — co-occurrence-driven distance.
   //
   //   score(i, j) = w_micro × Σ duration(f) over micro frames where both i,j ∈ foreground
@@ -204,18 +220,14 @@ function computeCoOccurrence(framesVM, nodes) {
   // measures "both were the topic of this frame at the same time" — sharper
   // semantic, and background concepts are still represented in the layout via
   // explicit relations, cluster siblings, and charge balance.
-  const LEVEL_WEIGHTS = { micro: 1, meso: 1, macro: 1 };
   const DEFAULT_FRAME_DURATION = 30; // 30 s fallback for any frame with non-positive computed duration — including open-ended end-of-doc frames
 
   const atomicIds = new Set(nodes.filter((n) => n.level === 'atomic').map((n) => n.id));
   const result = {};
 
-  for (const level of ['micro', 'meso', 'macro']) {
-    const weight = LEVEL_WEIGHTS[level];
-    const frames = framesVM[level] ?? [];
-    for (const frame of frames) {
+  for (const frame of flowFrames(timelineVM)) {
       const dur = Math.max(0, (frame.span?.end ?? 0) - (frame.span?.start ?? 0)) || DEFAULT_FRAME_DURATION;
-      const contribution = weight * dur;
+      const contribution = dur;
 
       // Concepts in this frame, foreground-only, atomic-only, deduped.
       const ids = [];
@@ -239,7 +251,6 @@ function computeCoOccurrence(framesVM, nodes) {
           result[b][a] = (result[b][a] ?? 0) + contribution;
         }
       }
-    }
   }
 
   return result;
@@ -265,6 +276,9 @@ function deriveFirstSeenAt(document) {
   // level. Returns { conceptId: firstSeenAt }.
   const firstSeen = {};
   const allFrames = [
+    ...(document.sourceFlow?.readerSteps ?? []),
+    ...(document.sourceFlow?.sections ?? []),
+    ...(document.sourceFlow?.overview ?? []),
     ...(document.frames?.micro ?? []),
     ...(document.frames?.meso ?? []),
     ...(document.frames?.macro ?? []),
@@ -409,7 +423,7 @@ function normalizeFrame(rawFrame, level, index, conceptsVM, relationsVM) {
   };
 }
 
-function buildFramesVM(document, conceptsVM, relationsVM) {
+function buildLegacyFramesVM(document, conceptsVM, relationsVM) {
   const micro = (document.frames?.micro ?? []).map((frame, index) => normalizeFrame(frame, 'micro', index, conceptsVM, relationsVM));
   const meso = (document.frames?.meso ?? []).map((frame, index) => normalizeFrame(frame, 'meso', index, conceptsVM, relationsVM));
   const macro = (document.frames?.macro ?? []).map((frame, index) => normalizeFrame(frame, 'macro', index, conceptsVM, relationsVM));
@@ -428,7 +442,15 @@ function buildFramesVM(document, conceptsVM, relationsVM) {
   return { micro, meso, macro, byRef };
 }
 
-function assignFrameAncestry(framesVM) {
+function buildSourceFlowVM(document, conceptsVM, relationsVM) {
+  const readerSteps = (document.sourceFlow?.readerSteps ?? []).map((frame, index) => normalizeFrame(frame, 'readerStep', index, conceptsVM, relationsVM));
+  const sections = (document.sourceFlow?.sections ?? []).map((frame, index) => normalizeFrame(frame, 'section', index, conceptsVM, relationsVM));
+  const overview = (document.sourceFlow?.overview ?? []).map((frame, index) => normalizeFrame(frame, 'overview', index, conceptsVM, relationsVM));
+  const byRef = Object.fromEntries([...readerSteps, ...sections, ...overview].map((frame) => [frame.key, frame]));
+  return { readerSteps, sections, overview, byRef };
+}
+
+function assignLegacyFrameAncestry(framesVM) {
   const mesoParentsByMicroKey = {};
   for (const mesoFrame of framesVM.meso) {
     for (const ref of mesoFrame.sourceFrameRefs) {
@@ -456,7 +478,38 @@ function assignFrameAncestry(framesVM) {
   }
 }
 
-function buildGraphVM(conceptsVM, relationsVM, framesVM, rawRelations) {
+function assignSourceFlowAncestry(sourceFlowVM) {
+  const sectionParentsByReaderStepKey = {};
+  for (const section of sourceFlowVM.sections) {
+    section.ancestry.readerStep = section.sourceFrameRefs.filter((ref) => ref.level === 'readerStep');
+    for (const ref of section.sourceFrameRefs) {
+      if (ref.level === 'readerStep') sectionParentsByReaderStepKey[frameRefKey(ref.level, ref.index)] = section.ref;
+    }
+  }
+
+  const overviewParentsBySectionKey = {};
+  for (const overview of sourceFlowVM.overview) {
+    overview.ancestry.section = overview.sourceFrameRefs.find((ref) => ref.level === 'section');
+    overview.ancestry.readerStep = [];
+    for (const ref of overview.sourceFrameRefs) {
+      if (ref.level === 'section') overviewParentsBySectionKey[frameRefKey(ref.level, ref.index)] = overview.ref;
+    }
+  }
+
+  for (const readerStep of sourceFlowVM.readerSteps) {
+    const sectionRef = sectionParentsByReaderStepKey[readerStep.key];
+    if (sectionRef) readerStep.ancestry.section = sectionRef;
+    const overviewRef = sectionRef ? overviewParentsBySectionKey[frameRefKey(sectionRef.level, sectionRef.index)] : undefined;
+    if (overviewRef) readerStep.ancestry.overview = overviewRef;
+  }
+
+  for (const section of sourceFlowVM.sections) {
+    const overviewRef = overviewParentsBySectionKey[section.key];
+    if (overviewRef) section.ancestry.overview = overviewRef;
+  }
+}
+
+function buildGraphVM(conceptsVM, relationsVM, timelineVM, rawRelations) {
   const nodes = [...conceptsVM.clustered, ...conceptsVM.atomic].map((concept) => ({
     id: concept.id,
     label: concept.label,
@@ -499,22 +552,22 @@ function buildGraphVM(conceptsVM, relationsVM, framesVM, rawRelations) {
   }
 
   const conceptImportance = computeConceptImportance(nodes);
-  const coOccurrence = computeCoOccurrence(framesVM, nodes);
+  const coOccurrence = computeCoOccurrence(timelineVM, nodes);
 
   return { nodes, edges, nodeById, edgesByNodeId, conceptImportance, coOccurrence };
 }
 
-function buildIndexesVM(conceptsVM, framesVM, transcriptVM) {
+function buildIndexesVM(conceptsVM, timelineVM, transcriptVM) {
   const conceptToFrameRefs = {};
   const conceptToTranscriptSegmentIds = {};
   const frameToTranscriptSegments = {};
   const frameChildren = {};
   const frameParent = {};
 
-  for (const frame of [...framesVM.micro, ...framesVM.meso, ...framesVM.macro]) {
+  for (const frame of flowFrames(timelineVM)) {
     frameToTranscriptSegments[frame.key] = frame.sourceSegmentIds.map((id) => transcriptVM.byId[id]).filter(Boolean);
     frameChildren[frame.key] = frame.sourceFrameRefs ?? [];
-    frameParent[frame.key] = frame.ancestry.meso || frame.ancestry.macro;
+    frameParent[frame.key] = frame.ancestry.section || frame.ancestry.overview || frame.ancestry.meso || frame.ancestry.macro;
 
     const allActivations = [...frame.foregroundConcepts, ...frame.backgroundConcepts];
     const conceptIdsInFrame = new Set(allActivations.map((a) => a.id));
@@ -537,9 +590,10 @@ function buildIndexesVM(conceptsVM, framesVM, transcriptVM) {
   };
 }
 
-function buildDocumentMetaVM(document, conceptsVM, relationsVM, framesVM, transcriptVM) {
-  const allFrames = [...framesVM.micro, ...framesVM.meso, ...framesVM.macro];
+function buildDocumentMetaVM(document, conceptsVM, relationsVM, timelineVM, transcriptVM) {
+  const allFrames = flowFrames(timelineVM);
   const durationSeconds = allFrames.length ? Math.max(...allFrames.map((frame) => frame.span.end)) : 0;
+  const sourceFirst = Boolean(document.sourceFlow);
 
   return {
     title: document.transcript?.title ?? 'Untitled Transcript',
@@ -551,30 +605,65 @@ function buildDocumentMetaVM(document, conceptsVM, relationsVM, framesVM, transc
       atomicConcepts: conceptsVM.atomic.length,
       clusteredConcepts: conceptsVM.clustered.length,
       relations: relationsVM.all.length,
-      microFrames: framesVM.micro.length,
-      mesoFrames: framesVM.meso.length,
-      macroFrames: framesVM.macro.length,
+      ...(sourceFirst
+        ? {
+            readerSteps: timelineVM.readerSteps.length,
+            sections: timelineVM.sections.length,
+            overview: timelineVM.overview.length,
+          }
+        : {
+            microFrames: timelineVM.micro.length,
+            mesoFrames: timelineVM.meso.length,
+            macroFrames: timelineVM.macro.length,
+          }),
     },
   };
 }
 
 function buildSelectors(viewModel) {
-  const { concepts, relations, frames, transcript, indexes } = viewModel;
+  const { concepts, relations, transcript, indexes } = viewModel;
+  const timeline = viewModel.sourceFlow ?? viewModel.frames;
+
+  function collectionForLevel(level) {
+    if (!viewModel.sourceFlow) return timeline[level];
+    if (level === 'readerStep') return timeline.readerSteps;
+    if (level === 'section') return timeline.sections;
+    if (level === 'overview') return timeline.overview;
+    return undefined;
+  }
+
+  function activeFrameSequence(level, time) {
+    if (viewModel.sourceFlow) {
+      if (level === 'overview') return [getActiveFrameAtTime('overview', time), getActiveFrameAtTime('section', time)];
+      if (level === 'section') return [getActiveFrameAtTime('section', time)];
+      return [getActiveFrameAtTime('readerStep', time)];
+    }
+    if (level === 'macro') return [getActiveFrameAtTime('macro', time), getActiveFrameAtTime('meso', time)];
+    if (level === 'meso') return [getActiveFrameAtTime('meso', time)];
+    return [getActiveFrameAtTime(level, time)];
+  }
 
   function getFrame(ref) {
-    return frames.byRef[frameRefKey(ref.level, ref.index)];
+    return timeline.byRef[frameRefKey(ref.level, ref.index)];
   }
 
   function getActiveFrameAtTime(level, time) {
-    return frames[level].find((frame) => frame.span.start <= time && time < frame.span.end);
+    const collection = collectionForLevel(level);
+    return collection?.find((frame) => frame.span.start <= time && time < frame.span.end);
   }
 
   function getActiveFramesAtTime(time) {
-    return {
-      micro: getActiveFrameAtTime('micro', time),
-      meso: getActiveFrameAtTime('meso', time),
-      macro: getActiveFrameAtTime('macro', time),
-    };
+    return viewModel.sourceFlow
+      ? {
+          readerStep: getActiveFrameAtTime('readerStep', time),
+          section: getActiveFrameAtTime('section', time),
+          overview: getActiveFrameAtTime('overview', time),
+        }
+      : {
+          micro: getActiveFrameAtTime('micro', time),
+          meso: getActiveFrameAtTime('meso', time),
+          macro: getActiveFrameAtTime('macro', time),
+        };
   }
 
   function getActiveConceptActivationsAtTime(time, level) {
@@ -600,14 +689,7 @@ function buildSelectors(viewModel) {
         }
       }
     };
-    if (level === 'macro') {
-      push(getActiveFrameAtTime('macro', time));
-      push(getActiveFrameAtTime('meso', time));
-    } else if (level === 'meso') {
-      push(getActiveFrameAtTime('meso', time));
-    } else {
-      push(getActiveFrameAtTime(level, time));
-    }
+    for (const frame of activeFrameSequence(level, time)) push(frame);
     return ids;
   }
 
@@ -618,19 +700,19 @@ function buildSelectors(viewModel) {
   function getActiveRelationActivationsAtTime(time, level) {
     // Mirror the concept-activation cascade: at macro level, include the meso
     // frame's active relations so per-paragraph relation highlighting works.
-    if (level === 'macro') {
-      const macroFrame = getActiveFrameAtTime('macro', time);
-      const mesoFrame = getActiveFrameAtTime('meso', time);
+    if ((viewModel.sourceFlow && level === 'overview') || (!viewModel.sourceFlow && level === 'macro')) {
       const seen = new Set();
       const result = [];
-      for (const a of [...(macroFrame?.activeRelations ?? []), ...(mesoFrame?.activeRelations ?? [])]) {
-        if (seen.has(a.id)) continue;
-        seen.add(a.id);
-        result.push(a);
+      for (const frame of activeFrameSequence(level, time)) {
+        for (const a of frame?.activeRelations ?? []) {
+          if (seen.has(a.id)) continue;
+          seen.add(a.id);
+          result.push(a);
+        }
       }
       return result;
     }
-    const frame = getActiveFrameAtTime(level, time);
+    const frame = activeFrameSequence(level, time)[0];
     return frame?.activeRelations ?? [];
   }
 
@@ -655,7 +737,7 @@ function buildSelectors(viewModel) {
   function getConceptStrongestFrames(id, limit = 5) {
     const frameKeys = indexes.conceptToFrameRefs[id] ?? [];
     return frameKeys
-      .map((key) => frames.byRef[key])
+      .map((key) => timeline.byRef[key])
       .filter(Boolean)
       .sort((a, b) => {
         const maxA = Math.max(0, ...[...a.foregroundConcepts, ...a.backgroundConcepts].filter((c) => c.id === id).map((c) => c.weight));
@@ -732,22 +814,28 @@ function buildSelectors(viewModel) {
 }
 
 export function buildMindgraphViewModel(document) {
+  const sourceFirst = isSourceFirstDocument(document);
   const normalizedDocument = isSourceFirstDocument(document) ? normalizeSourceFirstForViewModel(document) : document;
   const transcript = buildTranscriptVM(normalizedDocument);
   const concepts = buildConceptsVM(normalizedDocument);
   const relations = buildRelationsVM(normalizedDocument);
-  const frames = buildFramesVM(normalizedDocument, concepts, relations);
-  assignFrameAncestry(frames);
-  const graph = buildGraphVM(concepts, relations, frames, normalizedDocument.relations ?? []);
-  const indexes = buildIndexesVM(concepts, frames, transcript);
-  const documentMeta = buildDocumentMetaVM(normalizedDocument, concepts, relations, frames, transcript);
+  const timeline = sourceFirst
+    ? buildSourceFlowVM(normalizedDocument, concepts, relations)
+    : buildLegacyFramesVM(normalizedDocument, concepts, relations);
+  if (sourceFirst) assignSourceFlowAncestry(timeline);
+  else assignLegacyFrameAncestry(timeline);
+  const graph = buildGraphVM(concepts, relations, timeline, normalizedDocument.relations ?? []);
+  const indexes = buildIndexesVM(concepts, timeline, transcript);
+  const documentMeta = buildDocumentMetaVM(normalizedDocument, concepts, relations, timeline, transcript);
 
   const viewModel = {
     documentMeta,
     transcript,
     concepts,
     relations,
-    frames,
+    ...(sourceFirst
+      ? { sourceFlow: timeline }
+      : { frames: timeline }),
     graph,
     indexes,
   };

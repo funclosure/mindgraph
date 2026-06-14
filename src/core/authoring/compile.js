@@ -111,11 +111,17 @@ function inlineRelationFrom(item, sourceBlockIds) {
   };
 }
 
+function durationSecondsFromMeta(meta) {
+  const value = meta.duration_seconds ?? meta.durationSeconds;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
 export function compileAuthoringModel(model) {
   const explicitRelations = model.relations.map(relationFrom);
   const explicitRelationKeys = new Map(
     explicitRelations.map((relation) => [`${relation.from}|${relation.type}|${relation.to}`, relation.id]),
   );
+  const durationSeconds = durationSecondsFromMeta(model.meta);
 
   const inlineRelations = [];
   const inlineSignatures = new Set(explicitRelationKeys.keys());
@@ -150,6 +156,7 @@ export function compileAuthoringModel(model) {
     intakes: [],
     revisions: [],
     meta: {
+      ...(durationSeconds ? { durationSeconds } : {}),
       authoring: {
         kind: model.meta.kind,
         runtime: model.meta.runtime,

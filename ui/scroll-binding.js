@@ -21,25 +21,28 @@ export function attachScrollBinding({ container, getState, onChange }) {
       // Only write if the playhead actually moves; avoids re-render storms.
       if (Math.abs((state.playheadTime ?? 0) - t) < 0.05) return;
       state.playheadTime = t;
+      state.selectedConceptId = undefined;
+      state.selectedFrameRef = undefined;
+      state.cameraMode = 'auto';
       onChange();
     });
   });
 }
 
-// Find the paragraph whose box overlaps the vertical center of the
+// Find the prose block whose box overlaps the vertical center of the
 // container's viewport. Falls back to the paragraph above if the center
 // lands in a gap.
 function computeCenteredPlayhead(container) {
   const containerRect = container.getBoundingClientRect();
   const centerY = containerRect.top + containerRect.height / 2;
-  const paras = container.querySelectorAll('.prose-para[data-time-start]');
-  if (!paras.length) return null;
+  const blocks = container.querySelectorAll('.prose-block[data-time-start]');
+  if (!blocks.length) return null;
 
-  let chosen = paras[0];
-  for (const p of paras) {
-    const r = p.getBoundingClientRect();
+  let chosen = blocks[0];
+  for (const block of blocks) {
+    const r = block.getBoundingClientRect();
     if (r.top > centerY) break; // paragraph starts below the center; stop — chosen is the one above.
-    chosen = p;
+    chosen = block;
   }
   const startStr = chosen.getAttribute('data-time-start');
   const start = Number(startStr);

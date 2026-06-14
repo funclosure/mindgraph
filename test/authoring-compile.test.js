@@ -99,6 +99,40 @@ first_seen: b001
   assert.equal(document.readerSteps[0].focusRelations[0].id, 'recursive-self-improvement-depends_on-feedback-loop');
 });
 
+test('compileAuthoringMarkdown carries source duration metadata', () => {
+  const markdown = `---
+kind: mindgraph.authoring
+version: 1
+title: Timed Source
+duration_seconds: 90
+---
+
+@source src
+type: transcript
+title: Source
+
+@block b001 source=src kind=transcript
+Opening.
+
+@step s001 section=setup blocks=b001
+summary: Timed source.
+focus:
+  - timed-source 1 explicit
+
+@section setup
+title: Setup
+steps: s001
+
+@concept timed-source
+label: Timed Source
+first_seen: b001
+`;
+
+  const { document, validation } = compileAuthoringMarkdown(markdown);
+  assert.equal(validation.ok, true, validation.errors.join('\n'));
+  assert.equal(document.meta.durationSeconds, 90);
+});
+
 test('CLI validates and compiles authoring markdown', () => {
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mindgraph-authoring-cli-'));
   const outPath = path.join(outDir, 'compiled.mindgraph.json');

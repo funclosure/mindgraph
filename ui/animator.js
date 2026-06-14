@@ -185,7 +185,7 @@ export function createAnimator(options = {}) {
 
     let effectiveTarget = cameraTarget;
     if (effectiveTarget) {
-      if (opts.activeLevel === 'micro') {
+      if (opts.activeLevel === 'micro' || opts.activeLevel === 'readerStep') {
         microSmoothBuffer.push({ ...effectiveTarget });
         while (microSmoothBuffer.length > MICRO_SMOOTH_SIZE) microSmoothBuffer.shift();
         let scx = 0, scy = 0, szoom = 0;

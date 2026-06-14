@@ -417,8 +417,10 @@ export function createLayoutSimulator(viewModel, options = {}) {
   // starting playhead time. Invisible concepts keep their warm-start position
   // until bloom placement moves them near a visible neighbor.
   const initialPlayheadTime =
-    viewModel.frames.macro[0]?.span?.start ??
-    viewModel.frames.meso[0]?.span?.start ??
+    viewModel.sourceFlow?.overview?.[0]?.span?.start ??
+    viewModel.sourceFlow?.sections?.[0]?.span?.start ??
+    viewModel.frames?.macro?.[0]?.span?.start ??
+    viewModel.frames?.meso?.[0]?.span?.start ??
     0;
   for (const concept of atomic) {
     const seen = concept.firstSeenAt;

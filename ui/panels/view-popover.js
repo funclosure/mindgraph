@@ -4,10 +4,21 @@
 
 export function renderViewPopover(state) {
   if (!state.viewPopoverOpen) return '';
-  const levelButtons = ['macro', 'meso', 'micro']
-    .map((level) => {
+  const levels = state.document?.kind === 'mindgraph.source-first'
+    ? [
+        ['overview', 'overview'],
+        ['section', 'section'],
+        ['readerStep', 'reader step'],
+      ]
+    : [
+        ['macro', 'macro'],
+        ['meso', 'meso'],
+        ['micro', 'micro'],
+      ];
+  const levelButtons = levels
+    .map(([level, label]) => {
       const active = state.activeLevel === level;
-      return `<button type="button" class="vp-level ${active ? 'is-active' : ''}" data-action="set-level" data-level="${level}">${level}</button>`;
+      return `<button type="button" class="vp-level ${active ? 'is-active' : ''}" data-action="set-level" data-level="${level}">${label}</button>`;
     })
     .join('');
   return `

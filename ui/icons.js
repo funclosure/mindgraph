@@ -35,16 +35,3 @@ export function panelRightOpenIcon(opts = {}) {
     <path d="m10 15-3-3 3-3"/>
   `);
 }
-
-export function playIcon(opts = {}) {
-  return svg(opts, `
-    <polygon points="6 3 20 12 6 21 6 3"/>
-  `);
-}
-
-export function pauseIcon(opts = {}) {
-  return svg(opts, `
-    <rect x="6" y="4" width="4" height="16" rx="1"/>
-    <rect x="14" y="4" width="4" height="16" rx="1"/>
-  `);
-}
