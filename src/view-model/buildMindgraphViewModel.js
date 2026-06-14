@@ -2,6 +2,158 @@ function frameRefKey(level, index) {
   return `${level}:${index}`;
 }
 
+const SOURCE_FIRST_SEGMENT_SECONDS = 60;
+
+function isSourceFirstDocument(document) {
+  return document?.kind === 'mindgraph.source-first';
+}
+
+function spanForIndexes(startIndex, count) {
+  const start = startIndex * SOURCE_FIRST_SEGMENT_SECONDS;
+  const end = Math.max(start + SOURCE_FIRST_SEGMENT_SECONDS, (startIndex + Math.max(1, count)) * SOURCE_FIRST_SEGMENT_SECONDS);
+  return { start, end };
+}
+
+function unionSpan(spans) {
+  const valid = spans.filter((span) => span && typeof span.start === 'number' && typeof span.end === 'number');
+  if (!valid.length) return { start: 0, end: SOURCE_FIRST_SEGMENT_SECONDS };
+  return {
+    start: Math.min(...valid.map((span) => span.start)),
+    end: Math.max(...valid.map((span) => span.end)),
+  };
+}
+
+function toLegacyConcept(concept, firstSeenByBlockId) {
+  return {
+    ...concept,
+    firstSeenAt: typeof concept.firstSeenAt === 'number'
+      ? concept.firstSeenAt
+      : firstSeenByBlockId[concept.firstSeenBlockId],
+  };
+}
+
+function relationActivationFromStep(step, relationIdSet) {
+  return (step.focusRelations ?? [])
+    .filter((activation) => relationIdSet.has(activation.id))
+    .map((activation) => ({ id: activation.id, weight: activation.weight }));
+}
+
+function normalizeSourceFirstForViewModel(document) {
+  const orderedBlocks = [...(document.sourceBlocks ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const blockIndexById = Object.fromEntries(orderedBlocks.map((block, index) => [block.id, index]));
+  const blockSpanById = {};
+  const segments = orderedBlocks.map((block, index) => {
+    const span = spanForIndexes(index, 1);
+    blockSpanById[block.id] = span;
+    return {
+      id: block.id,
+      start: span.start,
+      end: span.end,
+      speaker: '',
+      text: block.text ?? '',
+    };
+  });
+
+  const firstSeenByBlockId = Object.fromEntries(Object.entries(blockSpanById).map(([id, span]) => [id, span.start]));
+  const relationIdSet = new Set((document.relations ?? []).map((relation) => relation.id));
+  const micro = (document.readerSteps ?? []).map((step, index) => {
+    const sortedBlockIds = [...(step.sourceBlockIds ?? [])].sort((a, b) => (blockIndexById[a] ?? 0) - (blockIndexById[b] ?? 0));
+    const span = unionSpan(sortedBlockIds.map((id) => blockSpanById[id]));
+    return {
+      id: step.id,
+      title: step.summary,
+      t: span.start,
+      span,
+      summary: step.summary,
+      sourceSegmentIds: sortedBlockIds,
+      foregroundConcepts: (step.focusConcepts ?? []).map((activation) => ({
+        id: activation.id,
+        weight: activation.weight,
+        mode: activation.mode,
+      })),
+      backgroundConcepts: [],
+      activeRelations: relationActivationFromStep(step, relationIdSet),
+      sourceFrameRefs: [],
+      meta: { sourceFirstStepId: step.id, microIndex: index },
+    };
+  });
+
+  const microIndexByStepId = Object.fromEntries((document.readerSteps ?? []).map((step, index) => [step.id, index]));
+  const meso = (document.sections ?? []).map((section, index) => {
+    const sourceFrameRefs = (section.readerStepIds ?? [])
+      .map((stepId) => microIndexByStepId[stepId])
+      .filter((microIndex) => microIndex != null)
+      .map((microIndex) => ({ level: 'micro', index: microIndex }));
+    const childFrames = sourceFrameRefs.map((ref) => micro[ref.index]).filter(Boolean);
+    const span = unionSpan(childFrames.map((frame) => frame.span));
+    return {
+      id: section.id,
+      title: section.title,
+      t: span.start,
+      span,
+      summary: section.summary,
+      foregroundConcepts: mergeConceptActivations(childFrames.flatMap((frame) => frame.foregroundConcepts)),
+      backgroundConcepts: [],
+      activeRelations: mergeRelationActivations(childFrames.flatMap((frame) => frame.activeRelations)),
+      sourceSegmentIds: unique(childFrames.flatMap((frame) => frame.sourceSegmentIds)),
+      sourceFrameRefs,
+      meta: { sourceFirstSectionId: section.id, mesoIndex: index },
+    };
+  });
+
+  const macroSpan = unionSpan(meso.map((frame) => frame.span));
+  const macro = [{
+    id: 'source-first-overview',
+    title: document.title ?? 'Untitled Mindgraph',
+    t: macroSpan.start,
+    span: macroSpan,
+    summary: (document.sections ?? []).map((section) => section.summary).filter(Boolean).join(' '),
+    foregroundConcepts: mergeConceptActivations(meso.flatMap((frame) => frame.foregroundConcepts)),
+    backgroundConcepts: [],
+    activeRelations: mergeRelationActivations(meso.flatMap((frame) => frame.activeRelations)),
+    sourceSegmentIds: unique(meso.flatMap((frame) => frame.sourceSegmentIds)),
+    sourceFrameRefs: meso.map((_, index) => ({ level: 'meso', index })),
+    meta: { sourceFirst: true },
+  }];
+
+  return {
+    ...document,
+    transcript: {
+      title: document.title ?? 'Untitled Mindgraph',
+      source: document.sources?.[0]?.path ?? document.sources?.[0]?.title ?? '',
+      speakers: [document.sources?.[0]?.type === 'article' ? 'Article' : 'Source'],
+      segments,
+    },
+    concepts: {
+      atomic: (document.concepts?.atomic ?? []).map((concept) => toLegacyConcept(concept, firstSeenByBlockId)),
+      clustered: document.concepts?.clustered ?? [],
+    },
+    frames: { micro, meso, macro },
+  };
+}
+
+function unique(values) {
+  return [...new Set(values.filter((value) => value != null))];
+}
+
+function mergeConceptActivations(activations) {
+  const byId = new Map();
+  for (const activation of activations) {
+    const existing = byId.get(activation.id);
+    if (!existing || activation.weight > existing.weight) byId.set(activation.id, activation);
+  }
+  return [...byId.values()];
+}
+
+function mergeRelationActivations(activations) {
+  const byId = new Map();
+  for (const activation of activations) {
+    const existing = byId.get(activation.id);
+    if (!existing || activation.weight > existing.weight) byId.set(activation.id, activation);
+  }
+  return [...byId.values()];
+}
+
 function durationFromSpan(span) {
   return Math.max(0, (span?.end ?? 0) - (span?.start ?? 0));
 }
@@ -580,14 +732,15 @@ function buildSelectors(viewModel) {
 }
 
 export function buildMindgraphViewModel(document) {
-  const transcript = buildTranscriptVM(document);
-  const concepts = buildConceptsVM(document);
-  const relations = buildRelationsVM(document);
-  const frames = buildFramesVM(document, concepts, relations);
+  const normalizedDocument = isSourceFirstDocument(document) ? normalizeSourceFirstForViewModel(document) : document;
+  const transcript = buildTranscriptVM(normalizedDocument);
+  const concepts = buildConceptsVM(normalizedDocument);
+  const relations = buildRelationsVM(normalizedDocument);
+  const frames = buildFramesVM(normalizedDocument, concepts, relations);
   assignFrameAncestry(frames);
-  const graph = buildGraphVM(concepts, relations, frames, document.relations ?? []);
+  const graph = buildGraphVM(concepts, relations, frames, normalizedDocument.relations ?? []);
   const indexes = buildIndexesVM(concepts, frames, transcript);
-  const documentMeta = buildDocumentMetaVM(document, concepts, relations, frames, transcript);
+  const documentMeta = buildDocumentMetaVM(normalizedDocument, concepts, relations, frames, transcript);
 
   const viewModel = {
     documentMeta,

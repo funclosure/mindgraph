@@ -10,7 +10,7 @@ import {
 } from '../icons.js';
 
 export function renderTopbar(vm, document_, state) {
-  const speakers = (document_.transcript?.speakers ?? []).join(', ') || 'Unknown speaker';
+  const speakers = (vm.documentMeta?.speakers ?? document_.transcript?.speakers ?? []).join(', ') || 'Unknown speaker';
   const settingsActive = state.viewPopoverOpen ? 'is-active' : '';
   const proseIcon = state.prosCollapsed ? panelRightOpenIcon() : panelRightCloseIcon();
   const proseTitle = state.prosCollapsed ? 'Show reading panel' : 'Hide reading panel';
