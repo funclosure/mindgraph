@@ -15,3 +15,6 @@ node_modules/
 
 # Local produced graph documents / experiments
 graphs/
+
+# Local source transcripts / content workspace inputs
+transcripts/
