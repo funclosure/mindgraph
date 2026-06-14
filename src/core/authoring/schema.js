@@ -63,8 +63,16 @@ export function validateSourceFirstDocument(doc) {
   const blockIds = collectIds(blocks);
   const stepIds = collectIds(steps);
   const sectionIds = collectIds(sections);
-  const conceptIds = new Set([...collectIds(atomic), ...collectIds(clustered)]);
+  const atomicIds = collectIds(atomic);
+  const clusteredIds = collectIds(clustered);
+  const conceptIds = new Set([...atomicIds, ...clusteredIds]);
   const relationIds = collectIds(relations);
+
+  for (const conceptId of atomicIds) {
+    if (clusteredIds.has(conceptId)) {
+      errors.push(`concept id '${conceptId}' appears in both concepts.atomic and concepts.clustered`);
+    }
+  }
 
   for (const source of sources) {
     if (!hasText(source.id)) errors.push('sources entry id is required');
@@ -106,7 +114,11 @@ export function validateSourceFirstDocument(doc) {
     if (!hasText(relation.type)) errors.push(`relations.${relation.id ?? '?'} type is required`);
     const provenance = relation.provenance ?? 'source';
     if (provenance !== 'source' && provenance !== 'inferred') errors.push(`relations.${relation.id ?? '?'} provenance must be 'source' or 'inferred'`);
-    if (provenance === 'source' && !asArray(relation.groundedInBlockIds).some((id) => blockIds.has(id))) {
+    const groundedInBlockIds = asArray(relation.groundedInBlockIds);
+    for (const groundedId of groundedInBlockIds) {
+      if (!blockIds.has(groundedId)) errors.push(`relations.${relation.id ?? '?'} groundedInBlockIds includes missing block '${groundedId}'`);
+    }
+    if (provenance === 'source' && !groundedInBlockIds.some((id) => blockIds.has(id))) {
       errors.push(`relations.${relation.id ?? '?'} source provenance requires groundedInBlockIds`);
     }
     if (provenance === 'inferred' && !hasText(relation.rationale)) {
@@ -145,6 +157,29 @@ export function validateSourceFirstDocument(doc) {
   for (const block of blocks) {
     if (!block.skipped && !coveredBlockIds.has(block.id)) {
       errors.push(`sourceBlocks.${block.id} is not covered by any readerStep`);
+    }
+  }
+
+  const sectionsById = new Map(sections.map((section) => [section.id, section]));
+  const stepsById = new Map(steps.map((step) => [step.id, step]));
+
+  for (const step of steps) {
+    if (!hasText(step.id) || step.skipped) continue;
+    const section = sectionsById.get(step.sectionId);
+    const readerStepIds = asArray(section?.readerStepIds);
+    if (section && !readerStepIds.includes(step.id)) {
+      errors.push(`readerSteps.${step.id} is not listed in sections.${step.sectionId}.readerStepIds`);
+    }
+  }
+
+  for (const section of sections) {
+    if (!hasText(section.id)) continue;
+    for (const stepId of asArray(section.readerStepIds)) {
+      const step = stepsById.get(stepId);
+      if (!step || !hasText(step.sectionId)) continue;
+      if (step.sectionId !== section.id) {
+        errors.push(`sections.${section.id}.readerStepIds includes step '${stepId}' that belongs to '${step.sectionId}'`);
+      }
     }
   }
 

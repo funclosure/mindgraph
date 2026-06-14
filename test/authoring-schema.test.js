@@ -112,6 +112,80 @@ test('validateSourceFirstDocument rejects missing references and focus-less visi
   assert.match(result.errors.join('\n'), /relations\.bad-relation source provenance requires groundedInBlockIds/);
 });
 
+test('validateSourceFirstDocument rejects duplicate concept IDs across atomic and clustered namespaces', () => {
+  const base = validDoc();
+  const doc = validDoc({
+    concepts: {
+      atomic: [
+        ...base.concepts.atomic,
+        { id: 'shared-id', label: 'Shared Atomic', parentIds: [], firstSeenBlockId: 'b001' },
+      ],
+      clustered: [
+        ...base.concepts.clustered,
+        { id: 'shared-id', label: 'Shared Cluster', childIds: ['recursive-self-improvement'] },
+      ],
+    },
+  });
+
+  const result = validateSourceFirstDocument(doc);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /concept id 'shared-id' appears in both concepts\.atomic and concepts\.clustered/);
+});
+
+test('validateSourceFirstDocument enforces section/reader-step agreement', () => {
+  const base = validDoc();
+  const doc = validDoc({
+    readerSteps: [
+      base.readerSteps[0],
+      {
+        id: 's002',
+        sectionId: 'setup',
+        sourceBlockIds: ['b002'],
+        summary: 'Secondary step follows section A.',
+        focusConcepts: [{ id: 'recursive-self-improvement', weight: 0.7 }],
+        focusRelations: [{ id: 'rsi-depends-on-feedback', weight: 0.6 }],
+      },
+    ],
+    sections: [
+      { id: 'setup', title: 'Setup', summary: '', readerStepIds: ['s002'] },
+      { id: 'deeper', title: 'Deeper', summary: '', readerStepIds: ['s001'] },
+    ],
+  });
+
+  const result = validateSourceFirstDocument(doc);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /readerSteps\.s001 is not listed in sections\.setup\.readerStepIds/);
+  assert.match(result.errors.join('\n'), /sections\.deeper\.readerStepIds includes step 's001' that belongs to 'setup'/);
+});
+
+test('validateSourceFirstDocument validates all grounded blocks for source relations', () => {
+  const doc = validDoc({
+    relations: [
+      {
+        id: 'partial-grounding',
+        from: 'recursive-self-improvement',
+        to: 'feedback-loop',
+        type: 'depends_on',
+        provenance: 'source',
+        groundedInBlockIds: ['missing', 'b002'],
+      },
+    ],
+    readerSteps: [
+      {
+        id: 's001',
+        sectionId: 'setup',
+        sourceBlockIds: ['b001', 'b002'],
+        summary: 'Uses partial grounding.',
+        focusConcepts: [{ id: 'recursive-self-improvement', weight: 1 }],
+      },
+    ],
+  });
+
+  const result = validateSourceFirstDocument(doc);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /relations\.partial-grounding groundedInBlockIds includes missing block 'missing'/);
+});
+
 test('validateSourceFirstDocument requires inferred relation rationale', () => {
   const doc = validDoc({
     relations: [
