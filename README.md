@@ -109,6 +109,17 @@ mindgraph view ./graphs/episode-01.mindgraph.json
 
 YouTube URLs are detected, but this slice does not fetch YouTube transcripts directly. Save a transcript with a tool such as `yt-dlp`, then pass the transcript file to `mindgraph digest`.
 
+## Source-first authoring
+
+New living graphs can be authored as structured Markdown and compiled to source-first runtime JSON:
+
+```bash
+mindgraph authoring validate examples/authoring/recursive-self-improvement.mindgraph.md
+mindgraph authoring compile examples/authoring/recursive-self-improvement.mindgraph.md -o graphs/recursive-self-improvement.mindgraph.json
+```
+
+The Markdown file is the editing surface. The compiled JSON is the runtime artifact for validation, view-model construction, and future reader/workbench UI work.
+
 ## MCP usage
 
 mindgraph also ships a minimal MCP server for Claude Desktop and other MCP-capable apps:

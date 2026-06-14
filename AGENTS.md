@@ -12,7 +12,7 @@ User-facing tour → `README.md`.
 
 Two-sided architecture. **Where you are in this picture determines where new code belongs.**
 
-**Producer side — agent + CLI.** The CLI is *your* tool, built for the LLM (you) to fully operate end-to-end. When Victor brings source material, **you drive the pipeline**: `ingest → micro/meso/macro frames → atomic + clustered concepts → relations → activations → stats recompute`. Don't write Victor a runbook of commands to type — run them. CLI ergonomics are optimised for the LLM-as-operator (idempotent upserts, sensible defaults, parseable errors), not for human typists. Worked end-to-end example: `npm run test:smoke`.
+**Producer side — agent + CLI.** The CLI is *your* tool, built for the LLM (you) to fully operate end-to-end. For new living-graph work, prefer the source-first authoring path: edit or produce `*.mindgraph.md`, then run `mindgraph authoring validate` and `mindgraph authoring compile`. The old `micro/meso/macro` document path remains available for existing fixtures but does not constrain new architecture. Don't write Victor a runbook of commands to type — run them. CLI ergonomics are optimised for the LLM-as-operator (idempotent upserts, sensible defaults, parseable errors), not for human typists. Worked end-to-end example: `npm run test:smoke`.
 
 **Consumer side — human + UI.** Victor reads the digested artifact through the UI (graph + timeline + inspectors). The UI does not author — it *reveals*. He gives high-level direction (which material, what to focus on) and review (catches when output looks off). He does not drop into the CLI to fix things.
 
