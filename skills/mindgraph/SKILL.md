@@ -1,363 +1,154 @@
 ---
 name: mindgraph
-description: Use this skill whenever the user asks you to digest, summarize, ingest, build, visualize, or otherwise turn a transcript, lecture, podcast episode, video, or article into a navigable map of concepts and time — or to operate on a mindgraph that already exists (open it, list what's been built, add to it, rebuild it). Trigger on phrases like "digest this transcript", "build a mindgraph", "make a concept map of this lecture", "ingest this episode", "I want to study this video", "open my last mindgraph", "list my mindgraphs", "what graphs do I have", "show me what I've built", "add to the [X] graph", "refresh the [X] graph with these notes", "rebuild the [X] mindgraph" — or whenever they mention "mindgraph" by name. The skill walks the producer-side CLI workflow (`mindgraph ingest → build timeline → concept upsert → frame set-activations → frame merge → stats recompute → validate`) and finishes by telling the user to open the reading UI with `mindgraph view <file>`. For operations on existing graphs, see the "Lifecycle operations" section. Use this even when the user doesn't say "mindgraph" explicitly — if their request is "make this lecture easier to study" or similar, this is the right tool.
+description: Use when the user asks to digest, ingest, summarize, map, visualize, repair, refresh, or iterate on learning material such as articles, transcripts, lectures, podcasts, videos, papers, pasted text, or an existing mindgraph.
 ---
 
 # mindgraph
 
-Turn raw source text (lecture transcripts, podcasts, articles, papers) into a `.mindgraph.json` document that the user can read in a browser-based reading UI. You operate the CLI; the user reads the result.
+Turn source material into a living concept graph. The user brings material and reacts to the result; you operate the producer workflow.
 
-## How to think about it
+## Core framing
 
-mindgraph has a **producer / consumer split**.
+mindgraph has a producer/consumer split:
 
-- **Producer side** is you — the agent. The CLI is built for an LLM operator. Idempotent upserts, JSON in / JSON out, parseable errors. Your job: take raw source material, run the CLI in the right order, do the *semantic* work the CLI can't do by itself (extract concepts, weight activations, name chapters), and finish with a validated document.
-- **Consumer side** is the user. They open `mindgraph view <file>` in a browser and read the prose with a graph that evolves as they scroll.
+- **Producer side is you, the agent.** You read the source, understand the argument, choose concepts, ground relations, design the reader journey, and repair the graph after user feedback. The CLI is your actuator: it prepares files, validates structure, compiles runtime JSON, and serves the UI. It does not replace your semantic judgment.
+- **Consumer side is the user.** The UI reveals the current artifact. The user should not have to fix JSON or run CLI commands. They respond semantically: what feels wrong, missing, noisy, flat, or misleading.
 
-The `.mindgraph.json` document is the contract between you and the UI. Get the document right; the UI takes care of itself.
+For new living-graph work, prefer source-first authoring:
 
-## Prerequisite check
-
-Before doing anything else, verify the CLI is installed:
-
-```bash
-mindgraph --help
+```text
+source material
+  -> agent semantic digest
+  -> editable .mindgraph.md
+  -> validate
+  -> compile .mindgraph.json
+  -> open UI
+  -> user feedback
+  -> agent repairs .mindgraph.md
 ```
 
-If the command is not found, install it from a tagged release:
+The `.mindgraph.md` file is the source of truth for iteration. The compiled `.mindgraph.json` is a runtime artifact.
+
+## First moves
+
+1. If the user provides source material, save or locate it under `./transcripts/` or use the attachment path directly.
+2. Create or update an editable authoring file under `./graphs/<slug>.mindgraph.md`.
+3. Do the semantic digest yourself. Do not treat `authoring draft` as the real digest.
+4. Validate and compile after every meaningful edit.
+5. Open or refresh the UI so the user can react to the artifact.
+
+Useful commands:
 
 ```bash
-npm install -g github:funclosure/mindgraph#v0.5.2
+mindgraph authoring validate graphs/<slug>.mindgraph.md
+mindgraph authoring compile graphs/<slug>.mindgraph.md -o graphs/<slug>.mindgraph.json
+mindgraph view graphs/<slug>.mindgraph.json
 ```
 
-Tag-pinning is recommended over the unpinned `github:funclosure/mindgraph` form — npm's git-URL install path is fragile across versions, and pinning to a tag gives a stable artifact. Check https://github.com/funclosure/mindgraph for newer tags.
-
-After install, you can confirm the CLI and reading UI work end-to-end with:
+If starting from plain text and you need a skeleton, use:
 
 ```bash
-mindgraph view
+mindgraph authoring draft <source.txt> -o graphs/<slug>.mindgraph.md --title "Title" --compile graphs/<slug>.mindgraph.json
 ```
 
-With no args, this opens the bundled "Awakening from the Meaning Crisis — Episode 1" sample in the browser. If the graph + prose panel render, the install is healthy. Suggest this to the user when they've just installed for the first time, or whenever something behaves strangely and you want to rule out a broken install.
+But treat this as scaffolding only. A heuristic draft is not a finished mindgraph. Replace or rewrite it with a semantic pass before presenting it as a meaningful result.
 
-Requires Node 18+. If `npm` is also missing, ask the user to install Node first (or use Bun).
+## Authoring format mental model
 
-## Document shape (the thing you're building)
+A source-first `.mindgraph.md` contains:
 
-A `.mindgraph.json` document has:
+- `@source` — what material is being digested.
+- `@block` — grounded source passages or source slices.
+- `@step` — the reader journey: what should become visible at this point and why.
+- `@section` — narrative groupings for the reading experience.
+- `@concept` — atomic ideas worth navigating.
+- `@cluster` — thematic concept groupings.
+- `@relation` — typed concept edges, grounded in source blocks unless explicitly inferred.
+- `@revision` / notes when present — why the graph changed.
 
-- `transcript` — the source text split into segments with `start`/`end` timestamps (real or inferred) and optional `speaker`.
-- `concepts.atomic` — fine-grained ideas mentioned by the speaker. Examples: "meaning crisis", "wisdom", "psychedelics".
-- `concepts.clustered` — higher-level groupings of atomic concepts. Each clustered concept has `parentIds` and aggregates several atoms. Examples: "Cultural Convergences", "Transformative Consciousness".
-- `relations` — typed edges between concepts. Examples: `wisdom --addresses--> meaning-crisis`.
-- `frames.micro` — short focus slices (one or a few transcript segments).
-- `frames.meso` — paragraph-grain windows (~50-100 seconds of speech).
-- `frames.macro` — chapter-grain windows. The UI uses `macro.title` as the visible chapter heading.
+Think in source-first primitives: source blocks, claims, concepts, relations, reader steps, sections, revisions. Do not make micro/meso/macro the authoring premise for new work; derive UI frames from source-first structure.
 
-Each frame has `foregroundConcepts` and `backgroundConcepts` — weighted activations that say "these concepts are in focus during this slice of time".
+## Semantic digest protocol
 
-You do not edit the JSON file directly. You operate it through CLI commands.
+When digesting a new article, transcript, or paper:
 
-## Workflow
+1. **Read for the thesis.** Identify the central claim and the pressure driving the source. Name this explicitly before choosing many concepts.
+2. **Segment by argument, not just layout.** Source blocks should preserve enough text for grounding, but reader steps should follow the source's argument and teaching path.
+3. **Extract claims.** For each section, write what the source is doing: defining, motivating, contrasting, warning, proposing, defending, or concluding.
+4. **Choose concepts conservatively.** Prefer durable ideas the user would want to see again. Avoid generic words, whole-sentence concepts, and one-off labels.
+5. **Ground relations.** A relation should say something useful: `motivates`, `constrains`, `enables`, `threatens`, `mitigates`, `depends_on`, `contrasts_with`, `reframes`, `supports`.
+6. **Design reader steps.** Each step should reveal a small semantic movement, not merely “paragraph N happened.”
+7. **Validate/compile.** Run the authoring commands. Fix the `.mindgraph.md`, never the generated JSON.
+8. **Review in UI.** Ask whether the graph reveals the argument. If it feels bad, repair the authoring source semantically.
 
-The end-to-end flow has three phases: **structural ingest**, **semantic enrichment**, **finalize and hand off**.
+## Repair loop
 
-### Phase 1 — Structural ingest
+When the user says the result is bad, assume the graph is semantically wrong until proven otherwise.
 
-#### Acquiring the transcript
+Do:
 
-If the user gives you a path to a transcript file, skip this subsection. If they give you a URL or paste a video/podcast reference instead, you need a transcript on disk before Phase 1 can run. Approach by source type:
+- Re-read the source and the current `.mindgraph.md`.
+- Identify the failure mode: missed thesis, wrong sections, generic concepts, noisy relations, weak grounding, bad reader order, over-compression, or UI derivation issue.
+- Edit the `.mindgraph.md` directly.
+- Re-run validate and compile.
+- Refresh the UI and report what changed semantically.
 
-- **YouTube / video.** Try `yt-dlp --write-auto-sub --skip-download --sub-lang en --convert-subs srt -o "./transcripts/%(title)s.%(ext)s" <url>`, then move the resulting `.srt` to `./transcripts/<slug>.srt` with a clean slug. If `yt-dlp` is not installed, suggest `brew install yt-dlp` (macOS) or ask the user to paste the transcript directly. Do not try to scrape YouTube via WebFetch — the page rarely contains transcript text.
-- **Articles, blog posts, papers (HTML).** Use the WebFetch tool to retrieve the article, save the readable text to `./transcripts/<slug>.txt`, then ingest with `--mode untimed`.
-- **Podcasts.** If the show publishes a transcript page, treat it like an article. Otherwise ask the user for a transcript file or pasted text — audio-only ingestion is out of scope for this skill.
-- **PDFs.** Local PDFs: read with the Read tool. Remote PDFs: WebFetch the URL, save the text to `./transcripts/<slug>.txt`.
-- **Fallback.** Ask the user to paste the transcript inline. Save it to `./transcripts/<slug>.txt` so it's available for re-ingest later.
+Do not:
 
-In a `mind-digest`-style workspace, `./transcripts/` is the canonical landing zone — keep all sources there. Outside that convention, place the file wherever the user prefers; the path you pass to `mindgraph digest` is what matters.
+- Defend a valid-but-bad graph because validation passed.
+- Keep improving the deterministic splitter when the problem is interpretation.
+- Ask the user to edit JSON.
+- Present `authoring draft` output as the real digest.
 
-#### Building the timeline
+## Existing graph operations
 
-Take the user's source file and produce a starter document with micro and meso frames already laid out:
-
-```bash
-mindgraph digest <source-file-or-readable-article-url> [-o <output-file>] \
-  [--title "Display Title"] \
-  [--mode auto|timed-lines|captions|untimed] \
-  [--speaker "Speaker Name"] \
-  [--wpm 150] \
-  [--meso-size 12]
-```
-
-Prefer `mindgraph digest` over `mindgraph build timeline` for new work. It is the cohesive journey command: it prepares local files or readable article URLs, builds the starter timeline, validates the output, and returns the next agent action. Use `mindgraph build timeline` only when you specifically need the lower-level primitive.
-
-When `-o` is omitted, the CLI defaults to `./graphs/<slug>.mindgraph.json` if a `./graphs/` directory exists in the current working directory (the slug is derived from `--title` or the source filename). In a `mind-digest`-style content workspace this is the recommended form — drop the `-o` and let the convention place the file. Outside a workspace, pass `-o` explicitly.
-
-`--mode` defaults to `auto` and detects timed-lines / captions / untimed.
-
-For untimed sources (articles, papers, blog posts) pass `--mode untimed --wpm 150`. The producer infers synthetic timestamps from word count at 150 wpm; the UI never shows the timestamps to the reader, they're internal plumbing.
-
-After this command runs, inspect the result:
-
-```bash
-mindgraph inspect <output-file>
-mindgraph frame list <output-file> --level meso --offset 0 --limit 5
-```
-
-The build also embeds a `meta.build.suggestedNextCommands` list — a hint of what to do next. Read it, but don't blindly follow; your judgment is better than the hint.
-
-### Phase 2 — Semantic enrichment (the hard part)
-
-This is where you do real work. The CLI gives you structure; you supply meaning.
-
-**Step 1 — Identify atomic concepts.** Read through the meso frames. List the recurring ideas the speaker keeps coming back to. For a 60-minute lecture this is usually 30-80 concepts. Use stable, lowercase, hyphenated ids (`meaning-crisis`, `wisdom`, `cognitive-science`). Use the human-readable label as the display name.
-
-For each atomic concept, upsert:
-
-```bash
-mindgraph concept upsert <output-file> \
-  --id meaning-crisis \
-  --label "Meaning Crisis" \
-  --level atomic \
-  --first-seen-at 0
-```
-
-**Always pass `--first-seen-at <seconds>`** with the concept's natural first-mention timestamp in the transcript. This drives the staggered "concepts reveal as the reader scrolls" effect in the reading UI. If you omit it, the VM derives `firstSeenAt` from frame appearances — which collapses to the chapter start once `frame merge` lifts that concept into a macro's foreground, defeating the staggered reveal. Setting it explicitly is the only way to keep the reveal aligned with the speaker's actual first mention.
-
-Upsert is idempotent — re-running with the same id updates the existing concept. Don't be afraid to refine and re-run.
-
-**Step 2 — Identify clusters.** Group your atomic concepts into 5-10 thematic clusters. A cluster is a higher-level concept that groups related atoms. Examples from a typical lecture: "Cultural Convergences", "Meaning Crisis Core", "Transformative Consciousness".
-
-For each cluster, upsert it as a clustered concept and link the atoms via `--parent-ids-json`:
-
-```bash
-mindgraph concept upsert <output-file> \
-  --id cultural-convergences \
-  --label "Cultural Convergences" \
-  --level clustered
-
-mindgraph concept upsert <output-file> \
-  --id buddhism \
-  --label "Buddhism" \
-  --level atomic \
-  --parent-ids-json '["cultural-convergences"]' \
-  --first-seen-at 240
-```
-
-(Clustered concepts don't need `--first-seen-at` — they're aggregated from their atomic children. Always pass it on atomic concepts.)
-
-The flag takes a JSON array of cluster ids, so a concept can belong to more than one cluster: `--parent-ids-json '["cultural-convergences","wisdom-traditions"]'`.
-
-**Step 3 — Set frame activations.** For each meso frame, decide which concepts are foreground (the speaker is actively discussing them) and which are background (related but not the focus). Weight each from 0.0 to 1.0.
-
-```bash
-mindgraph frame set-activations <output-file> \
-  --level meso --index 0 \
-  --foreground-json '[
-    {"id":"meaning-crisis","weight":0.92,"mode":"explicit"},
-    {"id":"wisdom","weight":0.6,"mode":"explicit"}
-  ]' \
-  --background-json '[
-    {"id":"cultural-convergences","weight":0.4,"mode":"implicit"}
-  ]'
-```
-
-Activation weights drive the camera (which concepts pull the camera as the user scrolls), the brightness (which concept words glow in the prose), and the cumulative reveal (when each concept first appears on the graph). Spend time on this step — it's the most impactful.
-
-For long sources, you can batch this: process meso frames in groups of 10-20, save your work, and continue.
-
-**Step 4 — Identify relations.** Look for explicit or implicit relationships between concepts. The relation `type` is free-form; common ones:
-
-- `addresses` — "wisdom addresses the meaning crisis"
-- `responds-to`, `extends`, `contradicts`, `co-occurs-with`, `caused-by`
-
-```bash
-mindgraph relation upsert <output-file> \
-  --id wisdom-addresses-meaning-crisis \
-  --from wisdom \
-  --to meaning-crisis \
-  --type addresses
-```
-
-Then attach relations to the frames where they're active:
-
-```bash
-mindgraph frame set-activations <output-file> \
-  --level meso --index 12 \
-  --relations-json '[{"id":"wisdom-addresses-meaning-crisis","weight":0.85}]'
-```
-
-**Step 5 — Merge meso into macro chapters.** Look at the narrative arc. Group consecutive meso frames into 4-8 macro chapters. Each macro frame becomes a chapter heading in the prose UI.
-
-```bash
-mindgraph frame merge <output-file> \
-  --from meso --to macro \
-  --start-index 0 --end-index 8 \
-  --title "Opening Convergences and the Search for Meaning" \
-  --summary "The lecture opens by surveying convergent cultural signals — Buddhism, cognitive science, mindfulness — that hint at a deeper unifying condition."
-```
-
-The macro `title` is what the user reads as the chapter heading. Make it specific to the content, not generic ("Chapter 1").
-
-### Phase 3 — Finalize and hand off
-
-Recompute aggregate stats (recurrence count, peak activation, persistence):
-
-```bash
-mindgraph stats recompute <output-file>
-```
-
-Validate:
-
-```bash
-mindgraph validate <output-file>
-```
-
-If validation fails, the error message points at the issue. Fix and re-validate.
-
-Then offer to open the reading UI for the user. **Ask before launching** — `mindgraph view` starts a local dev server that stays alive until stopped, and the user may want to open it on their own terms (different port, different time, after they finish another task). Phrase it as a confirmation, not an announcement:
-
-> The mindgraph is ready at `<absolute-path-to-output-file>`. Want me to open the reading UI now? It'll start a local server at `http://127.0.0.1:4173` and open your browser. (You can also run it yourself later with `mindgraph view <absolute-path-to-output-file>`.)
-
-If the user confirms (yes / sure / open it), run the command. The dev server keeps running until the user stops it (Ctrl+C in the terminal that hosts it, or close the process), so launch it in the background so it doesn't block your session:
-
-```bash
-mindgraph view <absolute-path-to-output-file> &
-```
-
-Then tell the user the URL is up:
-
-> The UI is running at http://127.0.0.1:4173. Stop it later with `Ctrl+C` in the terminal, or by closing the process.
-
-If the user declines, leave them with the command and move on — don't push.
-
-If they want the UI on a different port (say 4173 is taken), pass `--port <n>`. The path arg is an absolute path; the user can leave the document anywhere on disk.
-
-## Lifecycle operations (existing graphs)
-
-Not every request is a fresh ingest. If the user is asking about a graph they've already built — opening it, listing what's around, adding to it, rebuilding it — route to one of the patterns below before reaching for Phase 1.
-
-The convention in a `mind-digest`-style workspace is:
-
-- `./graphs/<slug>.mindgraph.json` — built documents
-- `./transcripts/<slug>.<ext>` — source material
-
-Outside that convention, fall back to whatever path the user gives you.
-
-### List
-
-Triggers: "list my mindgraphs", "what graphs do I have", "show me what I've built".
+For list/open requests:
 
 ```bash
 ls -lt ./graphs/*.mindgraph.json
+mindgraph inspect <file>
+mindgraph view <file>
 ```
 
-For each match, run `mindgraph inspect <file>` and report a one-line summary (title, concept counts, frame counts) so the user sees content, not just filenames.
+For source-first graphs, prefer editing the paired `.mindgraph.md` and recompiling.
 
-### Open
+If only a legacy `.mindgraph.json` exists, use the older CLI workflow (`concept upsert`, `relation upsert`, `frame set-activations`, `frame merge`, `stats recompute`) only when needed. For new living-graph work, regenerate or migrate into `.mindgraph.md` rather than preserving legacy structure.
 
-Triggers: "open my last graph", "open the [X] graph", "let me read [X]".
+## Judgment rules
 
-Resolve the file:
-- "last" / "the most recent" → newest mtime in `./graphs/`.
-- Named → fuzzy-match against the slug, or use `mindgraph inspect` to compare titles when the slug is ambiguous.
+**Concept granularity.** Atomic concepts should be reusable ideas, not sentences. If an id needs more than a short phrase, split or rename it.
 
-Then apply the same "ask before launching" rule from Phase 3 — confirm before starting the dev server, then background it:
+**Relation quality.** Prefer fewer, stronger relations. A graph with generic `related_to` edges is worse than a sparse graph with meaningful typed edges.
 
-```bash
-mindgraph view <absolute-path> &
-```
+**Source vs inferred.** Source-derived relations are grounded in blocks. Inferred relations are allowed only for common-knowledge scaffolding the source clearly assumes, not for interpretive bridges the source did not make.
 
-### Refresh / annotate
+Use inferred relations for biographical, foundational, or attributional facts a field-introducing text would state: “X influenced Y,” “X founded Y,” “X is a standard interpreter of Y.” Do not infer contested claims, causal claims, analogies, evaluations, or “these topics often co-occur.”
 
-Triggers: "add to the [X] graph", "I have more notes on [X]", "refresh the [X] mindgraph".
+**Reader journey.** The user should feel the graph unfolding with the argument. If everything appears at once, or if sections are just layout headings with no semantic movement, repair the reader steps.
 
-**Do not rebuild from scratch.** The CLI is idempotent — `concept upsert`, `relation upsert`, and `frame set-activations` update in place by id. Steps:
+**Validation is structural.** Passing validation means the artifact is well-formed, not that the digest is good.
 
-1. `mindgraph inspect <file>` to remind yourself of the current shape.
-2. `mindgraph concept list <file>` and `mindgraph frame list <file> --level meso` to see what's already there.
-3. Apply the user's new notes: upsert new concepts, attach activations to the relevant frames, upsert new relations. Re-running with the same id is safe — it updates instead of duplicating.
-4. `mindgraph stats recompute <file>` and `mindgraph validate <file>` at the end.
+## Success criteria
 
-### Rebuild from source
+A good mindgraph:
 
-Triggers: "rebuild the [X] mindgraph", "the source transcript changed".
+- exposes the source’s central thesis quickly
+- has sections that match the argument’s movement
+- uses concepts the user would recognize and reuse
+- grounds source-derived relations in specific blocks
+- keeps inferred structure visibly editorial and conservative
+- reads coherently in the UI
+- improves when the user gives semantic feedback
 
-Only reach for this when the *transcript* itself has changed. If only the annotations are changing, use refresh.
+When the user opens the UI and says “this shows what the piece is doing,” the producer loop is working.
 
-1. Re-run Phase 1 with `-o ./graphs/<existing-slug>.mindgraph.json` passed explicitly — the explicit `-o` is required because the implicit-default path refuses to overwrite.
-2. Re-run Phase 2 from scratch. Existing concept ids can be re-upserted; activations need to be reapplied to the freshly generated frames.
-3. Phase 3 as usual.
-
-## Heuristics and judgment
-
-**On concept granularity.** Atomic concepts should be ideas the speaker would say without further breakdown — "meaning crisis", "wisdom", not "the Western intellectual tradition". If you're tempted to make a concept that's a whole sentence, split it.
-
-**On activation weights.** Don't be fussy. 0.9 = clearly foreground. 0.5 = present but not central. 0.2 = barely mentioned. The graph behaviour is robust to small differences.
-
-**On chapter boundaries.** Look for clear topic shifts — when the speaker says "now turning to..." or moves to a different domain. A 60-minute lecture typically has 4-6 macro chapters.
-
-**On idempotency.** All `upsert` and `set-activations` commands are idempotent. Re-running them updates instead of creating duplicates. Use this freely — refine your work in passes.
-
-**On inferred relations.** When you know a connection from world knowledge that the source assumes but doesn't state, add it via `mindgraph relation upsert ... --provenance inferred`. The UI renders these as dashed lines and they participate in the layout at the same stiffness as source-derived edges — adding `inferred` *changes the geometry the user sees*, not just decoration. Treat it as an editorial choice.
-
-**What qualifies.** Inferred relations are *only* for biographical, foundational, or attributional facts the source's audience would treat as common knowledge — facts the speaker is silently presupposing rather than asserting. Examples: "X interpreted Y", "X is a student of Y", "X co-authored Z with W", "X founded movement Z", "X developed concept Y". These are connections any introductory text in the field would state as part of its scaffolding.
-
-**Two tests, apply both.** **(1) Introductory-textbook test** — would an introductory text in this field state this connection as part of the scaffolding the field is built on? If no, don't add it. **(2) Audience-eye-roll gut-check** — would a knowledgeable audience member be mildly bored if the speaker stopped to explain this? If yes, it's table-stakes; safe to add. If they'd lean in because it's contested or interesting, it's not table-stakes — that's the speaker's editorial territory, not yours. Fail-safe to "don't add" when both tests aren't clearly satisfied.
-
-**What does NOT qualify.** Don't infer *inferential bridges*: "X causes Y", "X is similar to Y", "X opposes Y", "X anticipates Y", or any connection that interprets, compares, or evaluates. Those are the speaker's editorial territory — if the speaker didn't make the bridge, you don't either. Don't infer connections that a domain expert *might* assert but isn't field-consensus (specific scholarly theses). Don't infer topical co-occurrence ("both come up in this field") — that's what cluster siblings and co-occurrence already capture.
-
-**Worked example — Sean Kelly *Existentialism* lecture.** Yes-add: `hubert-dreyfus → martin-heidegger` (interprets — Dreyfus is the canonical 20th-century Heidegger interpreter); `søren-kierkegaard → jean-paul-sartre` (influences — Kierkegaard is a foundational existentialist precursor any intro treats as such). No-add: `heidegger → derrida` ("anticipates deconstruction" — specific scholarly thesis, not common knowledge); `sartre ↔ camus` ("opposed each other politically" — inferential bridge, speaker's territory); `existentialism → phenomenology` ("draws methodologically from" — too interpretive, even if defensible).
-
-**Don't activate inferred relations in frames.** Inferred relations exist as latent structural facts — they're visible on the graph once both endpoints have first-appeared, and clicking either endpoint lights them up. Don't add them to any frame's `--relations-json` activations, because the speaker didn't activate them. Adding them to `activeRelations` would say "the speaker is foregrounding the connection they didn't make" — incoherent.
-
-**On scaling.** For very long sources (multi-hour lectures, full books), Phase 2 step 3 (set activations) scales linearly with meso frames. If the source has 100+ meso frames and you're hitting context limits, batch: do the first half, save, do the second half.
-
-**On backfilling activations.** The reading UI's graph layout uses pair co-occurrence at the finest available frame level — concepts that appear together in many micro frames pull toward shorter spring distances. If you've annotated meso (and/or macro) frames but left micro empty (which is typical for any source long enough that per-sentence annotation isn't practical), the UI's clusters won't differentiate well. Run `mindgraph frame backfill-activations <file> --from meso --to micro` after you're done with Phase 2 step 3 (and before `stats recompute`) to broadcast each meso's `foregroundConcepts` down to all the micro frames it spans. The operation is idempotent and finishes in seconds — safe to include in routine workflows on coarse-annotation sources. Re-run `stats recompute` afterwards so derived stats reflect the new activations.
-
-## Common failure modes
-
-- **`mindgraph` not found.** The user doesn't have the CLI installed. Tell them the install command (above).
-- **`Document became invalid` after a command.** A command produced an inconsistent document — usually a frame referencing a concept id that doesn't exist. Check the error, upsert the missing concept, retry.
-- **`Concept not found`.** You referenced an id you haven't upserted yet. Order matters: upsert concepts before referencing them in frame activations or relations.
-- **No chapter titles in the UI.** You skipped `frame merge` for the macro level. Run it for at least one merge so the UI has chapter headings.
-- **Sparse graph.** Most meso frames have empty foreground activations. Step 3 of Phase 2 was incomplete. The UI will work but feel hollow.
-
-## What success looks like
-
-A finished mindgraph for a 60-minute lecture typically has:
-
-- 30-80 atomic concepts
-- 5-10 clustered concepts
-- 20-50 relations
-- 50-80 meso frames, most with non-empty foreground activations
-- 4-6 macro chapters with descriptive titles
-- Validation passes
-- The user opens `mindgraph view <file>` and the prose reads naturally with concept words highlighted, the graph reveals concepts as they scroll, and the camera lerps between cluster regions as chapters change.
-
-When the user opens the UI and the experience feels coherent — not "press play and see lots of dots" but "read this and the map of ideas comes alive" — you've done your job.
-
-## Reference: full command list
-
-For when you need a refresher on a specific command:
+## Command reference
 
 | Command | Purpose |
 | --- | --- |
-| `mindgraph init <file>` | Create empty starter document |
-| `mindgraph validate <file>` | Validate document integrity |
-| `mindgraph inspect <file>` | Print summary |
-| `mindgraph ingest transcript <src> -o <file>` | Parse source into segments + micro frames |
-| `mindgraph build timeline <src> -o <file>` | Ingest + create meso windows + suggest next steps |
-| `mindgraph concept upsert <file> --id ... --label ... --first-seen-at <s>` | Create or update a concept (always pass `--first-seen-at` on atomic concepts) |
-| `mindgraph concept list <file>` | List concepts |
-| `mindgraph concept show <file> --id ...` | Show one concept |
-| `mindgraph relation upsert <file> --id ... --from ... --to ... --type ... [--provenance source\|inferred]` | Create or update a relation (provenance defaults to source; use `inferred` for common-knowledge connections the speaker assumed — see "On inferred relations") |
-| `mindgraph frame list <file> --level meso` | List frames at a level |
-| `mindgraph frame show <file> --level meso --index 3` | Show one frame |
-| `mindgraph frame set-activations <file> --level meso --index 3 --foreground-json '...'` | Write weighted activations |
-| `mindgraph frame merge <file> --from meso --to macro --start-index 0 --end-index 8 --title "..."` | Merge frames into a higher level |
-| `mindgraph frame backfill-activations <file> --from meso --to micro` | Broadcast a coarser level's activations onto all overlapping finer-level frames (idempotent; replaces, not merges) |
-| `mindgraph stats recompute <file>` | Recompute aggregate stats |
-| `mindgraph view <file>` | Open the reading UI in the browser (this is for the user) |
-
-`mindgraph --help` always works as a quick reference.
+| `mindgraph authoring draft <source> -o <file.md> --compile <file.json>` | Create a scaffold from plain text; not a final semantic digest |
+| `mindgraph authoring validate <file.md>` | Validate source-first authoring structure |
+| `mindgraph authoring compile <file.md> -o <file.json>` | Compile editable authoring source to runtime JSON |
+| `mindgraph view <file.json>` | Open the reading UI for review |
+| `mindgraph inspect <file.json>` | Inspect legacy/runtime document summary where supported |
+| `mindgraph digest <source>` | Legacy starter timeline path for old JSON workflow |
