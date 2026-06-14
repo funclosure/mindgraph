@@ -628,6 +628,48 @@ test('parseAuthoringMarkdown rejects unknown directives', () => {
     /Unknown directive '@unknown'/
   );
 });
+
+test('parseAuthoringMarkdown preserves field-like and heading-like block body text', () => {
+  const model = parseAuthoringMarkdown(`---
+kind: mindgraph.authoring
+version: 1
+title: Body Text
+---
+
+@block b001 source=src kind=paragraph
+Note: keep this line as text.
+http://example.com/resource
+#hashtag and heading-like source text
+`);
+
+  assert.equal(model.blocks[0].body, [
+    'Note: keep this line as text.',
+    'http://example.com/resource',
+    '#hashtag and heading-like source text',
+  ].join('\n'));
+});
+
+test('parseAuthoringMarkdown rejects malformed focus items', () => {
+  assert.throws(
+    () => parseAuthoringMarkdown(`---
+kind: mindgraph.authoring
+version: 1
+title: Bad Focus
+---
+
+@step s001 section=setup blocks=b001
+focus:
+  - concept explicit
+`),
+    /Invalid focus item/
+  );
+});
+
+test('parseAuthoringMarkdown accepts CRLF frontmatter', () => {
+  const model = parseAuthoringMarkdown('---\r\nkind: mindgraph.authoring\r\nversion: 1\r\ntitle: CRLF\r\n---\r\n\r\n@source src\r\ntype: text\r\ntitle: Source\r\n');
+  assert.equal(model.meta.title, 'CRLF');
+  assert.equal(model.sources[0].id, 'src');
+});
 ```
 
 - [ ] **Step 3: Run parser tests and verify they fail**
@@ -673,10 +715,9 @@ function parseCsv(value) {
 }
 
 function parseFrontmatter(markdown) {
-  if (!markdown.startsWith('---\n')) throw new Error('Missing frontmatter.');
-  const end = markdown.indexOf('\n---', 4);
-  if (end === -1) throw new Error('Unclosed frontmatter.');
-  const raw = markdown.slice(4, end).trim();
+  const match = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) throw new Error('Missing frontmatter.');
+  const raw = match[1].trim();
   const meta = {};
   for (const line of raw.split(/\r?\n/)) {
     if (!line.trim()) continue;
@@ -684,7 +725,7 @@ function parseFrontmatter(markdown) {
     if (!match) throw new Error(`Invalid frontmatter line: ${line}`);
     meta[match[1]] = parseScalar(match[2]);
   }
-  return { meta, body: markdown.slice(end + 5).replace(/^\r?\n/, '') };
+  return { meta, body: markdown.slice(match[0].length) };
 }
 
 function parseDirectiveHeader(line) {
@@ -703,8 +744,10 @@ function parseDirectiveHeader(line) {
 }
 
 function parseFocusItem(value) {
-  const [id, weight, mode] = value.trim().split(/\s+/);
-  return { id, weight: Number(weight), ...(mode ? { mode } : {}) };
+  const [id, weight, mode, ...extra] = value.trim().split(/\s+/);
+  const numericWeight = Number(weight);
+  if (!id || !weight || extra.length || Number.isNaN(numericWeight)) throw new Error(`Invalid focus item: ${value}`);
+  return { id, weight: numericWeight, ...(mode ? { mode } : {}) };
 }
 
 function parseRelationItem(value) {
@@ -726,14 +769,27 @@ function parseList(lines, startIndex, itemParser) {
   return { values, nextIndex: i };
 }
 
+const FIELD_KEYS_BY_DIRECTIVE = {
+  source: new Set(['type', 'title', 'path']),
+  block: new Set(['skipped']),
+  step: new Set(['summary', 'focus', 'relations', 'blocks', 'section', 'skipped']),
+  section: new Set(['title', 'summary', 'steps']),
+  concept: new Set(['label', 'aliases', 'cluster', 'first_seen']),
+  cluster: new Set(['label', 'children']),
+  relation: new Set(['from', 'to', 'type', 'provenance', 'grounded_in', 'rationale']),
+  intake: new Set(['type', 'title', 'target']),
+  revision: new Set(['title', 'intake']),
+};
+
 function parseDirectiveFields(entry) {
   const fields = {};
   const bodyLines = [];
   const lines = entry.bodyLines;
+  const fieldKeys = FIELD_KEYS_BY_DIRECTIVE[entry.type] ?? new Set();
   for (let i = 0; i < lines.length;) {
     const line = lines[i];
     const field = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (!field) {
+    if (!field || !fieldKeys.has(field[1])) {
       bodyLines.push(line);
       i += 1;
       continue;
@@ -771,7 +827,7 @@ export function parseAuthoringMarkdown(markdown, { filePath } = {}) {
 
   let current = null;
   for (const line of body.split(/\r?\n/)) {
-    if (line.startsWith('#')) continue;
+    if (!current && line.startsWith('#')) continue;
     if (line.startsWith('@')) {
       if (current) {
         const parsed = parseDirectiveFields(current);
