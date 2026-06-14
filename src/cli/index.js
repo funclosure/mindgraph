@@ -11,6 +11,8 @@ import { applyDigestPlan, evaluateDigest } from '../core/digest.js';
 import { buildStarterDigestOperation, prepareSourceOperation } from '../core/journey.js';
 import { buildTimelineFromTranscript } from '../core/build.js';
 import { backfillFrameActivations, getConcept, getFrame, listConcepts, listFrames, mergeFrames, parseJsonValue, recomputeConceptStats, setFrameActivations, upsertConcept, upsertRelation } from '../core/document.js';
+import { compileAuthoringMarkdown } from '../core/authoring/compile.js';
+import { formatSourceFirstValidationErrors } from '../core/authoring/schema.js';
 
 const pkg = createRequire(import.meta.url)('../../package.json');
 
@@ -22,6 +24,8 @@ Usage:
   mindgraph init <output-file>
   mindgraph validate <input-file>
   mindgraph inspect <input-file>
+  mindgraph authoring validate <input-file.md> [--json]
+  mindgraph authoring compile <input-file.md> -o <output-file.json> [--json]
   mindgraph source import <source> [--workspace <dir>] [--title <title>] [--json]
   mindgraph digest <source> [-o <output-file>] [--workspace <dir>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>] [--json]
   mindgraph mcp [--workspace <dir>]
@@ -48,6 +52,8 @@ Commands:
   init                   Create an empty starter mindgraph document
   validate               Validate a mindgraph JSON document
   inspect                Print a concise summary of a document
+  authoring validate     Validate a source-first mindgraph Markdown authoring document
+  authoring compile      Compile mindgraph Markdown authoring to source-first runtime JSON
   source import          Prepare a local file or readable web article for mindgraph ingestion
   digest                 High-level source→starter-document operation for agent-operated digestion
   mcp                    Start the mindgraph MCP server over stdio
@@ -242,6 +248,54 @@ if (command === 'inspect') {
   console.log(`Frames (meso): ${summary.frameCounts.meso}`);
   console.log(`Frames (macro): ${summary.frameCounts.macro}`);
   console.log(`Range: ${formatRange(summary.timeRange)}`);
+  process.exit(0);
+}
+
+if (command === 'authoring' && subcommand === 'validate') {
+  const [inputFile, ...flagArgs] = rest;
+  if (!inputFile) {
+    console.error('Missing input file path.');
+    process.exit(1);
+  }
+  const flags = parseFlags(flagArgs);
+  const markdown = fs.readFileSync(inputFile, 'utf8');
+  const result = compileAuthoringMarkdown(markdown, { filePath: inputFile });
+  if (flags['--json']) {
+    console.log(JSON.stringify({ ok: result.validation.ok, validation: result.validation }, null, 2));
+  } else if (result.validation.ok) {
+    console.log(`OK: ${inputFile} is a valid mindgraph authoring document.`);
+  } else {
+    console.error(`INVALID: ${inputFile}`);
+    console.error(formatSourceFirstValidationErrors(result.validation));
+  }
+  process.exit(result.validation.ok ? 0 : 1);
+}
+
+if (command === 'authoring' && subcommand === 'compile') {
+  const [inputFile, ...flagArgs] = rest;
+  if (!inputFile) {
+    console.error('Missing input file path.');
+    process.exit(1);
+  }
+  const flags = parseFlags(flagArgs);
+  const outputFile = requireFlag(flags, '-o', '--output');
+  if (!outputFile) {
+    console.error('Missing -o <output-file.json>.');
+    process.exit(1);
+  }
+  const markdown = fs.readFileSync(inputFile, 'utf8');
+  const result = compileAuthoringMarkdown(markdown, { filePath: inputFile });
+  if (!result.validation.ok) {
+    if (flags['--json']) console.log(JSON.stringify({ ok: false, validation: result.validation }, null, 2));
+    else {
+      console.error(`INVALID: ${inputFile}`);
+      console.error(formatSourceFirstValidationErrors(result.validation));
+    }
+    process.exit(1);
+  }
+  writeJson(outputFile, result.document);
+  if (flags['--json']) console.log(JSON.stringify({ ok: true, inputFile, outputFile, validation: result.validation }, null, 2));
+  else console.log(`Compiled ${inputFile} to ${outputFile}`);
   process.exit(0);
 }
 

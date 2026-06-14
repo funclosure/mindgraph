@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { compileAuthoringMarkdown } from '../src/core/authoring/compile.js';
 
 const fixturePath = 'examples/authoring/recursive-self-improvement.mindgraph.md';
@@ -94,4 +97,52 @@ first_seen: b001
   assert.equal(document.relations[0].id, 'recursive-self-improvement-depends_on-feedback-loop');
   assert.deepEqual(document.relations[0].groundedInBlockIds, ['b001']);
   assert.equal(document.readerSteps[0].focusRelations[0].id, 'recursive-self-improvement-depends_on-feedback-loop');
+});
+
+test('CLI validates and compiles authoring markdown', () => {
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mindgraph-authoring-cli-'));
+  const outPath = path.join(outDir, 'compiled.mindgraph.json');
+
+  const validate = spawnSync(process.execPath, ['src/cli/index.js', 'authoring', 'validate', fixturePath], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+  assert.equal(validate.status, 0, validate.stderr);
+  assert.match(validate.stdout, /OK: .* is a valid mindgraph authoring document/);
+
+  const compile = spawnSync(process.execPath, ['src/cli/index.js', 'authoring', 'compile', fixturePath, '-o', outPath], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+  assert.equal(compile.status, 0, compile.stderr);
+  assert.match(compile.stdout, /Compiled .* to .*/);
+
+  const compiled = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+  assert.equal(compiled.kind, 'mindgraph.source-first');
+  assert.equal(compiled.title, 'Recursive Self-Improvement');
+});
+
+test('CLI reports validation failures for broken authoring markdown', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mindgraph-authoring-broken-'));
+  const filePath = path.join(dir, 'broken.mindgraph.md');
+  fs.writeFileSync(filePath, `---
+kind: mindgraph.authoring
+version: 1
+title: Broken
+---
+
+@source src
+type: text
+title: Source
+`, 'utf8');
+
+  const result = spawnSync(process.execPath, ['src/cli/index.js', 'authoring', 'validate', filePath], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /INVALID:/);
+  assert.match(result.stderr, /sourceBlocks must include at least one block/);
+  assert.match(result.stderr, /readerSteps must include at least one step/);
+  assert.match(result.stderr, /sections must include at least one section/);
 });
