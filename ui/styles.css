@@ -139,23 +139,64 @@ button { cursor: pointer; color: inherit; }
   height: 8px;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 4px;
-  overflow: hidden;
+  overflow: visible;
 }
-.strip .strip-seg {
+.strip .strip-progress {
   position: absolute;
+  left: 0;
   top: 0;
   bottom: 0;
-  background: rgba(184, 148, 97, 0.32);
-  border: none;
-  border-right: 1px solid rgba(0, 0, 0, 0.32);
-  padding: 0;
-  transition: background-color 120ms ease;
+  border-radius: 4px;
+  background: rgba(214, 176, 109, 0.62);
+  pointer-events: none;
 }
-.strip .strip-seg:last-child { border-right: none; }
-.strip .strip-seg:hover { background: rgba(214, 176, 109, 0.55); }
-.strip .strip-seg.is-active {
-  background: rgba(231, 203, 141, 0.85);
-  box-shadow: 0 0 12px rgba(231, 203, 141, 0.4);
+.strip .strip-cursor {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--gold-bright);
+  box-shadow: 0 0 0 3px rgba(244, 207, 134, 0.16);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.strip .strip-zone {
+  position: absolute;
+  top: -7px;
+  bottom: -7px;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.strip .strip-zone:hover {
+  background: rgba(255, 244, 219, 0.06);
+}
+.strip .strip-zone.is-active {
+  background: rgba(244, 207, 134, 0.05);
+}
+.strip .strip-marker {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.strip .strip-marker::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: rgba(18, 17, 14, 0.72);
+  transform: translateX(-50%);
+  transition: background-color 120ms ease, width 120ms ease;
+}
+.strip .strip-marker.is-active::before {
+  width: 2px;
+  background: var(--text);
 }
 
 .prose {

@@ -29,6 +29,7 @@ export function computeVisibleLabels({
 
   const conceptImportance = renderState?.conceptImportance ?? viewModel.graph.conceptImportance ?? {};
   const activeNodeIds = new Set(renderState?.activeNodeIds ?? []);
+  const selectedNodeIds = new Set(renderState?.selectedNodeIds ?? []);
   // Labels can only appear for concepts whose dots are actually rendered.
   // visibleNodeIds is the dot-rendering set (cumulative-gated, capped by
   // viewport mode). Filtering on it instead of the broader cumulative set
@@ -62,7 +63,7 @@ export function computeVisibleLabels({
     if (!renderedNodeIds.has(node.id)) continue;
 
     const isHovered = hoveredConceptId === node.id;
-    const isSelected = selectedConceptId === node.id;
+    const isSelected = selectedConceptId === node.id || selectedNodeIds.has(node.id);
     const isNeighbor = selectedNeighborIds.has(node.id);
     const isActive = activeNodeIds.has(node.id);
 
@@ -110,7 +111,8 @@ export function computeVisibleLabels({
     const ringExtra = (cand.isSelected || cand.isHovered) ? 5 : 0;
     const dotR = (dotRadiusFor(cand.node) + ringExtra) * z;
     const left = screenPos.x - w / 2;
-    const top = screenPos.y - dotR - 6 - h;
+    const labelGap = cand.isSelected || cand.isHovered ? 10 : 6;
+    const top = screenPos.y - dotR - labelGap - h;
     const rect = {
       left,
       top,
@@ -144,7 +146,7 @@ export function computeVisibleLabels({
       id: cand.node.id,
       text,
       x: screenPos.x,
-      y: screenPos.y - dotR - 6,
+      y: screenPos.y - dotR - labelGap,
       alpha,
       rect,
     });

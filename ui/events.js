@@ -16,15 +16,15 @@ function resizeCanvasNow(state) {
   state.viewport = applyDpr(canvas, ctx);
 }
 
-function scrollProseToOverview(overviewIndex) {
+function scrollProseToTime(time) {
   const container = document.getElementById('prose');
   if (!container) return;
-  const headings = container.querySelectorAll('.prose-overview');
-  const heading = headings[overviewIndex];
-  if (!heading) return;
+  const blocks = [...container.querySelectorAll('.prose-block[data-time-start]')];
+  const target = blocks.find((block) => Number(block.dataset.timeStart) >= time) ?? blocks.at(-1);
+  if (!target) return;
   const containerRect = container.getBoundingClientRect();
-  const headingRect = heading.getBoundingClientRect();
-  const offset = headingRect.top - (containerRect.top + 24);
+  const targetRect = target.getBoundingClientRect();
+  const offset = targetRect.top - (containerRect.top + 24);
   // Use instant scroll (avoids race with the scroll-binding's render path —
   // see v2 Task 11 finalization commit). The scroll-binding picks up the new
   // position and updates the playhead naturally.
@@ -126,19 +126,19 @@ export function bindEvents(state, render, scheduleDraw) {
     });
   });
 
-  document.querySelectorAll('[data-action="jump-overview"]').forEach((btn) => {
+  document.querySelectorAll('[data-action="jump-source-section"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const idx = Number(btn.dataset.overviewIndex);
-      const overviewLevel = state.viewModel.sourceFlow ? 'overview' : 'macro';
-      const frame = state.viewModel.sourceFlow?.overview?.[idx] ?? state.viewModel.frames?.macro?.[idx];
+      const idx = Number(btn.dataset.sectionIndex);
+      const sectionLevel = state.viewModel.sourceFlow ? 'section' : 'macro';
+      const frame = state.viewModel.sourceFlow?.sections?.[idx] ?? state.viewModel.frames?.macro?.[idx];
       if (!frame) return;
       state.playheadTime = frame.span.start;
-      state.selectedFrameRef = { level: overviewLevel, index: idx };
+      state.selectedFrameRef = { level: sectionLevel, index: idx };
       state.selectedConceptId = undefined;
       state.cameraMode = 'selection';
-      // Smooth-scroll the prose to the overview heading. The scroll-binding
+      // Smooth-scroll the prose to the first source paragraph in the section. The scroll-binding
       // will then re-confirm the playhead from the centered paragraph.
-      scrollProseToOverview(idx);
+      scrollProseToTime(frame.span.start);
       render();
     });
   });
