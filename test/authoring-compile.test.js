@@ -54,3 +54,44 @@ steps: s001
   assert.match(validation.errors.join('\n'), /readerSteps\.s001 references missing sourceBlock 'missing-block'/);
   assert.match(validation.errors.join('\n'), /readerSteps\.s001 focusConcept 'missing-concept' references missing concept/);
 });
+
+test('compileAuthoringMarkdown grounds inline step relations in the step source blocks', () => {
+  const markdown = `---
+kind: mindgraph.authoring
+version: 1
+title: Inline Relation
+---
+
+@source src
+type: text
+title: Source
+
+@block b001 source=src kind=paragraph
+Text.
+
+@step s001 section=setup blocks=b001
+summary: Inline relation.
+focus:
+  - recursive-self-improvement 1 explicit
+relations:
+  - recursive-self-improvement -> feedback-loop depends_on 0.75
+
+@section setup
+title: Setup
+steps: s001
+
+@concept recursive-self-improvement
+label: Recursive Self-Improvement
+first_seen: b001
+
+@concept feedback-loop
+label: Feedback Loop
+first_seen: b001
+`;
+
+  const { document, validation } = compileAuthoringMarkdown(markdown);
+  assert.equal(validation.ok, true, validation.errors.join('\n'));
+  assert.equal(document.relations[0].id, 'recursive-self-improvement-depends_on-feedback-loop');
+  assert.deepEqual(document.relations[0].groundedInBlockIds, ['b001']);
+  assert.equal(document.readerSteps[0].focusRelations[0].id, 'recursive-self-improvement-depends_on-feedback-loop');
+});

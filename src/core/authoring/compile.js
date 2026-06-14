@@ -100,14 +100,14 @@ function relationFrom(entry) {
   };
 }
 
-function inlineRelationFrom(item) {
+function inlineRelationFrom(item, sourceBlockIds) {
   return {
     id: relationIdForInline(item),
     from: item.from,
     to: item.to,
     type: item.type,
     provenance: 'source',
-    groundedInBlockIds: [],
+    groundedInBlockIds: sourceBlockIds,
   };
 }
 
@@ -120,11 +120,17 @@ export function compileAuthoringModel(model) {
   const inlineRelations = [];
   const inlineSignatures = new Set(explicitRelationKeys.keys());
   for (const step of model.steps) {
+    const sourceBlockIds = step.attrs.blocks
+      ? String(step.attrs.blocks)
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : asArray(step.fields.blocks);
     for (const item of asArray(step.fields.relations)) {
       const signature = `${item.from}|${item.type}|${item.to}`;
       if (inlineSignatures.has(signature)) continue;
       inlineSignatures.add(signature);
-      inlineRelations.push(inlineRelationFrom(item));
+      inlineRelations.push(inlineRelationFrom(item, sourceBlockIds));
     }
   }
 
