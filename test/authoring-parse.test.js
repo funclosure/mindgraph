@@ -40,3 +40,54 @@ test('parseAuthoringMarkdown rejects unknown directives', () => {
     /Unknown directive '@unknown'/,
   );
 });
+
+test('parseAuthoringMarkdown preserves block body lines that resemble fields or headings', () => {
+  const markdown = `---
+kind: mindgraph.authoring
+version: 1
+title: Body Field Noise
+---
+
+@block b001 source=demo kind=paragraph
+Note: this is important note text.
+http://example.com/resource
+#hashtag should stay
+### fake heading line
+`;
+
+  const model = parseAuthoringMarkdown(markdown);
+  const { fields, body } = model.blocks[0];
+
+  assert.deepEqual(fields, {});
+  assert.match(body, /Note: this is important note text\./);
+  assert.match(body, /http:\/\/example\.com\/resource/);
+  assert.match(body, /#hashtag should stay/);
+  assert.match(body, /### fake heading line/);
+});
+
+test('parseAuthoringMarkdown rejects malformed focus item entries', () => {
+  const markdown = `---
+kind: mindgraph.authoring
+version: 1
+title: Focus Parse
+---
+
+@step s001 section=setup
+focus:
+  - concept explicit
+`;
+
+  assert.throws(
+    () => parseAuthoringMarkdown(markdown),
+    /Invalid focus item 'concept explicit'/,
+  );
+});
+
+test('parseFrontmatter parses CRLF files', () => {
+  const markdown = `---\r\nkind: mindgraph.authoring\r\nversion: 1\r\ntitle: CRLF Example\r\n---\r\n@source x\r\ntype: text\r\ntitle: Source Title\r\n`;
+  const model = parseAuthoringMarkdown(markdown);
+
+  assert.equal(model.meta.kind, 'mindgraph.authoring');
+  assert.equal(model.meta.version, 1);
+  assert.equal(model.meta.title, 'CRLF Example');
+});

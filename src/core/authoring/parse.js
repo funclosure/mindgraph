@@ -10,6 +10,18 @@ const DIRECTIVE_COLLECTIONS = {
   revision: 'revisions',
 };
 
+const DIRECTIVE_FIELDS = {
+  source: new Set(['type', 'title', 'path']),
+  block: new Set(),
+  step: new Set(['section', 'blocks', 'summary', 'focus', 'relations']),
+  section: new Set(['title', 'summary', 'steps']),
+  concept: new Set(['label', 'aliases', 'cluster', 'first_seen']),
+  cluster: new Set(['label', 'children']),
+  relation: new Set(['from', 'to', 'type', 'provenance', 'grounded_in', 'rationale']),
+  intake: new Set(),
+  revision: new Set(),
+};
+
 function parseScalar(value) {
   const trimmed = String(value ?? '').trim();
   if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
@@ -26,11 +38,15 @@ function parseCsv(value) {
 }
 
 function parseFrontmatter(markdown) {
-  if (!markdown.startsWith('---\n')) {
+  if (!markdown.startsWith('---')) {
+    throw new Error('Missing frontmatter.');
+  }
+  if (markdown[3] !== '\n' && markdown[3] !== '\r') {
     throw new Error('Missing frontmatter.');
   }
 
-  const end = markdown.indexOf('\n---', 4);
+  const bodyStart = markdown[3] === '\r' ? 5 : 4;
+  const end = markdown.indexOf('\n---', bodyStart);
   if (end === -1) throw new Error('Unclosed frontmatter.');
 
   const raw = markdown.slice(4, end).trim();
@@ -66,10 +82,20 @@ function parseDirectiveHeader(line) {
 }
 
 function parseFocusItem(value) {
-  const [id, weight, mode] = value.trim().split(/\s+/);
+  const match = value.trim().match(/^(\S+)\s+(-?\d+(?:\.\d+)?)\s*(\S+)?$/);
+  if (!match) {
+    throw new Error(`Invalid focus item '${value}'. Expected: <id> <weight> [mode].`);
+  }
+
+  const [, id, weightText, mode] = match;
+  const weight = Number(weightText);
+  if (!Number.isFinite(weight)) {
+    throw new Error(`Invalid focus item '${value}'. Weight must be a finite number.`);
+  }
+
   return {
     id,
-    weight: Number(weight),
+    weight,
     ...(mode ? { mode } : {}),
   };
 }
@@ -102,12 +128,13 @@ function parseDirectiveFields(entry) {
   const fields = {};
   const bodyLines = [];
   const lines = entry.bodyLines;
+  const allowedFields = DIRECTIVE_FIELDS[entry.type] ?? new Set();
 
   for (let i = 0; i < lines.length;) {
     const line = lines[i];
     const field = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
 
-    if (!field) {
+    if (!field || !allowedFields.has(field[1])) {
       bodyLines.push(line);
       i += 1;
       continue;
@@ -155,7 +182,7 @@ export function parseAuthoringMarkdown(markdown, { filePath } = {}) {
 
   let current = null;
   for (const line of body.split(/\r?\n/)) {
-    if (line.startsWith('#')) continue;
+    if (!current && line.startsWith('#')) continue;
     if (line.startsWith('@')) {
       if (current) {
         const parsed = parseDirectiveFields(current);
