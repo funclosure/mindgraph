@@ -38,6 +38,7 @@
 
 - Create `test/authoring-schema.test.js`
   - Unit tests for source-first runtime validation.
+  - Task 1 starts `test:authoring` with this suite only; later tasks expand the script as their suites are created.
 
 - Create `test/authoring-parse.test.js`
   - Unit tests for Markdown parsing.
@@ -62,7 +63,7 @@
 Open `package.json`. In `scripts`, add this entry after `test:mcp`:
 
 ```json
-"test:authoring": "node --test test/authoring-schema.test.js test/authoring-parse.test.js test/authoring-compile.test.js"
+"test:authoring": "node --test test/authoring-schema.test.js"
 ```
 
 Keep the surrounding comma placement valid JSON.
@@ -136,6 +137,76 @@ test('validateSourceFirstDocument rejects missing top-level identity', () => {
   const result = validateSourceFirstDocument({ ...validDoc(), kind: 'mindgraph.document' });
   assert.equal(result.ok, false);
   assert.match(result.errors.join('\n'), /kind must be 'mindgraph.source-first'/);
+});
+
+test('validateSourceFirstDocument rejects duplicate concept ids across atomic and clustered namespaces', () => {
+  const doc = validDoc({
+    concepts: {
+      atomic: [
+        { id: 'recursive-self-improvement', label: 'Recursive Self-Improvement', parentIds: [], firstSeenBlockId: 'b002' },
+      ],
+      clustered: [
+        { id: 'recursive-self-improvement', label: 'Recursive Self-Improvement Cluster', childIds: [] },
+      ],
+    },
+  });
+
+  const result = validateSourceFirstDocument(doc);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /concepts\.recursive-self-improvement is duplicated across atomic and clustered concepts/);
+});
+
+test('validateSourceFirstDocument rejects section membership disagreement', () => {
+  const doc = validDoc({
+    readerSteps: [
+      {
+        id: 's001',
+        sectionId: 'setup',
+        sourceBlockIds: ['b001', 'b002'],
+        summary: 'The source introduces recursive self-improvement as feedback.',
+        focusConcepts: [{ id: 'recursive-self-improvement', weight: 0.95, mode: 'explicit' }],
+        focusRelations: [{ id: 'rsi-depends-on-feedback', weight: 0.85 }],
+      },
+    ],
+    sections: [
+      { id: 'setup', title: 'Setup', summary: '', readerStepIds: [] },
+      { id: 'wrong-section', title: 'Wrong Section', summary: '', readerStepIds: ['s001'] },
+    ],
+  });
+
+  const result = validateSourceFirstDocument(doc);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /readerSteps\.s001 references section 'setup' but that section does not list the step/);
+  assert.match(result.errors.join('\n'), /sections\.wrong-section lists readerStep 's001' but the step belongs to section 'setup'/);
+});
+
+test('validateSourceFirstDocument rejects partial missing relation grounding', () => {
+  const doc = validDoc({
+    relations: [
+      {
+        id: 'partially-grounded',
+        from: 'recursive-self-improvement',
+        to: 'feedback-loop',
+        type: 'depends_on',
+        provenance: 'source',
+        groundedInBlockIds: ['missing-block', 'b002'],
+      },
+    ],
+    readerSteps: [
+      {
+        id: 's001',
+        sectionId: 'setup',
+        sourceBlockIds: ['b001', 'b002'],
+        summary: 'The source introduces recursive self-improvement as feedback.',
+        focusConcepts: [{ id: 'recursive-self-improvement', weight: 0.95, mode: 'explicit' }],
+        focusRelations: [{ id: 'partially-grounded', weight: 0.85 }],
+      },
+    ],
+  });
+
+  const result = validateSourceFirstDocument(doc);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /relations\.partially-grounded groundedInBlockId 'missing-block' references missing block/);
 });
 
 test('validateSourceFirstDocument rejects empty source-first graphs', () => {
@@ -299,6 +370,12 @@ export function validateSourceFirstDocument(doc) {
   const conceptIds = new Set([...collectIds(atomic), ...collectIds(clustered)]);
   const relationIds = collectIds(relations);
 
+  const atomicIds = collectIds(atomic);
+  const clusteredIds = collectIds(clustered);
+  for (const id of atomicIds) {
+    if (clusteredIds.has(id)) errors.push(`concepts.${id} is duplicated across atomic and clustered concepts`);
+  }
+
   for (const source of sources) {
     if (!hasText(source.id)) errors.push('sources entry id is required');
     if (!hasText(source.type)) errors.push(`sources.${source.id ?? '?'} type is required`);
@@ -339,8 +416,12 @@ export function validateSourceFirstDocument(doc) {
     if (!hasText(relation.type)) errors.push(`relations.${relation.id ?? '?'} type is required`);
     const provenance = relation.provenance ?? 'source';
     if (provenance !== 'source' && provenance !== 'inferred') errors.push(`relations.${relation.id ?? '?'} provenance must be 'source' or 'inferred'`);
-    if (provenance === 'source' && !asArray(relation.groundedInBlockIds).some((id) => blockIds.has(id))) {
+    const groundedInBlockIds = asArray(relation.groundedInBlockIds);
+    if (provenance === 'source' && !groundedInBlockIds.length) {
       errors.push(`relations.${relation.id ?? '?'} source provenance requires groundedInBlockIds`);
+    }
+    for (const blockId of groundedInBlockIds) {
+      if (!blockIds.has(blockId)) errors.push(`relations.${relation.id ?? '?'} groundedInBlockId '${blockId}' references missing block`);
     }
     if (provenance === 'inferred' && !hasText(relation.rationale)) {
       errors.push(`relations.${relation.id ?? '?'} inferred provenance requires rationale`);
@@ -364,6 +445,10 @@ export function validateSourceFirstDocument(doc) {
     if (!step.skipped && !asArray(step.focusConcepts).length && !asArray(step.focusRelations).length) {
       errors.push(`readerSteps.${step.id ?? '?'} has no focus anchors`);
     }
+    const section = sections.find((candidate) => candidate.id === step.sectionId);
+    if (section && !asArray(section.readerStepIds).includes(step.id)) {
+      errors.push(`readerSteps.${step.id ?? '?'} references section '${step.sectionId}' but that section does not list the step`);
+    }
   }
 
   for (const section of sections) {
@@ -371,6 +456,10 @@ export function validateSourceFirstDocument(doc) {
     if (!hasText(section.title)) errors.push(`sections.${section.id ?? '?'} title is required`);
     for (const stepId of asArray(section.readerStepIds)) {
       if (!stepIds.has(stepId)) errors.push(`sections.${section.id ?? '?'} references missing readerStep '${stepId}'`);
+      const step = steps.find((candidate) => candidate.id === stepId);
+      if (step && step.sectionId !== section.id) {
+        errors.push(`sections.${section.id ?? '?'} lists readerStep '${stepId}' but the step belongs to section '${step.sectionId}'`);
+      }
     }
   }
 
