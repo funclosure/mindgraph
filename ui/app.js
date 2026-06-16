@@ -171,6 +171,74 @@ function render() {
   bindEvents(state, render, kickAnimationLoop);
 }
 
+// ---------------------------------------------------------------------------
+// Living-document: deepen a concept via the agent server (SSE)
+// ---------------------------------------------------------------------------
+
+let deepenInFlight = false;
+
+function deepenStatus(message) {
+  let el = document.getElementById('deepen-status');
+  if (message == null) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'deepen-status';
+    el.style.cssText =
+      'position:fixed;left:12px;bottom:12px;z-index:9999;padding:6px 10px;' +
+      'font:12px/1.4 system-ui,sans-serif;color:#e8e3d4;background:rgba(20,18,14,0.92);' +
+      'border:1px solid #4a4334;border-radius:6px;max-width:42ch;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+}
+
+// Rebuild the whole reactive chain from a freshly-produced document and redraw.
+function rebuildFromDocument(nextDocument) {
+  state.document = nextDocument;
+  state.viewModel = buildMindgraphViewModel(nextDocument);
+  state.proseChunks = buildProseChunks(state.viewModel);
+  state.sim = createLayoutSimulator(state.viewModel);
+  state.viewport = applyDpr(canvas, ctx);
+  fitCameraToLayout(state.camera, state.layout, state.viewport);
+  state.cameraMode = 'auto';
+  render();
+}
+
+function deepenConcept(conceptId) {
+  if (!conceptId || deepenInFlight) return;
+  deepenInFlight = true;
+  deepenStatus(`Deepening “${conceptId}” …`);
+  const source = new EventSource(`/deepen?concept=${encodeURIComponent(conceptId)}`);
+  const close = () => { source.close(); deepenInFlight = false; };
+  source.addEventListener('progress', (event) => {
+    try { deepenStatus(JSON.parse(event.data).message); } catch { /* ignore */ }
+  });
+  source.addEventListener('document', (event) => {
+    try {
+      rebuildFromDocument(JSON.parse(event.data).document);
+      deepenStatus('Deepened ✓');
+      setTimeout(() => deepenStatus(null), 1600);
+    } catch (error) {
+      deepenStatus(`Deepen failed: ${error.message}`);
+    }
+    close();
+  });
+  source.addEventListener('error', (event) => {
+    let message = 'connection lost';
+    try { message = JSON.parse(event.data).message; } catch { /* native error has no data */ }
+    deepenStatus(`Deepen error: ${message}`);
+    close();
+  });
+}
+
+// Triggers: press "d" with a concept selected, or call window.__mindgraphDeepen(id).
+window.__mindgraphDeepen = deepenConcept;
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'd' && !event.metaKey && !event.ctrlKey && !event.altKey && state.selectedConceptId) {
+    deepenConcept(state.selectedConceptId);
+  }
+});
+
 // If the rAF loop runs this many consecutive frames without settling, something
 // is wrong (sim oscillating, ResizeObserver loop, etc.). Force-stop and warn
 // once so the failure surfaces instead of silently burning a CPU core. 1800
