@@ -28,6 +28,7 @@
     "start": "bun ./src/cli/index.js",
     "start:node": "node ./src/cli/index.js",
     "vm:example": "node ./src/view-model/example.js",
+    "server": "node src/server/index.js",
     "ui:dev": "node ./src/ui/dev-server.js",
     "ui:check": "node --check ./ui/app.js && node --check ./ui/labels.js && node --check ./src/ui/dev-server.js",
     "test:layout": "node --test test/layout-v3.test.js",
