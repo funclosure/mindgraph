@@ -15,11 +15,15 @@ import { renderViewPopover } from './panels/view-popover.js';
 import { renderDigestInspector } from './panels/digest-inspector.js';
 import { attachScrollBinding } from './scroll-binding.js';
 import { createLayoutDebugPanel } from './layout-debug-panel.js';
+import { registry } from '../src/operations/index.js';
 
 // The dev server (src/ui/dev-server.js) serves whichever mindgraph
 // document was passed via its --doc flag — or the canonical sample by
-// default — at /doc.json. The UI doesn't need to know the path on disk.
+// default. Source-first authoring markdown is exposed at /doc.md and
+// compiled to a runtime document IN THE BROWSER via the shared
+// core/operations catalog; precompiled documents are served at /doc.json.
 const DOC_PATH = '/doc.json';
+const DOC_MARKDOWN_PATH = '/doc.md';
 const DEBUG_LAYOUT = new URLSearchParams(window.location.search).has('debugLayout');
 
 const canvas = document.getElementById('stage');
@@ -59,10 +63,30 @@ bootstrap().catch((error) => {
   console.error(error);
 });
 
-async function bootstrap() {
+// Load the document the dev server is serving. If source-first authoring
+// markdown is available at /doc.md, compile it to a runtime document IN THE
+// BROWSER using the shared core/operations catalog — the exact same code the
+// CLI runs. Otherwise fall back to a precompiled document at /doc.json.
+async function loadDocument() {
+  const mdResponse = await fetch(DOC_MARKDOWN_PATH);
+  if (mdResponse.ok) {
+    const markdown = await mdResponse.text();
+    const result = registry.run('compile', { markdown });
+    if (!result.ok) {
+      throw new Error(`In-browser compile failed: ${result.errors.map((e) => e.message).join('; ')}`);
+    }
+    console.info('mindgraph: compiled source-first markdown in-browser via core/operations', {
+      valid: result.value.validation.ok,
+    });
+    return result.value.document;
+  }
   const response = await fetch(DOC_PATH);
   if (!response.ok) throw new Error(`HTTP ${response.status} loading ${DOC_PATH}`);
-  state.document = await response.json();
+  return response.json();
+}
+
+async function bootstrap() {
+  state.document = await loadDocument();
   state.viewModel = buildMindgraphViewModel(state.document);
   if (state.document.kind === 'mindgraph.source-first') {
     state.activeLevel = 'readerStep';

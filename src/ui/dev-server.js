@@ -42,8 +42,37 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || `${host}:${port}`}`);
   const pathname = url.pathname === '/' ? '/ui/index.html' : decodeURIComponent(url.pathname);
 
-  // /doc.json — serve the configured document, regardless of where it lives.
+  // /doc.md — serve source-first authoring markdown when --doc points at a
+  // .md file, so the browser can compile it via the shared core. 404 for
+  // precompiled (.json) documents; the UI then falls back to /doc.json.
+  if (pathname === '/doc.md') {
+    if (!docPath.endsWith('.md')) {
+      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+      res.end('No markdown document configured');
+      return;
+    }
+    fs.stat(docPath, (statError, stats) => {
+      if (statError || !stats.isFile()) {
+        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+        res.end(`Document not found: ${docPath}`);
+        return;
+      }
+      res.writeHead(200, {
+        'content-type': 'text/plain; charset=utf-8',
+        'cache-control': 'no-store',
+      });
+      fs.createReadStream(docPath).pipe(res);
+    });
+    return;
+  }
+
+  // /doc.json — serve the configured document when it is a precompiled JSON.
   if (pathname === '/doc.json') {
+    if (docPath.endsWith('.md')) {
+      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+      res.end('Document is source-first markdown; served at /doc.md');
+      return;
+    }
     fs.stat(docPath, (statError, stats) => {
       if (statError || !stats.isFile()) {
         res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
