@@ -1,4 +1,4 @@
-function buildCumulativeVisibility(viewModel, playheadTime) {
+function buildCumulativeVisibility(viewModel, playheadTime, currentConceptIds = []) {
   const conceptIds = new Set();
   const clusterIds = new Set();
   // viewModel.graph.nodes does not carry firstSeenAt — the field lives on
@@ -24,6 +24,7 @@ function buildCumulativeVisibility(viewModel, playheadTime) {
   // Make sure clusters that are visible are also in the conceptIds set
   // (cluster-level concepts share id space with the graph's "clustered" nodes).
   for (const id of clusterIds) conceptIds.add(id);
+  for (const id of currentConceptIds) conceptIds.add(id);
   const edgeIds = new Set();
   for (const edge of viewModel.graph.edges) {
     if (conceptIds.has(edge.from) && conceptIds.has(edge.to)) edgeIds.add(edge.id);
@@ -219,7 +220,7 @@ export function buildGraphRenderState(viewModel, {
   viewport,
 } = {}) {
   const focus = buildFocusSets(viewModel, { selectedConceptId, selectedFrameRef, playheadTime, activeLevel });
-  const cumulative = buildCumulativeVisibility(viewModel, playheadTime);
+  const cumulative = buildCumulativeVisibility(viewModel, playheadTime, focus.activeNodeIds);
   // Overview frames may nominate clusters (not atoms) in their foreground.
   // To make that convention legible, fan a clustered foreground entry out to
   // its member atoms. The result is pure data — what to *render* with this

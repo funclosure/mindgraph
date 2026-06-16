@@ -42,6 +42,9 @@ export const DEFAULT_LAYOUT_CONFIG = Object.freeze({
   componentCohesionStrength: 0.035,
   componentCohesionComfortRadius: 150,
   componentCohesionMaxComponentSize: 6,
+  sectionCohesionStrength: 0.012,
+  sectionCohesionRestLength: 95,
+  sectionCohesionMaxConcepts: 8,
   alphaHalfLifeFrames: 145,
   bloomNeighborDistance: 96,
   bloomHubDistanceBonus: 16,
@@ -117,6 +120,7 @@ export function createLayoutSimulator(viewModel, options = {}) {
   const mass = buildMass(viewModel, nodes, degree);
   let relationPairs = buildRelationPairs(viewModel, atomic, degree, mass, config);
   let relationNeighborIds = buildRelationNeighborIds(relationPairs);
+  let sectionCohesionPairs = buildSectionCohesionPairs(viewModel, atomic, relationNeighborIds, config);
   const layoutMeta = computeLayoutMeta(nodes, relationPairs, relationNeighborIds, config);
 
   function applyCharge() {
@@ -195,6 +199,30 @@ export function createLayoutSimulator(viewModel, options = {}) {
 
   function applySprings() {
     for (const pair of relationPairs) {
+      const aPinned = pinState.has(pair.a);
+      const bPinned = pinState.has(pair.b);
+      if (aPinned && bPinned) continue;
+      const pa = positions[pair.a];
+      const pb = positions[pair.b];
+      const dx = pb.x - pa.x;
+      const dy = pb.y - pa.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const delta = (dist - pair.restLength) * pair.strength;
+      const fx = (dx / dist) * delta;
+      const fy = (dy / dist) * delta;
+      if (!aPinned) {
+        velocities[pair.a].x += fx;
+        velocities[pair.a].y += fy;
+      }
+      if (!bPinned) {
+        velocities[pair.b].x -= fx;
+        velocities[pair.b].y -= fy;
+      }
+    }
+  }
+
+  function applySectionCohesion() {
+    for (const pair of sectionCohesionPairs) {
       const aPinned = pinState.has(pair.a);
       const bPinned = pinState.has(pair.b);
       if (aPinned && bPinned) continue;
@@ -351,6 +379,7 @@ export function createLayoutSimulator(viewModel, options = {}) {
         applyCharge();
         applyUnrelatedSeparation();
         applySprings();
+        applySectionCohesion();
         applyCenter();
         applyComponentCohesion();
         applyCollision();
@@ -368,6 +397,7 @@ export function createLayoutSimulator(viewModel, options = {}) {
       Object.assign(config, overrides);
       relationPairs = buildRelationPairs(viewModel, atomic, degree, mass, config);
       relationNeighborIds = buildRelationNeighborIds(relationPairs);
+      sectionCohesionPairs = buildSectionCohesionPairs(viewModel, atomic, relationNeighborIds, config);
       Object.assign(layoutMeta, computeLayoutMeta(nodes, relationPairs, relationNeighborIds, config));
       this.reheat(1);
     },
@@ -512,6 +542,52 @@ function buildRelationNeighborIds(relationPairs) {
     map.get(pair.b).add(pair.a);
   }
   return map;
+}
+
+function buildSectionCohesionPairs(viewModel, atomic, relationNeighborIds, config) {
+  const atomicIds = new Set(atomic.map((c) => c.id));
+  const readerSteps = viewModel.sourceFlow?.readerSteps ?? [];
+  const sections = viewModel.sourceFlow?.sections ?? [];
+  if (!readerSteps.length || !sections.length) return [];
+
+  const pairs = [];
+  const seen = new Set();
+  for (const section of sections) {
+    const conceptWeights = new Map();
+    for (const ref of section.sourceFrameRefs ?? []) {
+      if (ref.level !== 'readerStep') continue;
+      const step = readerSteps[ref.index];
+      for (const activation of step?.foregroundConcepts ?? []) {
+        const id = activation.id;
+        if (!atomicIds.has(id)) continue;
+        conceptWeights.set(id, Math.max(conceptWeights.get(id) ?? 0, activation.weight ?? 0.5));
+      }
+    }
+
+    const ids = [...conceptWeights.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, config.sectionCohesionMaxConcepts)
+      .map(([id]) => id);
+
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        const a = ids[i];
+        const b = ids[j];
+        if (relationNeighborIds.get(a)?.has(b)) continue;
+        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const strengthScale = Math.min(1, Math.max(0.35, ((conceptWeights.get(a) ?? 0.5) + (conceptWeights.get(b) ?? 0.5)) / 2));
+        pairs.push({
+          a,
+          b,
+          restLength: config.sectionCohesionRestLength,
+          strength: config.sectionCohesionStrength * strengthScale,
+        });
+      }
+    }
+  }
+  return pairs;
 }
 
 function buildComponents(nodes, relationNeighborIds) {

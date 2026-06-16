@@ -19,7 +19,7 @@ function edge(id, from, to, weight = 1) {
   return { id, from, to, type: 'related', weight, provenance: 'source' };
 }
 
-function vm({ concepts, edges, coOccurrence = {}, importance = {} }) {
+function vm({ concepts, edges, coOccurrence = {}, importance = {}, sourceFlow }) {
   const byId = Object.fromEntries(concepts.map((c) => [c.id, c]));
   return {
     concepts: {
@@ -37,6 +37,7 @@ function vm({ concepts, edges, coOccurrence = {}, importance = {} }) {
       conceptImportance: importance,
     },
     frames: { micro: [], meso: [], macro: [{ span: { start: 0, end: 1 } }] },
+    ...(sourceFlow ? { sourceFlow } : {}),
   };
 }
 
@@ -90,6 +91,44 @@ test('cluster-only sibling concepts are not pulled together without relation edg
   const bc = dist(sim.positions.b, sim.positions.c);
   const ac = dist(sim.positions.a, sim.positions.c);
   assert.ok(average([ab, bc, ac]) > 100, `cluster-only siblings should not collapse, distances: ${ab}, ${bc}, ${ac}`);
+});
+
+test('source-section concepts get weak cohesion without explicit relation edges', () => {
+  const concepts = [concept('a'), concept('b'), concept('c'), concept('d')];
+  const loose = createLayoutSimulator(vm({ concepts, edges: [] }));
+  loose.reheat(1);
+  step(loose, 240);
+
+  const grouped = createLayoutSimulator(vm({
+    concepts,
+    edges: [],
+    sourceFlow: {
+      readerSteps: [
+        {
+          id: 'step-1',
+          sourceSegmentIds: [],
+          foregroundConcepts: concepts.map((c) => ({ id: c.id, weight: 1 })),
+        },
+      ],
+      sections: [
+        {
+          id: 'section-1',
+          sourceFrameRefs: [{ level: 'readerStep', index: 0 }],
+        },
+      ],
+    },
+  }));
+  grouped.reheat(1);
+  step(grouped, 240);
+
+  const pairIds = [['a', 'b'], ['a', 'c'], ['a', 'd'], ['b', 'c'], ['b', 'd'], ['c', 'd']];
+  const looseAverage = average(pairIds.map(([a, b]) => dist(loose.positions[a], loose.positions[b])));
+  const groupedAverage = average(pairIds.map(([a, b]) => dist(grouped.positions[a], grouped.positions[b])));
+
+  assert.ok(
+    groupedAverage < looseAverage - 5 && groupedAverage > looseAverage - 18,
+    `expected source-section cohesion to be weak: grouped ${groupedAverage}, loose ${looseAverage}`,
+  );
 });
 
 test('placeForBloom moves a new node near its strongest visible relation neighbor', () => {

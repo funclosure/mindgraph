@@ -649,7 +649,11 @@ function buildSelectors(viewModel) {
 
   function getActiveFrameAtTime(level, time) {
     const collection = collectionForLevel(level);
-    return collection?.find((frame) => frame.span.start <= time && time < frame.span.end);
+    let active;
+    for (const frame of collection ?? []) {
+      if (frame.span.start <= time && time < frame.span.end) active = frame;
+    }
+    return active;
   }
 
   function getActiveFramesAtTime(time) {
