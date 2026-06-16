@@ -47,3 +47,13 @@ test('deepen handler emits an error and no document when runner writes invalid m
   assert.ok(events.some((event) => event.type === 'error'));
   assert.equal(events.some((event) => event.type === 'document'), false);
 });
+
+test("deepen snapshots the pre-edit markdown to slug__backup", async () => {
+  const md = fs.readFileSync("examples/authoring/recursive-self-improvement.mindgraph.md", "utf8");
+  const store = createMemoryStore({ demo: { md } });
+  const runner = async ({ slug, store }) => {
+    store.put(slug, { md: store.get(slug).md + "\n\n@concept snap-added\nlabel: Snap Added\n" });
+  };
+  await deepenHandler({ slug: "demo", conceptId: "c", store, runner, emit: () => {} });
+  assert.equal(store.get("demo__backup")?.md, md);
+});

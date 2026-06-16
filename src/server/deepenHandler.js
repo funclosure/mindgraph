@@ -4,6 +4,11 @@ export async function deepenHandler({ slug, conceptId, store, runner, emit }) {
   try {
     emit({ type: 'progress', message: 'deepening' });
 
+    const before = store.get(slug);
+    if (before && typeof before.md === "string") {
+      store.put(`${slug}__backup`, { md: before.md });
+    }
+
     await runner({ slug, conceptId, store, emit });
 
     const entry = store.get(slug);
