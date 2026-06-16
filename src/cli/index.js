@@ -353,6 +353,15 @@ if (command === 'authoring' && subcommand === 'draft') {
   }
 
   const compileOutputFile = requireFlag(flags, '--compile');
+  // Default the runtime pointer to the compiled JSON sibling of the -o markdown
+  // path (e.g. foo.mindgraph.md -> foo.mindgraph.json), not a slug of the title.
+  // An explicit --compile target wins.
+  const runtimeBase = path.basename(outputFile);
+  const runtime = compileOutputFile
+    ? path.basename(compileOutputFile)
+    : /\.md$/i.test(runtimeBase)
+      ? runtimeBase.replace(/\.md$/i, '.json')
+      : `${runtimeBase}.mindgraph.json`;
   const text = fs.readFileSync(inputFile, 'utf8');
   let draft;
   try {
@@ -360,7 +369,7 @@ if (command === 'authoring' && subcommand === 'draft') {
       title: requireFlag(flags, '--title'),
       sourceId: requireFlag(flags, '--source-id'),
       sourcePath: inputFile,
-      runtime: compileOutputFile ? path.basename(compileOutputFile) : undefined,
+      runtime,
     });
   } catch (error) {
     if (flags['--json']) console.log(JSON.stringify({ ok: false, error: { message: error.message } }, null, 2));
