@@ -15,8 +15,16 @@ import { compileAuthoringMarkdown } from '../core/authoring/compile.js';
 import { createAuthoringDraftFromText } from '../core/authoring/draft.js';
 import { formatSourceFirstValidationErrors } from '../core/authoring/schema.js';
 import { evaluateSourceFirstReading } from '../view-model/evaluateSourceFirstReading.js';
+import { registry } from '../operations/index.js';
 
 const pkg = createRequire(import.meta.url)('../../package.json');
+
+// Turn any throw that escapes a command block (e.g. a missing/malformed input
+// file) into one structured line instead of a raw Node stack trace.
+process.on('uncaughtException', (error) => {
+  console.error(`mindgraph: ${error?.message ?? String(error)}`);
+  process.exit(1);
+});
 
 function printHelp() {
   console.log(`mindgraph v${pkg.version}
@@ -216,15 +224,19 @@ if (command === 'validate') {
     process.exit(1);
   }
 
-  const doc = readJson(inputFile);
-  const result = validateDocument(doc);
-  if (result.ok) {
-    console.log(`OK: ${inputFile} is a valid mindgraph document.`);
+  const document = readJson(inputFile);
+  const result = registry.run('validate', { document });
+  if (!result.ok) {
+    for (const error of result.errors) console.error(`- ${error.message}`);
+    process.exit(1);
+  }
+  if (result.value.valid) {
+    console.log(`OK: ${inputFile} is a valid ${result.value.kind ?? 'mindgraph'} document.`);
     process.exit(0);
   }
 
   console.error(`INVALID: ${inputFile}`);
-  for (const error of result.errors) console.error(`- ${error}`);
+  for (const message of result.value.errors) console.error(`- ${message}`);
   process.exit(1);
 }
 
@@ -235,15 +247,28 @@ if (command === 'inspect') {
     process.exit(1);
   }
 
-  const doc = readJson(inputFile);
-  const result = validateDocument(doc);
+  const document = readJson(inputFile);
+  const result = registry.run('inspect', { document });
   if (!result.ok) {
     console.error('Document is invalid; inspect aborted.');
-    for (const error of result.errors) console.error(`- ${error}`);
+    for (const error of result.errors) console.error(`- ${error.message}`);
     process.exit(1);
   }
 
-  const summary = summarizeDocument(doc);
+  const summary = result.value;
+  if (summary.kind === 'mindgraph.source-first') {
+    console.log(`Title: ${summary.title}`);
+    console.log(`Kind: ${summary.kind}`);
+    console.log(`Sources: ${summary.counts.sources}`);
+    console.log(`Source blocks: ${summary.counts.sourceBlocks}`);
+    console.log(`Reader steps: ${summary.counts.readerSteps}`);
+    console.log(`Sections: ${summary.counts.sections}`);
+    console.log(`Concepts (atomic): ${summary.counts.conceptsAtomic}`);
+    console.log(`Concepts (clustered): ${summary.counts.conceptsClustered}`);
+    console.log(`Relations: ${summary.counts.relations}`);
+    process.exit(0);
+  }
+
   console.log(`Title: ${summary.title}`);
   console.log(`Speakers: ${summary.speakers.join(', ') || 'n/a'}`);
   console.log(`Segments: ${summary.segmentCount}`);
