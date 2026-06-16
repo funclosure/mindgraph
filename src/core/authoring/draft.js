@@ -1,4 +1,5 @@
 import { compileAuthoringMarkdown } from './compile.js';
+import { parseTranscript } from '../transcript.js';
 
 const STOP_WORDS = new Set([
   'about',
@@ -123,6 +124,32 @@ function splitParagraphs(text, opts = {}) {
   return paragraphs;
 }
 
+function transcriptBlocks(text, opts = {}) {
+  const parsed = parseTranscript(text, { mode: 'auto' });
+  if (parsed.format === 'untimed-inferred' || parsed.segments.length < 4) return null;
+
+  const targetSeconds = opts.targetSeconds ?? 90;
+  const blocks = [];
+  let current = [];
+  let currentStart = null;
+
+  function flush() {
+    if (!current.length) return;
+    blocks.push(current.join(' ').replace(/\s+/g, ' ').trim());
+    current = [];
+    currentStart = null;
+  }
+
+  for (const segment of parsed.segments) {
+    if (currentStart == null) currentStart = segment.start;
+    if (current.length && segment.start - currentStart >= targetSeconds) flush();
+    if (currentStart == null) currentStart = segment.start;
+    current.push(segment.text);
+  }
+  flush();
+  return blocks.length ? blocks : null;
+}
+
 function stripHeadingNumber(text) {
   return String(text).replace(/^\d+[.)]\s+/, '').trim();
 }
@@ -214,7 +241,8 @@ function yamlScalar(value) {
 }
 
 export function createAuthoringDraftFromText(text, opts = {}) {
-  const paragraphs = splitParagraphs(text, { title: opts.title });
+  const transcriptParagraphs = transcriptBlocks(text);
+  const paragraphs = transcriptParagraphs ?? splitParagraphs(text, { title: opts.title });
   if (!paragraphs.length) {
     throw new Error('Cannot draft authoring markdown from empty text.');
   }
@@ -234,7 +262,7 @@ export function createAuthoringDraftFromText(text, opts = {}) {
     section.paragraphs.forEach((paragraph) => {
       const id = idNumber('b', blockEntries.length);
       blockIds.push(id);
-      blockEntries.push({ id, sectionId: section.id, text: paragraph });
+      blockEntries.push({ id, sectionId: section.id, text: paragraph, kind: transcriptParagraphs ? 'transcript' : 'paragraph' });
     });
 
     const stepId = idNumber('s', sectionIndex);
@@ -280,7 +308,7 @@ export function createAuthoringDraftFromText(text, opts = {}) {
 
   lines.push('', '# Source Blocks', '');
   for (const block of blockEntries) {
-    lines.push(`@block ${block.id} source=${sourceId} kind=paragraph`, block.text, '');
+    lines.push(`@block ${block.id} source=${sourceId} kind=${block.kind}`, block.text, '');
   }
 
   lines.push('# Reader Steps', '');

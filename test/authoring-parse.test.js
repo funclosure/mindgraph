@@ -65,6 +65,32 @@ http://example.com/resource
   assert.match(body, /### fake heading line/);
 });
 
+test('parseAuthoringMarkdown does not include authoring section headings in directive bodies', () => {
+  const markdown = `---
+kind: mindgraph.authoring
+version: 1
+title: Section Boundary
+---
+
+# Source Blocks
+
+@block b001 source=demo kind=paragraph
+Pure source text.
+
+# Reader Steps
+
+@step s001 section=setup blocks=b001
+summary: Focused source.
+focus:
+  - source-text 0.9 explicit
+`;
+
+  const model = parseAuthoringMarkdown(markdown);
+
+  assert.equal(model.blocks[0].body, 'Pure source text.');
+  assert.equal(model.steps[0].id, 's001');
+});
+
 test('parseAuthoringMarkdown rejects malformed focus item entries', () => {
   const markdown = `---
 kind: mindgraph.authoring

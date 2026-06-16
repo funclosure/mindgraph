@@ -100,3 +100,30 @@ test('CLI drafts authoring markdown and compiles runtime JSON in one pass', () =
   assert.equal(compiled.title, 'Policy on Fast Systems');
   assert.equal(compiled.sourceBlocks.length, 2);
 });
+
+test('authoring draft turns timestamped caption transcripts into clean source blocks', () => {
+  const raw = [
+    'Video Title',
+    'https://example.com/watch',
+    '',
+    '[0:04] Opening line.',
+    '[0:20] More setup.',
+    '[1:05] First argument.',
+    '[1:50] More first argument.',
+    '[2:20] Second argument.',
+    '[3:10] Closing argument.',
+  ].join('\n');
+
+  const result = createAuthoringDraftFromText(raw, {
+    title: 'Video Title',
+    sourceId: 'video-title',
+    sourcePath: '/tmp/video.txt',
+  });
+
+  assert.equal(result.validation.ok, true);
+  assert.ok(result.document.sourceBlocks.length > 1);
+  assert.ok(result.document.sourceBlocks.every((block) => block.kind === 'transcript'));
+  assert.match(result.document.sourceBlocks[0].text, /Opening line/);
+  assert.doesNotMatch(result.document.sourceBlocks[0].text, /\[\d{1,2}:\d{2}(?::\d{2})?\]/);
+  assert.match(result.markdown, /@block b001 source=video-title kind=transcript/);
+});

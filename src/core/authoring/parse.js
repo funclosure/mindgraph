@@ -22,6 +22,8 @@ const DIRECTIVE_FIELDS = {
   revision: new Set(),
 };
 
+const SECTION_HEADING_RE = /^#\s+(Sources|Source Blocks|Reader Steps|Sections|Concepts|Relations|Intake|Revisions)\s*$/;
+
 function parseScalar(value) {
   const trimmed = String(value ?? '').trim();
   if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
@@ -182,6 +184,14 @@ export function parseAuthoringMarkdown(markdown, { filePath } = {}) {
 
   let current = null;
   for (const line of body.split(/\r?\n/)) {
+    if (SECTION_HEADING_RE.test(line)) {
+      if (current) {
+        const parsed = parseDirectiveFields(current);
+        model[current.collection].push({ id: current.id, attrs: current.attrs, fields: parsed.fields, body: parsed.body });
+        current = null;
+      }
+      continue;
+    }
     if (!current && line.startsWith('#')) continue;
     if (line.startsWith('@')) {
       if (current) {
