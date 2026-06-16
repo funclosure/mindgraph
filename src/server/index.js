@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { createFsStore } from '../adapters/fsStore.js';
 import { deepenHandler } from './deepenHandler.js';
 import { stubRunner } from './stubRunner.js';
+import { undoHandler } from "./undoHandler.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -176,6 +177,14 @@ async function handleDeepen(req, res, url) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || `${host}:${port}`}`);
   const pathname = url.pathname === '/' ? '/ui/index.html' : decodeURIComponent(url.pathname);
+
+  if (req.method === "GET" && pathname === "/undo") {
+    const slug = url.searchParams.get("slug") || activeSlug;
+    const result = undoHandler({ slug, store: fsStore });
+    res.writeHead(result.ok ? 200 : 409, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end(JSON.stringify(result));
+    return;
+  }
 
   if (req.method === 'GET' && pathname === '/deepen') {
     handleDeepen(req, res, url);
