@@ -27,7 +27,11 @@ const port = Number(process.env.PORT || 4173);
 const docPath = docPathFlag
   || path.join(projectRoot, 'examples/out/episode-1-built.mindgraph.json');
 const activeSlug = slugFromDocPath(docPath);
-const fsStore = createFsStore({ baseDir: path.dirname(docPath) });
+const graphsDir = path.dirname(docPath);
+const fsStore = createFsStore({ baseDir: graphsDir });
+// The real agentRunner (dynamically imported) reads this to locate the .md it
+// must edit, keeping it aligned with the fsStore base dir.
+process.env.MINDGRAPH_MD_DIR = graphsDir;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
