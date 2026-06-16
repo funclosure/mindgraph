@@ -57,9 +57,17 @@ When the edit is complete, stop.`;
     options: {
       systemPrompt,
       model: process.env.MINDGRAPH_MODEL || 'claude-sonnet-4-6',
-      permissionMode: 'bypassPermissions',
-      allowDangerouslySkipPermissions: true,
       allowedTools: ['Read', 'Edit', 'Grep', 'Glob'],
+      // Headless auto-approval. permissionMode: 'bypassPermissions' does NOT
+      // reliably grant Edit in the server (it hangs waiting on a prompt nothing
+      // answers), so explicitly allow the scoped tools via canUseTool.
+      // PermissionResult allow shape per the SDK: { behavior:'allow', updatedInput }.
+      canUseTool: async (toolName, input) => {
+        if (['Read', 'Edit', 'Grep', 'Glob'].includes(toolName)) {
+          return { behavior: 'allow', updatedInput: input };
+        }
+        return { behavior: 'deny', message: `Tool ${toolName} is not permitted for deepen.` };
+      },
     },
   });
 
