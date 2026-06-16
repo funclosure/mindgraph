@@ -12,6 +12,7 @@ import { renderProse } from './panels/prose.js';
 import { renderOverviewStrip } from './panels/overview-strip.js';
 import { renderTopbar } from './panels/topbar.js';
 import { renderViewPopover } from './panels/view-popover.js';
+import { renderDigestInspector } from './panels/digest-inspector.js';
 import { attachScrollBinding } from './scroll-binding.js';
 import { createLayoutDebugPanel } from './layout-debug-panel.js';
 
@@ -37,6 +38,7 @@ const state = {
   selectedConceptId: undefined,
   hoveredConceptId: undefined,
   selectedFrameRef: undefined,
+  digestExpanded: false,
   playheadTime: 0,
   activeLevel: 'macro',
   viewPopoverOpen: false,
@@ -140,6 +142,7 @@ function render() {
   updateProsePanel();
   updateOverviewStrip();
   updateViewPopover();
+  updateDigestInspector();
   kickAnimationLoop();
   bindEvents(state, render, kickAnimationLoop);
 }
@@ -258,4 +261,10 @@ function updateViewPopover() {
   const el = document.getElementById('view-popover');
   if (!el) return;
   el.innerHTML = renderViewPopover(state);
+}
+
+function updateDigestInspector() {
+  const el = document.getElementById('digest-inspector');
+  if (!el) return;
+  el.innerHTML = renderDigestInspector(state.viewModel, state);
 }

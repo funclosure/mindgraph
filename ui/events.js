@@ -97,6 +97,20 @@ export function bindEvents(state, render, scheduleDraw) {
       render();
     });
   });
+  document.querySelectorAll('[data-action="toggle-digest"]').forEach((panel) => {
+    panel.addEventListener('click', (event) => {
+      if (event.target.closest('button')) return;
+      state.digestExpanded = !state.digestExpanded;
+      render();
+    });
+    panel.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if (event.target.closest('button')) return;
+      event.preventDefault();
+      state.digestExpanded = !state.digestExpanded;
+      render();
+    });
+  });
   document.querySelectorAll('[data-action="select-frame"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.selectedFrameRef = { level: btn.dataset.level, index: Number(btn.dataset.index) };
