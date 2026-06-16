@@ -35,12 +35,14 @@ The `.mindgraph.md` file is the source of truth for iteration. The compiled `.mi
 2. Create or update an editable authoring file under `./graphs/<slug>.mindgraph.md`.
 3. Do the semantic digest yourself. Do not treat `authoring draft` as the real digest.
 4. Validate and compile after every meaningful edit.
-5. Open or refresh the UI so the user can react to the artifact.
+5. Run source-reading QA before presenting the result.
+6. Open or refresh the UI so the user can react to the artifact.
 
 Useful commands:
 
 ```bash
 mindgraph authoring validate graphs/<slug>.mindgraph.md
+mindgraph authoring qa graphs/<slug>.mindgraph.md
 mindgraph authoring compile graphs/<slug>.mindgraph.md -o graphs/<slug>.mindgraph.json
 mindgraph view graphs/<slug>.mindgraph.json
 ```
@@ -52,6 +54,8 @@ mindgraph authoring draft <source.txt> -o graphs/<slug>.mindgraph.md --title "Ti
 ```
 
 But treat this as scaffolding only. A heuristic draft is not a finished mindgraph. Replace or rewrite it with a semantic pass before presenting it as a meaningful result.
+
+For timed transcripts, the draft step should produce clean `kind=transcript` source blocks without visible timestamps. If timestamps or authoring headings appear in the UI source pane, fix the parser/draft pipeline and recompile; do not edit compiled JSON by hand.
 
 ## Authoring format mental model
 
@@ -78,8 +82,30 @@ When digesting a new article, transcript, or paper:
 4. **Choose concepts conservatively.** Prefer durable ideas the user would want to see again. Avoid generic words, whole-sentence concepts, and one-off labels.
 5. **Ground relations.** A relation should say something useful: `motivates`, `constrains`, `enables`, `threatens`, `mitigates`, `depends_on`, `contrasts_with`, `reframes`, `supports`.
 6. **Design reader steps.** Each step should reveal a small semantic movement, not merely “paragraph N happened.”
-7. **Validate/compile.** Run the authoring commands. Fix the `.mindgraph.md`, never the generated JSON.
-8. **Review in UI.** Ask whether the graph reveals the argument. If it feels bad, repair the authoring source semantically.
+7. **Bind focus to source.** Every non-latent focused concept should have a label or alias that appears in that step's source blocks. Use aliases for semantic names whose exact phrase differs from the source.
+8. **Validate/QA/compile.** Run `authoring validate`, `authoring qa`, then `authoring compile`. Fix the `.mindgraph.md`, never the generated JSON.
+9. **Review in UI.** Ask whether the graph reveals the argument. If it feels bad, repair the authoring source semantically.
+
+`authoring qa` is a semantic hygiene check, not a substitute for judgment. It catches active concepts that cannot be highlighted in the current source blocks and active relations whose endpoints are not foregrounded. Passing QA means the reader can see the digest in the source; it does not mean the digest is deep enough.
+
+## UI review protocol
+
+After compiling a source-first graph, run the dev server against that JSON and inspect it in the browser:
+
+```bash
+npm run ui:dev -- --doc graphs/<slug>.mindgraph.json
+```
+
+Check:
+
+- title and duration look right
+- source pane contains original source only, with no timestamps, generated summaries, tags, or authoring headings
+- active source highlights appear while reading
+- digest card is generated understanding outside the source pane
+- collapsed digest card is quiet: header/title/summary preview only
+- click/tap expands the digest card to reveal concept chips and relations; hover must not expand it
+- scrolling source changes the active section; scrolling to the very end shows overview
+- graph focuses the active concepts without surprising style changes
 
 ## Repair loop
 
@@ -90,7 +116,7 @@ Do:
 - Re-read the source and the current `.mindgraph.md`.
 - Identify the failure mode: missed thesis, wrong sections, generic concepts, noisy relations, weak grounding, bad reader order, over-compression, or UI derivation issue.
 - Edit the `.mindgraph.md` directly.
-- Re-run validate and compile.
+- Re-run validate, QA, and compile.
 - Refresh the UI and report what changed semantically.
 
 Do not:
@@ -148,6 +174,7 @@ When the user opens the UI and says “this shows what the piece is doing,” th
 | --- | --- |
 | `mindgraph authoring draft <source> -o <file.md> --compile <file.json>` | Create a scaffold from plain text; not a final semantic digest |
 | `mindgraph authoring validate <file.md>` | Validate source-first authoring structure |
+| `mindgraph authoring qa <file.md>` | Check active concepts and relations against visible source grounding |
 | `mindgraph authoring compile <file.md> -o <file.json>` | Compile editable authoring source to runtime JSON |
 | `mindgraph view <file.json>` | Open the reading UI for review |
 | `mindgraph inspect <file.json>` | Inspect legacy/runtime document summary where supported |
