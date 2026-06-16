@@ -14,6 +14,7 @@ import { backfillFrameActivations, getConcept, getFrame, listConcepts, listFrame
 import { compileAuthoringMarkdown } from '../core/authoring/compile.js';
 import { createAuthoringDraftFromText } from '../core/authoring/draft.js';
 import { formatSourceFirstValidationErrors } from '../core/authoring/schema.js';
+import { evaluateSourceFirstReading } from '../view-model/evaluateSourceFirstReading.js';
 
 const pkg = createRequire(import.meta.url)('../../package.json');
 
@@ -28,6 +29,7 @@ Usage:
   mindgraph authoring validate <input-file.md> [--json]
   mindgraph authoring compile <input-file.md> -o <output-file.json> [--json]
   mindgraph authoring draft <input-file.txt> -o <output-file.md> [--title <title>] [--source-id <id>] [--compile <output-file.json>] [--json]
+  mindgraph authoring qa <input-file.md> [--json]
   mindgraph source import <source> [--workspace <dir>] [--title <title>] [--json]
   mindgraph digest <source> [-o <output-file>] [--workspace <dir>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>] [--json]
   mindgraph mcp [--workspace <dir>]
@@ -57,6 +59,7 @@ Commands:
   authoring validate     Validate a source-first mindgraph Markdown authoring document
   authoring compile      Compile mindgraph Markdown authoring to source-first runtime JSON
   authoring draft        Draft editable source-first Markdown from a plain article/text file
+  authoring qa           Check whether active digest concepts bind to source phrasing
   source import          Prepare a local file or readable web article for mindgraph ingestion
   digest                 High-level source→starter-document operation for agent-operated digestion
   mcp                    Start the mindgraph MCP server over stdio
@@ -300,6 +303,40 @@ if (command === 'authoring' && subcommand === 'compile') {
   if (flags['--json']) console.log(JSON.stringify({ ok: true, inputFile, outputFile, validation: result.validation }, null, 2));
   else console.log(`Compiled ${inputFile} to ${outputFile}`);
   process.exit(0);
+}
+
+if (command === 'authoring' && subcommand === 'qa') {
+  const [inputFile, ...flagArgs] = rest;
+  if (!inputFile) {
+    console.error('Missing input file path.');
+    process.exit(1);
+  }
+  const flags = parseFlags(flagArgs);
+  const markdown = fs.readFileSync(inputFile, 'utf8');
+  const result = compileAuthoringMarkdown(markdown, { filePath: inputFile });
+  if (!result.validation.ok) {
+    if (flags['--json']) console.log(JSON.stringify({ ok: false, validation: result.validation }, null, 2));
+    else {
+      console.error(`INVALID: ${inputFile}`);
+      console.error(formatSourceFirstValidationErrors(result.validation));
+    }
+    process.exit(1);
+  }
+
+  const report = evaluateSourceFirstReading(result.document);
+  if (flags['--json']) {
+    console.log(JSON.stringify({ ok: report.ok, inputFile, report }, null, 2));
+  } else {
+    console.log(`Source-first reading QA: ${report.ok ? 'OK' : 'NEEDS REPAIR'}`);
+    console.log(`Focus binding: ${report.boundFocusActivations}/${report.totalFocusActivations} (${Math.round(report.focusBindingRate * 100)}%)`);
+    if (report.unboundFocus.length) {
+      console.log('Unbound active concepts:');
+      for (const gap of report.unboundFocus) {
+        console.log(`- ${gap.stepId} ${gap.label} (${gap.conceptId}) in ${gap.sectionTitle}`);
+      }
+    }
+  }
+  process.exit(report.ok ? 0 : 1);
 }
 
 if (command === 'authoring' && subcommand === 'draft') {
