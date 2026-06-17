@@ -16,6 +16,7 @@ import { renderDigestInspector } from './panels/digest-inspector.js';
 import { attachScrollBinding } from './scroll-binding.js';
 import { createLayoutDebugPanel } from './layout-debug-panel.js';
 import { registry } from '../src/operations/index.js';
+import { renderDeepenThread } from './panels/deepen-thread.js';
 
 // The dev server (src/ui/dev-server.js) serves whichever mindgraph
 // document was passed via its --doc flag — or the canonical sample by
@@ -54,6 +55,7 @@ const state = {
   animationLoopActive: false,
   proseChunks: undefined,
   sourceTab: 'source',
+  deepen: { entries: [], busy: false, canUndo: false },
 };
 
 // ---------------------------------------------------------------------------
@@ -166,6 +168,7 @@ function render() {
   state.graphRenderState = computeGraphRenderState();
   updateTopbar();
   updateProsePanel();
+  updateDeepenPanel();
   updateOverviewStrip();
   updateViewPopover();
   updateDigestInspector();
@@ -357,6 +360,102 @@ function updateProsePanel() {
   const saved = el.scrollTop;
   el.innerHTML = renderProse(state.proseChunks ?? [], state);
   el.scrollTop = saved;
+}
+
+// ---------------------------------------------------------------------------
+// Deepen tab — node-anchored conversation
+// ---------------------------------------------------------------------------
+
+let lastDeepenAnchor;
+
+function updateDeepenPanel() {
+  const el = document.getElementById('prose-deepen');
+  if (!el) return;
+  const conceptId = state.selectedConceptId;
+  // When the anchored concept changes, reset the thread and reveal the tab.
+  if (conceptId && conceptId !== lastDeepenAnchor) {
+    lastDeepenAnchor = conceptId;
+    state.deepen = { entries: [], busy: false, canUndo: false };
+    setSourceTab('deepen');
+  }
+  const concept = conceptId ? state.viewModel?.concepts?.byId?.[conceptId] : null;
+  el.innerHTML = renderDeepenThread({
+    conceptId,
+    conceptLabel: concept?.label ?? conceptId ?? '',
+    busy: state.deepen.busy,
+    entries: state.deepen.entries,
+    canUndo: state.deepen.canUndo,
+  });
+  bindDeepenControls();
+}
+
+function bindDeepenControls() {
+  const run = document.querySelector('[data-action="deepen-run"]');
+  if (run) run.addEventListener('click', () => {
+    const prompt = document.getElementById('deepen-prompt')?.value?.trim() || '';
+    runDeepen(state.selectedConceptId, prompt);
+  });
+  const undo = document.querySelector('[data-action="deepen-undo"]');
+  if (undo) undo.addEventListener('click', runUndo);
+  const input = document.getElementById('deepen-prompt');
+  if (input) input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      runDeepen(state.selectedConceptId, input.value.trim());
+    }
+  });
+}
+
+function pushDeepen(role, text) {
+  state.deepen.entries.push({ role, text });
+  updateDeepenPanel();
+}
+
+function applyDeepenedDocument(nextDocument /* , anchorId */) {
+  rebuildFromDocument(nextDocument);
+}
+
+function runDeepen(conceptId, prompt) {
+  if (!conceptId || state.deepen.busy) return;
+  state.deepen.busy = true;
+  if (prompt) pushDeepen('you', prompt);
+  pushDeepen('agent', `Deepening “${conceptId}” …`);
+  const qs = new URLSearchParams({ concept: conceptId });
+  if (prompt) qs.set('prompt', prompt);
+  const source = new EventSource(`/deepen?${qs.toString()}`);
+  const finish = () => { source.close(); state.deepen.busy = false; updateDeepenPanel(); };
+  source.addEventListener('progress', (event) => {
+    try { pushDeepen('agent', JSON.parse(event.data).message); } catch { /* ignore */ }
+  });
+  source.addEventListener('document', (event) => {
+    try {
+      applyDeepenedDocument(JSON.parse(event.data).document, conceptId);
+      pushDeepen('result', 'Applied. Graph updated.');
+      state.deepen.canUndo = true;
+    } catch (error) {
+      pushDeepen('error', `Failed: ${error.message}`);
+    }
+    finish();
+  });
+  source.addEventListener('error', (event) => {
+    let message = 'connection lost';
+    try { message = JSON.parse(event.data).message; } catch { /* native error has no data */ }
+    pushDeepen('error', `Error: ${message}`);
+    finish();
+  });
+}
+
+function runUndo() {
+  if (state.deepen.busy) return;
+  fetch('/undo')
+    .then((response) => response.json())
+    .then((result) => {
+      if (!result.ok) { pushDeepen('error', `Undo: ${result.message}`); return; }
+      rebuildFromDocument(result.document);
+      state.deepen.canUndo = false;
+      pushDeepen('result', 'Reverted the last deepen.');
+    })
+    .catch((error) => pushDeepen('error', `Undo failed: ${error.message}`));
 }
 
 function updateOverviewStrip() {
