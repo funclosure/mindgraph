@@ -411,8 +411,16 @@ function pushDeepen(role, text) {
   updateDeepenPanel();
 }
 
-function applyDeepenedDocument(nextDocument /* , anchorId */) {
+function applyDeepenedDocument(nextDocument, anchorId) {
   rebuildFromDocument(nextDocument);
+  // Keep the deepened concept selected so it stays highlighted as the anchor.
+  // NOTE: a full rebuild starts a fresh layout, so true in-place "local growth"
+  // (preserving neighbor positions, captureAnchor) is a follow-up; for now the
+  // rebuild reveals the updated graph.
+  if (anchorId && state.viewModel?.concepts?.byId?.[anchorId]) {
+    state.selectedConceptId = anchorId;
+    render();
+  }
 }
 
 function runDeepen(conceptId, prompt) {
