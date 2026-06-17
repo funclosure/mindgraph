@@ -15,7 +15,14 @@
         <div id="digest-inspector"></div>
       </div>
       <div class="strip" id="overview-strip"></div>
-      <aside class="prose" id="prose"></aside>
+      <aside class="prose" id="prose">
+        <div class="prose-tabs" role="tablist">
+          <button class="prose-tab is-active" id="tab-source" role="tab" data-tab="source">Source</button>
+          <button class="prose-tab" id="tab-deepen" role="tab" data-tab="deepen">Deepen</button>
+        </div>
+        <div class="prose-view" id="prose-source"></div>
+        <div class="prose-view is-hidden" id="prose-deepen"></div>
+      </aside>
       <div class="view-popover" id="view-popover"></div>
     </div>
     <script type="module" src="/ui/app.js"></script>

@@ -324,13 +324,48 @@ button { cursor: pointer; color: inherit; }
   grid-area: prose;
   background: var(--panel);
   border-left: 1px solid var(--border);
-  padding: 18px 24px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   font-size: 0.92rem;
   line-height: 1.62;
   color: rgba(232, 226, 211, 0.9);
 }
+
+.prose-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.prose-tab {
+  background: none;
+  border: none;
+  color: rgba(232, 226, 211, 0.55);
+  font: 12px/1.6 system-ui, sans-serif;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+}
+
+.prose-tab.is-active {
+  color: rgba(232, 226, 211, 0.95);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.prose-tab:disabled { opacity: 0.4; cursor: default; }
+
+.prose-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 24px;
+}
+
+.prose-view.is-hidden { display: none; }
+
 .prose-article > :first-child { margin-top: 0; }
 .prose-overview {
   font-size: 1.08rem;

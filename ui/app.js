@@ -53,6 +53,7 @@ const state = {
   animator: undefined,
   animationLoopActive: false,
   proseChunks: undefined,
+  sourceTab: 'source',
 };
 
 // ---------------------------------------------------------------------------
@@ -125,6 +126,7 @@ async function bootstrap() {
     });
   }
   render();
+  bindProseTabs();
   document.querySelector('.app').dataset.proseCollapsed = String(state.prosCollapsed);
 
   // Re-apply DPR + redraw whenever the canvas's box changes — window
@@ -145,7 +147,7 @@ async function bootstrap() {
   ro.observe(canvas);
 
   attachScrollBinding({
-    container: document.getElementById('prose'),
+    container: document.getElementById('prose-source'),
     getState: () => state,
     onChange: render,
   });
@@ -334,8 +336,22 @@ function updateTopbar() {
   el.innerHTML = renderTopbar(state.viewModel, state.document, state);
 }
 
+function bindProseTabs() {
+  document.querySelectorAll('.prose-tab').forEach((btn) => {
+    btn.addEventListener('click', () => setSourceTab(btn.dataset.tab));
+  });
+}
+
+function setSourceTab(tab) {
+  state.sourceTab = tab;
+  document.getElementById('tab-source')?.classList.toggle('is-active', tab === 'source');
+  document.getElementById('tab-deepen')?.classList.toggle('is-active', tab === 'deepen');
+  document.getElementById('prose-source')?.classList.toggle('is-hidden', tab !== 'source');
+  document.getElementById('prose-deepen')?.classList.toggle('is-hidden', tab !== 'deepen');
+}
+
 function updateProsePanel() {
-  const el = document.getElementById('prose');
+  const el = document.getElementById('prose-source');
   if (!el) return;
   // Save scrollTop across innerHTML replacement (carried from v2 Task 8 fix).
   const saved = el.scrollTop;
