@@ -134,6 +134,7 @@ async function selectRunner(emit) {
 async function handleDeepen(req, res, url) {
   const slug = url.searchParams.get('slug') || activeSlug;
   const concept = url.searchParams.get('concept');
+  const prompt = url.searchParams.get('prompt') || undefined;
   if (!concept) {
     res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('Missing required query parameter: concept');
@@ -169,7 +170,7 @@ async function handleDeepen(req, res, url) {
     return;
   }
 
-  await deepenHandler({ slug, conceptId: concept, store: fsStore, runner, emit });
+  await deepenHandler({ slug, conceptId: concept, prompt, store: fsStore, runner, emit });
   finish();
   res.end();
 }

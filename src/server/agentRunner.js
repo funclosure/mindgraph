@@ -25,7 +25,7 @@ function readSkill() {
   }
 }
 
-export async function agentRunner({ slug, conceptId, emit }) {
+export async function agentRunner({ slug, conceptId, prompt, emit }) {
   let query;
   try {
     ({ query } = await import('@anthropic-ai/claude-agent-sdk'));
@@ -47,7 +47,7 @@ You are operating as the mindgraph "deepen" agent: a scoped, single-region edit,
 2. Add 2-4 durable, source-grounded concepts and/or typed relations (and the reader-step focus entries needed to surface them) that expand "${conceptId}"'s region.
 3. Obey the rules in your skill: no orphan concepts (bridge new nodes to the existing graph), and the focus/QA rules (every non-latent active concept's label or alias must appear verbatim in its step's blocks; every active relation's endpoints must both be in that step's focus list).
 4. Edit ONLY ${mdPath}. Do not run any compile/validate/qa commands, do not create or edit any other file, and do not output the whole document — make a surgical edit with the Edit tool.
-
+${prompt ? `\nThe reader asked you to focus especially on: ${prompt}\nLet that steer which aspect of "${conceptId}" you deepen, while still obeying all the rules above.\n` : ''}
 When the edit is complete, stop.`;
 
   emit({ type: 'progress', message: `asking Claude to deepen "${conceptId}"` });

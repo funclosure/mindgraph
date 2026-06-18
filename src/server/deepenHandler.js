@@ -1,6 +1,6 @@
 import { registry } from '../operations/index.js';
 
-export async function deepenHandler({ slug, conceptId, store, runner, emit }) {
+export async function deepenHandler({ slug, conceptId, prompt, store, runner, emit }) {
   try {
     emit({ type: 'progress', message: 'deepening' });
 
@@ -9,7 +9,7 @@ export async function deepenHandler({ slug, conceptId, store, runner, emit }) {
       store.put(`${slug}__backup`, { md: before.md });
     }
 
-    await runner({ slug, conceptId, store, emit });
+    await runner({ slug, conceptId, prompt, store, emit });
 
     const entry = store.get(slug);
     if (!entry || typeof entry.md !== 'string') {

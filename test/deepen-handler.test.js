@@ -57,3 +57,15 @@ test("deepen snapshots the pre-edit markdown to slug__backup", async () => {
   await deepenHandler({ slug: "demo", conceptId: "c", store, runner, emit: () => {} });
   assert.equal(store.get("demo__backup")?.md, md);
 });
+
+test('deepen forwards the user prompt to the runner', async () => {
+  const md = fs.readFileSync('examples/authoring/recursive-self-improvement.mindgraph.md', 'utf8');
+  const store = createMemoryStore({ demo: { md } });
+  let received;
+  const runner = async ({ prompt, slug, store }) => {
+    received = prompt;
+    store.put(slug, { md: store.get(slug).md + '\n\n@concept p\nlabel: P\n' });
+  };
+  await deepenHandler({ slug: 'demo', conceptId: 'c', prompt: 'the cyber angle', store, runner, emit: () => {} });
+  assert.equal(received, 'the cyber angle');
+});
