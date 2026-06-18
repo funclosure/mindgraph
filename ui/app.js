@@ -381,7 +381,15 @@ function applyDeepenedDocument(nextDocument, anchorId) {
   state.sim = createLayoutSimulator(state.viewModel, { initialPositions: seed });
   state.viewport = applyDpr(canvas, ctx);
   if (anchorId && state.viewModel?.concepts?.byId?.[anchorId]) {
+    // Reveal the whole grown graph (overview level shows all cumulatively-visible
+    // nodes, so the new connected nodes actually appear) and keep the anchor
+    // selected — selection takes camera priority, so the view frames the anchor
+    // and its new neighbourhood. Resetting to a single reader step would hide
+    // everything except that step, which is why a deepen looked like a no-op.
     state.selectedConceptId = anchorId;
+    state.activeLevel = 'overview';
+    state.playheadTime = Number.MAX_SAFE_INTEGER;
+    state.cameraMode = 'selection';
   }
   state.sim.reheat(0.5); // gentle local resettle; existing nodes barely move
   render();
