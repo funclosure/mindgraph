@@ -366,7 +366,9 @@ button { cursor: pointer; color: inherit; }
 
 .prose-view.is-hidden { display: none; }
 
-.prose-view#prose-deepen { display: flex; flex-direction: column; }
+/* Only lay out the Deepen view as a flex column when it is visible; otherwise
+   .is-hidden's display:none must win (an #id selector would outrank it). */
+#prose-deepen:not(.is-hidden) { display: flex; flex-direction: column; }
 .deepen-empty { color: rgba(232, 226, 211, 0.55); font: 13px/1.5 system-ui, sans-serif; padding: 8px 4px; }
 .deepen-head { color: rgba(232, 226, 211, 0.95); font: 13px/1.5 system-ui, sans-serif; margin-bottom: 8px; }
 .deepen-thread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
