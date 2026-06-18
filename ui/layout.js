@@ -97,12 +97,21 @@ export function createLayoutSimulator(viewModel, options = {}) {
   const atomic = viewModel.concepts.atomic;
   const nodes = atomic.map((c) => ({ id: c.id }));
 
+  // Existing nodes can be seeded with prior positions (e.g. after a deepen) so
+  // the graph grows in place instead of re-settling from scratch; unknown nodes
+  // fall back to the deterministic id-seeded ring.
+  const seedPositions = options.initialPositions ?? null;
   const positions = {};
   const velocities = {};
   for (const node of nodes) {
-    const t = seededUnit(node.id) * Math.PI * 2;
-    const r = 200 + seededUnit(`${node.id}:r`) * 200;
-    positions[node.id] = { x: Math.cos(t) * r, y: Math.sin(t) * r };
+    const seeded = seedPositions?.[node.id];
+    if (seeded && Number.isFinite(seeded.x) && Number.isFinite(seeded.y)) {
+      positions[node.id] = { x: seeded.x, y: seeded.y };
+    } else {
+      const t = seededUnit(node.id) * Math.PI * 2;
+      const r = 200 + seededUnit(`${node.id}:r`) * 200;
+      positions[node.id] = { x: Math.cos(t) * r, y: Math.sin(t) * r };
+    }
     velocities[node.id] = { x: 0, y: 0 };
   }
 
@@ -439,8 +448,13 @@ export function createLayoutSimulator(viewModel, options = {}) {
   };
 
   // ───── Warm start — enough structure to avoid chaos, not a dead final solve ────
-  for (let i = 0; i < WARM_START_ITERATIONS && sim.alpha > 0.001; i += 1) {
-    sim.step(1 / 60);
+  // Skip when seed positions are supplied (e.g. a deepen rebuild): those are
+  // already a settled layout, so warm-starting would move existing nodes and
+  // defeat in-place local growth.
+  if (!seedPositions) {
+    for (let i = 0; i < WARM_START_ITERATIONS && sim.alpha > 0.001; i += 1) {
+      sim.step(1 / 60);
+    }
   }
 
   // Pin every concept that is NOT initially visible at the document's

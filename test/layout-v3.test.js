@@ -309,3 +309,18 @@ test('updateConfig changes simulator config and reheats layout', () => {
   assert.equal(sim.layoutMeta.config.baseLinkDistance, 130);
   assert.ok(sim.alpha > 0, `expected updateConfig to reheat, got alpha ${sim.alpha}`);
 });
+
+test('createLayoutSimulator seeds existing nodes from initialPositions (local-growth)', () => {
+  const concepts = [concept('a'), concept('b'), concept('fresh')];
+  const edges = [edge('e1', 'a', 'b')];
+  const model = vm({ concepts, edges });
+  const sim = createLayoutSimulator(model, {
+    initialPositions: { a: { x: 123, y: -45 }, b: { x: -10, y: 60 } },
+  });
+  // surviving nodes start exactly where seeded (they will not re-settle from the ring)
+  assert.deepEqual(sim.positions.a, { x: 123, y: -45 });
+  assert.deepEqual(sim.positions.b, { x: -10, y: 60 });
+  // a node with no seed gets a finite ring position, not the seed
+  assert.ok(Number.isFinite(sim.positions.fresh.x) && Number.isFinite(sim.positions.fresh.y));
+  assert.notDeepEqual(sim.positions.fresh, { x: 123, y: -45 });
+});

@@ -357,15 +357,34 @@ function pushDeepen(role, text) {
 }
 
 function applyDeepenedDocument(nextDocument, anchorId) {
-  rebuildFromDocument(nextDocument);
-  // Keep the deepened concept selected so it stays highlighted as the anchor.
-  // NOTE: a full rebuild starts a fresh layout, so true in-place "local growth"
-  // (preserving neighbor positions, captureAnchor) is a follow-up; for now the
-  // rebuild reveals the updated graph.
+  // Local growth: keep surviving nodes exactly where they are and spawn the new
+  // concepts near the anchor, so the graph grows in place instead of
+  // re-settling. The camera is left untouched so the view doesn't jump.
+  const prevPositions = state.sim?.positions ?? {};
+  const anchorPos = prevPositions[anchorId];
+
+  state.document = nextDocument;
+  state.viewModel = buildMindgraphViewModel(nextDocument);
+  state.proseChunks = buildProseChunks(state.viewModel);
+
+  const seed = {};
+  const jitter = () => (Math.random() - 0.5) * 70;
+  for (const concept of state.viewModel.concepts.atomic) {
+    const prior = prevPositions[concept.id];
+    if (prior) {
+      seed[concept.id] = { x: prior.x, y: prior.y };
+    } else if (anchorPos) {
+      seed[concept.id] = { x: anchorPos.x + jitter(), y: anchorPos.y + jitter() };
+    }
+  }
+
+  state.sim = createLayoutSimulator(state.viewModel, { initialPositions: seed });
+  state.viewport = applyDpr(canvas, ctx);
   if (anchorId && state.viewModel?.concepts?.byId?.[anchorId]) {
     state.selectedConceptId = anchorId;
-    render();
   }
+  state.sim.reheat(0.5); // gentle local resettle; existing nodes barely move
+  render();
 }
 
 function runDeepen(conceptId, prompt) {
