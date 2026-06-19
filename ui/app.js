@@ -17,6 +17,7 @@ import { attachScrollBinding } from './scroll-binding.js';
 import { createLayoutDebugPanel } from './layout-debug-panel.js';
 import { registry } from '../src/operations/index.js';
 import { renderDeepenThread } from './panels/deepen-thread.js';
+import { escapeHtml } from './util.js';
 
 // The dev server (src/ui/dev-server.js) serves whichever mindgraph
 // document was passed via its --doc flag — or the canonical sample by
@@ -55,6 +56,7 @@ const state = {
   animationLoopActive: false,
   proseChunks: undefined,
   sourceTab: 'source',
+  activeSourceId: null,
   deepen: { entries: [], busy: false, canUndo: false },
 };
 
@@ -167,6 +169,7 @@ function render() {
   if (!state.viewModel) return;
   state.graphRenderState = computeGraphRenderState();
   updateTopbar();
+  renderSourceSwitcher();
   updateProsePanel();
   updateDeepenPanel();
   updateOverviewStrip();
@@ -303,8 +306,37 @@ function updateProsePanel() {
   if (!el) return;
   // Save scrollTop across innerHTML replacement (carried from v2 Task 8 fix).
   const saved = el.scrollTop;
-  el.innerHTML = renderProse(state.proseChunks ?? [], state);
+  const all = state.proseChunks ?? [];
+  const activeId = state.activeSourceId;
+  // Keep overview headings; filter paragraphs to the selected source. With a
+  // single source (no switcher), activeId is null and everything renders.
+  const chunks = activeId
+    ? all.filter((c) => c.kind !== 'paragraph' || c.sourceId === activeId)
+    : all;
+  el.innerHTML = renderProse(chunks, state);
   el.scrollTop = saved;
+}
+
+function renderSourceSwitcher() {
+  const el = document.getElementById('source-switcher');
+  if (!el) return;
+  const sources = state.viewModel?.documentMeta?.sources ?? [];
+  // Only show the switcher once a deepen has woven in a second source.
+  if (sources.length <= 1) { el.innerHTML = ''; return; }
+  if (!state.activeSourceId) state.activeSourceId = sources[0].id;
+  el.innerHTML = sources.map((s) => {
+    const active = s.id === state.activeSourceId ? ' is-active' : '';
+    const kind = s.type === 'discussion' ? ' source-chip--discussion' : '';
+    const label = s.type === 'discussion' ? (s.title || s.id) : (s.title || 'Source');
+    return `<button class="source-chip${active}${kind}" data-source-id="${escapeHtml(s.id)}">${escapeHtml(label)}</button>`;
+  }).join('');
+  el.querySelectorAll('.source-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.activeSourceId = btn.dataset.sourceId;
+      renderSourceSwitcher();
+      updateProsePanel();
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -392,6 +424,9 @@ function applyDeepenedDocument(nextDocument, anchorId) {
     state.cameraMode = 'selection';
   }
   state.sim.reheat(0.5); // gentle local resettle; existing nodes barely move
+  // Surface the newest source (the just-woven discussion) in the switcher.
+  const sources = state.viewModel?.documentMeta?.sources ?? [];
+  if (sources.length > 1) state.activeSourceId = sources[sources.length - 1].id;
   render();
 }
 

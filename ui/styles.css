@@ -462,3 +462,9 @@ button { cursor: pointer; color: inherit; }
   background: rgba(214, 176, 109, 0.18);
   border-color: rgba(214, 176, 109, 0.42);
 }
+
+.source-switcher { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--border, #2a2a2a); }
+.source-switcher:empty { display: none; }
+.source-chip { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border, #3a3a3a); background: transparent; color: inherit; cursor: pointer; opacity: 0.7; }
+.source-chip.is-active { opacity: 1; border-color: var(--accent, #6aa7ff); }
+.source-chip--discussion { border-style: dashed; }
