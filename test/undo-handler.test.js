@@ -2,18 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createMemoryStore } from "../src/operations/memoryStore.js";
-import { deepenHandler } from "../src/server/deepenHandler.js";
+import { crystallizeHandler } from "../src/server/crystallizeHandler.js";
 import { undoHandler } from "../src/server/undoHandler.js";
-import { stubRunner } from "../src/server/stubRunner.js";
+import { stubCrystallizeRunner } from "../src/server/stubRunner.js";
 
 const md = fs.readFileSync("examples/authoring/recursive-self-improvement.mindgraph.md", "utf8");
 const addRunner = async ({ slug, store }) => {
   store.put(slug, { md: store.get(slug).md + "\n\n@concept undo-added\nlabel: Undo Added\n" });
 };
 
-test("undo restores the pre-deepen markdown and returns the prior document", async () => {
+test("undo restores the pre-crystallize markdown and returns the prior document", async () => {
   const store = createMemoryStore({ demo: { md } });
-  await deepenHandler({ slug: "demo", conceptId: "c", store, runner: addRunner, emit: () => {} });
+  await crystallizeHandler({ slug: "demo", conceptId: "c", store, runner: addRunner, emit: () => {} });
   const grown = store.get("demo").json;
   assert.ok(grown.concepts.atomic.some((c) => c.id === "undo-added"));
   const result = undoHandler({ slug: "demo", store });
@@ -24,15 +24,13 @@ test("undo restores the pre-deepen markdown and returns the prior document", asy
 
 test("undo reverts an entire woven discussion turn", async () => {
   const store = createMemoryStore({ demo: { md } });
-  // Auto-answer the stub's clarifying question so the turn completes.
-  const askQuestions = async () => [{ header: "Angle", values: ["Mechanism"] }];
-  await deepenHandler({
+  await crystallizeHandler({
     slug: "demo",
     conceptId: "recursive-self-improvement",
     store,
-    runner: stubRunner,
+    runner: stubCrystallizeRunner,
+    messages: [{ role: "you", text: "add the mechanism angle" }],
     emit: () => {},
-    askQuestions,
   });
   const grown = store.get("demo").json;
   assert.ok(

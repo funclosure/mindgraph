@@ -6,10 +6,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createFsStore } from '../adapters/fsStore.js';
-import { deepenHandler } from './deepenHandler.js';
-import { stubRunner } from './stubRunner.js';
+import { askHandler } from './askHandler.js';
+import { crystallizeHandler } from './crystallizeHandler.js';
+import { answerRunner } from './answerRunner.js';
+import { crystallizeRunner } from './crystallizeRunner.js';
+import { stubAnswerRunner, stubCrystallizeRunner } from './stubRunner.js';
 import { undoHandler } from "./undoHandler.js";
-import { createQuestionChannel } from './questionChannel.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,10 +33,9 @@ const docPath = docPathFlag
 const activeSlug = slugFromDocPath(docPath);
 const graphsDir = path.dirname(docPath);
 const fsStore = createFsStore({ baseDir: graphsDir });
-const questionChannel = createQuestionChannel();
-let turnCounter = 0;
-// The real agentRunner (dynamically imported) reads this to locate the .md it
-// must edit, keeping it aligned with the fsStore base dir.
+const useStub = Boolean(process.env.MINDGRAPH_STUB_DEEPEN);
+// The crystallize runner reads this to locate the .md it must edit, keeping it
+// aligned with the fsStore base dir.
 process.env.MINDGRAPH_MD_DIR = graphsDir;
 
 const MIME_TYPES = {
@@ -119,77 +120,62 @@ function serveStatic(pathname, res) {
   });
 }
 
-async function selectRunner(emit) {
-  if (process.env.MINDGRAPH_STUB_DEEPEN) return stubRunner;
-
-  try {
-    const mod = await import('./agentRunner.js');
-    return mod.agentRunner;
-  } catch {
-    emit({
-      type: 'error',
-      message: 'Real deepen runner unavailable. Set MINDGRAPH_STUB_DEEPEN=1 for a no-API stub, or add src/server/agentRunner.js (Unit 4).',
-    });
-    return null;
-  }
+function readJsonBody(req) {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; if (body.length > 4_000_000) req.destroy(); });
+    req.on('end', () => { try { resolve(JSON.parse(body || '{}')); } catch { resolve(null); } });
+    req.on('error', () => resolve(null));
+  });
 }
 
-async function handleDeepen(req, res, url) {
-  const slug = url.searchParams.get('slug') || activeSlug;
-  const concept = url.searchParams.get('concept');
-  const prompt = url.searchParams.get('prompt') || undefined;
-  if (!concept) {
-    res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
-    res.end('Missing required query parameter: concept');
-    return;
-  }
-
-  turnCounter += 1;
-  const turnId = `turn-${Date.now().toString(36)}-${turnCounter}`;
-
+function openSseResponse(req, res) {
   let closed = false;
-  const keepAlive = setInterval(() => {
-    if (!closed) res.write(': ping\n\n');
-  }, 20_000);
-
-  const finish = () => {
-    closed = true;
-    clearInterval(keepAlive);
-    // If the agent is still waiting on an answer when the client leaves, free it.
-    questionChannel.cancel(turnId, 'deepen cancelled: client disconnected');
-  };
+  const keepAlive = setInterval(() => { if (!closed) res.write(': ping\n\n'); }, 20_000);
+  const finish = () => { closed = true; clearInterval(keepAlive); };
   req.on('close', finish);
-
-  res.writeHead(200, {
-    'content-type': 'text/event-stream',
-    'cache-control': 'no-store',
-    connection: 'keep-alive',
-  });
+  res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
   res.flushHeaders?.();
+  const emit = (event) => { if (!closed) res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`); };
+  return { emit, finish };
+}
 
-  const emit = (event) => {
-    if (!closed) res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
-  };
-
-  // Tell the client which turn this stream is, so its POST /deepen/answer can
-  // be correlated back to the waiting runner.
-  emit({ type: 'ready', turnId });
-
-  // Capability handed to the runner: emit a question event, then await the
-  // client's answer via the shared channel.
-  const askQuestions = (questions) => {
-    emit({ type: 'question', turnId, questions });
-    return questionChannel.ask(turnId);
-  };
-
-  const runner = await selectRunner(emit);
-  if (!runner) {
-    finish();
-    res.end();
+async function handleAsk(req, res) {
+  const payload = await readJsonBody(req);
+  if (!payload?.concept) {
+    res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+    res.end('Missing required field: concept');
     return;
   }
+  const { emit, finish } = openSseResponse(req, res);
+  await askHandler({
+    slug: payload.slug || activeSlug,
+    conceptId: payload.concept,
+    messages: payload.messages ?? [],
+    store: fsStore,
+    runner: useStub ? stubAnswerRunner : answerRunner,
+    emit,
+  });
+  finish();
+  res.end();
+}
 
-  await deepenHandler({ slug, conceptId: concept, prompt, store: fsStore, runner, emit, askQuestions });
+async function handleCrystallize(req, res) {
+  const payload = await readJsonBody(req);
+  if (!payload?.concept) {
+    res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+    res.end('Missing required field: concept');
+    return;
+  }
+  const { emit, finish } = openSseResponse(req, res);
+  await crystallizeHandler({
+    slug: payload.slug || activeSlug,
+    conceptId: payload.concept,
+    messages: payload.messages ?? [],
+    store: fsStore,
+    runner: useStub ? stubCrystallizeRunner : crystallizeRunner,
+    emit,
+  });
   finish();
   res.end();
 }
@@ -206,23 +192,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method === 'POST' && pathname === '/deepen/answer') {
-    let body = '';
-    req.on('data', (chunk) => { body += chunk; if (body.length > 1_000_000) req.destroy(); });
-    req.on('end', () => {
-      let delivered = false;
-      try {
-        const payload = JSON.parse(body || '{}');
-        delivered = questionChannel.answer(payload.turnId, payload.answers ?? []);
-      } catch { /* malformed body -> delivered stays false */ }
-      res.writeHead(delivered ? 200 : 409, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-      res.end(JSON.stringify({ ok: delivered }));
-    });
+  if (req.method === 'POST' && pathname === '/ask') {
+    handleAsk(req, res);
     return;
   }
 
-  if (req.method === 'GET' && pathname === '/deepen') {
-    handleDeepen(req, res, url);
+  if (req.method === 'POST' && pathname === '/crystallize') {
+    handleCrystallize(req, res);
     return;
   }
 

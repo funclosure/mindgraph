@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import { createMemoryStore } from '../src/operations/memoryStore.js';
-import { deepenHandler } from '../src/server/deepenHandler.js';
+import { crystallizeHandler } from '../src/server/crystallizeHandler.js';
 
 const fixturePath = 'examples/authoring/recursive-self-improvement.mindgraph.md';
 
@@ -12,7 +12,7 @@ function seededStore() {
   return createMemoryStore({ demo: { md } });
 }
 
-test('deepen handler runs injected runner, compiles updated markdown, stores json, and emits document', async () => {
+test('crystallize handler runs injected runner, compiles updated markdown, stores json, and emits document', async () => {
   const store = seededStore();
   const events = [];
   const emit = (event) => events.push(event);
@@ -23,7 +23,7 @@ test('deepen handler runs injected runner, compiles updated markdown, stores jso
     });
   };
 
-  await deepenHandler({ slug: 'demo', conceptId: 'x', store, runner: goodRunner, emit });
+  await crystallizeHandler({ slug: 'demo', conceptId: 'x', store, runner: goodRunner, emit });
 
   assert.ok(events.some((event) => event.type === 'progress'));
   const documentEvents = events.filter((event) => event.type === 'document');
@@ -34,7 +34,7 @@ test('deepen handler runs injected runner, compiles updated markdown, stores jso
   assert.ok(store.get('demo').json);
 });
 
-test('deepen handler emits an error and no document when runner writes invalid markdown', async () => {
+test('crystallize handler emits an error and no document when runner writes invalid markdown', async () => {
   const store = seededStore();
   const events = [];
   const emit = (event) => events.push(event);
@@ -42,30 +42,31 @@ test('deepen handler emits an error and no document when runner writes invalid m
     store.put(slug, { md: 'totally broken, no frontmatter' });
   };
 
-  await deepenHandler({ slug: 'demo', conceptId: 'x', store, runner: badRunner, emit });
+  await crystallizeHandler({ slug: 'demo', conceptId: 'x', store, runner: badRunner, emit });
 
   assert.ok(events.some((event) => event.type === 'error'));
   assert.equal(events.some((event) => event.type === 'document'), false);
 });
 
-test("deepen snapshots the pre-edit markdown to slug__backup", async () => {
+test("crystallize snapshots the pre-edit markdown to slug__backup", async () => {
   const md = fs.readFileSync("examples/authoring/recursive-self-improvement.mindgraph.md", "utf8");
   const store = createMemoryStore({ demo: { md } });
   const runner = async ({ slug, store }) => {
     store.put(slug, { md: store.get(slug).md + "\n\n@concept snap-added\nlabel: Snap Added\n" });
   };
-  await deepenHandler({ slug: "demo", conceptId: "c", store, runner, emit: () => {} });
+  await crystallizeHandler({ slug: "demo", conceptId: "c", store, runner, emit: () => {} });
   assert.equal(store.get("demo__backup")?.md, md);
 });
 
-test('deepen forwards the user prompt to the runner', async () => {
+test('crystallize forwards the conversation messages to the runner', async () => {
   const md = fs.readFileSync('examples/authoring/recursive-self-improvement.mindgraph.md', 'utf8');
   const store = createMemoryStore({ demo: { md } });
   let received;
-  const runner = async ({ prompt, slug, store }) => {
-    received = prompt;
+  const runner = async ({ messages, slug, store }) => {
+    received = messages;
     store.put(slug, { md: store.get(slug).md + '\n\n@concept p\nlabel: P\n' });
   };
-  await deepenHandler({ slug: 'demo', conceptId: 'c', prompt: 'the cyber angle', store, runner, emit: () => {} });
-  assert.equal(received, 'the cyber angle');
+  const messages = [{ role: 'you', text: 'the cyber angle' }];
+  await crystallizeHandler({ slug: 'demo', conceptId: 'c', messages, store, runner, emit: () => {} });
+  assert.deepEqual(received, messages);
 });
