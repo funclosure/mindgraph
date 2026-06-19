@@ -334,8 +334,9 @@ function renderSourceSwitcher() {
   el.querySelectorAll('.source-chip').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.activeSourceId = btn.dataset.sourceId;
-      renderSourceSwitcher();
-      updateProsePanel();
+      // Full render so the swapped-in prose's concept mentions get their click
+      // handlers re-bound (bindEvents re-queries fresh prose spans every render).
+      render();
     });
   });
 }
