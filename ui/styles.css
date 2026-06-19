@@ -368,19 +368,21 @@ button { cursor: pointer; color: inherit; }
 
 /* Only lay out the Deepen view as a flex column when it is visible; otherwise
    .is-hidden's display:none must win (an #id selector would outrank it). */
-#prose-deepen:not(.is-hidden) { display: flex; flex-direction: column; }
-.deepen-empty { color: rgba(232, 226, 211, 0.55); font: 13px/1.5 system-ui, sans-serif; padding: 8px 4px; }
-.deepen-head { color: rgba(232, 226, 211, 0.95); font: 13px/1.5 system-ui, sans-serif; margin-bottom: 8px; }
-.deepen-thread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-.deepen-entry { font: 12px/1.45 system-ui, sans-serif; padding: 6px 8px; border-radius: 6px; }
-.deepen-agent { color: rgba(232, 226, 211, 0.78); background: rgba(255, 255, 255, 0.05); }
-.deepen-you { color: rgba(232, 226, 211, 0.95); background: rgba(120, 150, 120, 0.22); align-self: flex-end; }
-.deepen-result { color: rgba(170, 210, 160, 0.95); }
-.deepen-error { color: rgba(225, 160, 160, 0.95); }
-.deepen-input { display: flex; gap: 6px; margin-top: 8px; }
-.deepen-input input { flex: 1; min-width: 0; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border); color: rgba(232, 226, 211, 0.95); border-radius: 6px; padding: 6px 8px; font: 12px system-ui, sans-serif; }
-.deepen-input button { background: rgba(255, 255, 255, 0.08); color: rgba(232, 226, 211, 0.95); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; cursor: pointer; font: 12px system-ui, sans-serif; }
-.deepen-input button:disabled { opacity: 0.5; cursor: default; }
+#prose-ask:not(.is-hidden) { display: flex; flex-direction: column; }
+.ask-empty { color: rgba(232, 226, 211, 0.55); font: 13px/1.5 system-ui, sans-serif; padding: 8px 4px; }
+.ask-head { color: rgba(232, 226, 211, 0.95); font: 13px/1.5 system-ui, sans-serif; margin-bottom: 8px; }
+.ask-thread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.ask-entry { font: 12px/1.45 system-ui, sans-serif; padding: 6px 8px; border-radius: 6px; }
+.ask-agent { color: rgba(232, 226, 211, 0.78); background: rgba(255, 255, 255, 0.05); }
+.ask-you { color: rgba(232, 226, 211, 0.95); background: rgba(120, 150, 120, 0.22); align-self: flex-end; }
+.ask-result { color: rgba(170, 210, 160, 0.95); }
+.ask-error { color: rgba(225, 160, 160, 0.95); }
+.ask-heartbeat { opacity: 0.55; font-style: italic; }
+.ask-input { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.ask-input input { flex: 1; min-width: 0; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border); color: rgba(232, 226, 211, 0.95); border-radius: 6px; padding: 6px 8px; font: 12px system-ui, sans-serif; }
+.ask-input button { background: rgba(255, 255, 255, 0.08); color: rgba(232, 226, 211, 0.95); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; cursor: pointer; font: 12px system-ui, sans-serif; }
+.ask-input button:disabled { opacity: 0.5; cursor: default; }
+.ask-add { background: rgba(120, 150, 120, 0.28) !important; }
 
 .prose-article > :first-child { margin-top: 0; }
 .prose-overview {
@@ -468,16 +470,3 @@ button { cursor: pointer; color: inherit; }
 .source-chip { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border, #3a3a3a); background: transparent; color: inherit; cursor: pointer; opacity: 0.7; }
 .source-chip.is-active { opacity: 1; border-color: var(--accent, #6aa7ff); }
 .source-chip--discussion { border-style: dashed; }
-.deepen-question { background: transparent; padding: 0; }
-.qc-set { display: flex; flex-direction: column; gap: 10px; }
-.qc-card { border: 1px solid var(--border, #2f2f2f); border-radius: 8px; padding: 10px; }
-.qc-header { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.6; }
-.qc-question { font-weight: 600; margin: 4px 0 8px; }
-.qc-options { display: flex; flex-direction: column; gap: 6px; }
-.qc-option { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: baseline; cursor: pointer; }
-.qc-option-label { grid-column: 2; font-weight: 500; }
-.qc-option-desc { grid-column: 2; font-size: 12px; opacity: 0.65; }
-.qc-option input { grid-column: 1; grid-row: 1 / span 2; }
-.qc-other { margin-top: 8px; width: 100%; box-sizing: border-box; }
-.qc-submit { align-self: flex-end; margin-top: 4px; }
-.deepen-heartbeat { opacity: 0.55; font-style: italic; }

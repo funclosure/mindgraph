@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { stubRunner } from '../src/server/stubRunner.js';
+import { stubCrystallizeRunner } from '../src/server/stubRunner.js';
 import { registry } from '../src/operations/index.js';
 
 const BASE_MD = `---
@@ -53,17 +53,18 @@ function memoryStore(md) {
   };
 }
 
-test('stub runner asks one question then writes a compiling, QA-clean discussion source', async () => {
+test('stub crystallize runner writes a compiling, QA-clean discussion source from the conversation', async () => {
   const store = memoryStore(BASE_MD);
   const events = [];
   const emit = (e) => events.push(e);
-  // Auto-answer the moment the stub asks.
-  const askQuestions = async (questions) => {
-    assert.ok(Array.isArray(questions) && questions.length >= 1, 'stub should ask at least one question');
-    return [{ header: questions[0].header, values: ['Timeline'] }];
-  };
 
-  await stubRunner({ slug: 'living-doc', conceptId: 'powerful-ai', prompt: '', store, emit, askQuestions });
+  await stubCrystallizeRunner({
+    slug: 'living-doc',
+    conceptId: 'powerful-ai',
+    messages: [{ role: 'you', text: 'add the timeline angle' }],
+    store,
+    emit,
+  });
 
   const md = store.get('living-doc').md;
   assert.match(md, /@source disc-powerful-ai/, 'a discussion source should be appended');
