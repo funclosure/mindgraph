@@ -1,4 +1,5 @@
 import { escapeHtml } from '../util.js';
+import { renderMarkdown } from '../markdown.js';
 
 // Render the Ask tab. `vm`:
 //   { conceptId, conceptLabel, busy, entries:[{role,text}], canUndo, canCrystallize, thinking:{seconds}|null }
@@ -7,7 +8,11 @@ export function renderAskThread(vm) {
     return `<div class="ask-empty">Select a concept to talk about it in the context of the source.</div>`;
   }
   const entries = vm.entries
-    .map((e) => `<div class="ask-entry ask-${e.role}">${escapeHtml(e.text)}</div>`)
+    .map((e) => {
+      // Agent answers render as (safe) Markdown; everything else is plain text.
+      if (e.role === 'agent') return `<div class="ask-entry ask-agent md">${renderMarkdown(e.text)}</div>`;
+      return `<div class="ask-entry ask-${e.role}">${escapeHtml(e.text)}</div>`;
+    })
     .join('');
   // The heartbeat is a single pinned line at the end of the thread while the
   // agent is working; it is not part of the entry log.
