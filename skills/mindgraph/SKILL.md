@@ -150,6 +150,18 @@ Do not:
 - Ask the user to edit JSON.
 - Present `authoring draft` output as the real digest.
 
+## Conversational deepen (discussion-as-source)
+
+When a reader deepens a concept in the UI, the outcome is a new `@source` of `type: discussion` woven into the same `.mindgraph.md`:
+
+- The clarifying exchange is synthesised into discussion `@block`s (clean prose, not chat turns).
+- 1–3 `@concept`s are derived from the discussion; each binds (label or alias verbatim) to a discussion block.
+- A `@section` + `@step` foreground the derived concepts; the anchor concept rides along as `latent` so cross-source relations validate.
+- Cross-source `@relation`s link the derived concepts to the essay's concepts, grounded in the discussion blocks.
+- The agent asks structured questions (`ask_user_questions`) only when intent is ambiguous, and may opt into WebSearch for asks beyond the source. Web-derived material is attributed in the discussion prose, never presented as the original source.
+
+Undo reverts the whole woven turn. Each discussion is readable via the Source-tab source switcher. Titles are written unquoted (the parser keeps surrounding quotes literally).
+
 ## Existing graph operations
 
 For list/open requests:

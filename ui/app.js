@@ -17,6 +17,8 @@ import { attachScrollBinding } from './scroll-binding.js';
 import { createLayoutDebugPanel } from './layout-debug-panel.js';
 import { registry } from '../src/operations/index.js';
 import { renderDeepenThread } from './panels/deepen-thread.js';
+import { renderQuestionCards, collectAnswers } from './panels/question-card.js';
+import { escapeHtml } from './util.js';
 
 // The dev server (src/ui/dev-server.js) serves whichever mindgraph
 // document was passed via its --doc flag — or the canonical sample by
@@ -55,6 +57,7 @@ const state = {
   animationLoopActive: false,
   proseChunks: undefined,
   sourceTab: 'source',
+  activeSourceId: null,
   deepen: { entries: [], busy: false, canUndo: false },
 };
 
@@ -167,6 +170,7 @@ function render() {
   if (!state.viewModel) return;
   state.graphRenderState = computeGraphRenderState();
   updateTopbar();
+  renderSourceSwitcher();
   updateProsePanel();
   updateDeepenPanel();
   updateOverviewStrip();
@@ -303,8 +307,37 @@ function updateProsePanel() {
   if (!el) return;
   // Save scrollTop across innerHTML replacement (carried from v2 Task 8 fix).
   const saved = el.scrollTop;
-  el.innerHTML = renderProse(state.proseChunks ?? [], state);
+  const all = state.proseChunks ?? [];
+  const activeId = state.activeSourceId;
+  // Keep overview headings; filter paragraphs to the selected source. With a
+  // single source (no switcher), activeId is null and everything renders.
+  const chunks = activeId
+    ? all.filter((c) => c.kind !== 'paragraph' || c.sourceId === activeId)
+    : all;
+  el.innerHTML = renderProse(chunks, state);
   el.scrollTop = saved;
+}
+
+function renderSourceSwitcher() {
+  const el = document.getElementById('source-switcher');
+  if (!el) return;
+  const sources = state.viewModel?.documentMeta?.sources ?? [];
+  // Only show the switcher once a deepen has woven in a second source.
+  if (sources.length <= 1) { el.innerHTML = ''; return; }
+  if (!state.activeSourceId) state.activeSourceId = sources[0].id;
+  el.innerHTML = sources.map((s) => {
+    const active = s.id === state.activeSourceId ? ' is-active' : '';
+    const kind = s.type === 'discussion' ? ' source-chip--discussion' : '';
+    const label = s.type === 'discussion' ? (s.title || s.id) : (s.title || 'Source');
+    return `<button class="source-chip${active}${kind}" data-source-id="${escapeHtml(s.id)}">${escapeHtml(label)}</button>`;
+  }).join('');
+  el.querySelectorAll('.source-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.activeSourceId = btn.dataset.sourceId;
+      renderSourceSwitcher();
+      updateProsePanel();
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -324,14 +357,21 @@ function updateDeepenPanel() {
     setSourceTab('deepen');
   }
   const concept = conceptId ? state.viewModel?.concepts?.byId?.[conceptId] : null;
+  const thinking = state.deepen.thinking
+    ? { seconds: Math.round((Date.now() - state.deepen.thinking.startedAt) / 1000) }
+    : null;
   el.innerHTML = renderDeepenThread({
     conceptId,
     conceptLabel: concept?.label ?? conceptId ?? '',
     busy: state.deepen.busy,
     entries: state.deepen.entries,
     canUndo: state.deepen.canUndo,
+    thinking,
   });
   bindDeepenControls();
+  bindQuestionSubmits();
+  const thread = el.querySelector('.deepen-thread');
+  if (thread) thread.scrollTop = thread.scrollHeight;
 }
 
 function bindDeepenControls() {
@@ -392,21 +432,49 @@ function applyDeepenedDocument(nextDocument, anchorId) {
     state.cameraMode = 'selection';
   }
   state.sim.reheat(0.5); // gentle local resettle; existing nodes barely move
+  // Surface the newest source (the just-woven discussion) in the switcher.
+  const sources = state.viewModel?.documentMeta?.sources ?? [];
+  if (sources.length > 1) state.activeSourceId = sources[sources.length - 1].id;
   render();
 }
+
+let deepenHeartbeat;
 
 function runDeepen(conceptId, prompt) {
   if (!conceptId || state.deepen.busy) return;
   state.deepen.busy = true;
   if (prompt) pushDeepen('you', prompt);
-  pushDeepen('agent', `Deepening “${conceptId}” …`);
+  pushDeepen('agent', `Deepening "${conceptId}" …`);
+  let turnId = null;
+
   const qs = new URLSearchParams({ concept: conceptId });
   if (prompt) qs.set('prompt', prompt);
   const source = new EventSource(`/deepen?${qs.toString()}`);
-  const finish = () => { source.close(); state.deepen.busy = false; updateDeepenPanel(); };
+
+  startHeartbeat();
+  const finish = () => {
+    stopHeartbeat();
+    source.close();
+    state.deepen.busy = false;
+    updateDeepenPanel();
+  };
+
+  source.addEventListener('ready', (event) => {
+    try { turnId = JSON.parse(event.data).turnId; window.__lastTurnId = turnId; } catch { /* ignore */ }
+  });
+
   source.addEventListener('progress', (event) => {
     try { pushDeepen('agent', JSON.parse(event.data).message); } catch { /* ignore */ }
   });
+
+  source.addEventListener('question', (event) => {
+    stopHeartbeat();
+    let questions = [];
+    let qTurn = turnId;
+    try { const d = JSON.parse(event.data); questions = d.questions ?? []; qTurn = d.turnId ?? turnId; } catch { /* ignore */ }
+    renderQuestionInThread(questions, qTurn);
+  });
+
   source.addEventListener('document', (event) => {
     try {
       applyDeepenedDocument(JSON.parse(event.data).document, conceptId);
@@ -422,6 +490,47 @@ function runDeepen(conceptId, prompt) {
     try { message = JSON.parse(event.data).message; } catch { /* native error has no data */ }
     pushDeepen('error', `Error: ${message}`);
     finish();
+  });
+}
+
+// The heartbeat is a single pinned status line (state.deepen.thinking), NOT a
+// thread entry — streamed progress entries land above it, and it clears cleanly
+// regardless of what arrived after it started.
+function startHeartbeat() {
+  stopHeartbeat();
+  state.deepen.thinking = { startedAt: Date.now() };
+  updateDeepenPanel();
+  deepenHeartbeat = setInterval(updateDeepenPanel, 1000);
+}
+
+function stopHeartbeat() {
+  if (deepenHeartbeat) { clearInterval(deepenHeartbeat); deepenHeartbeat = null; }
+  state.deepen.thinking = null;
+}
+
+function renderQuestionInThread(questions, turnId) {
+  if (!questions.length) return;
+  state.deepen.entries.push({ role: 'question', html: renderQuestionCards(questions, turnId), questions, turnId });
+  updateDeepenPanel();
+}
+
+function bindQuestionSubmits() {
+  document.querySelectorAll('.qc-set').forEach((setEl) => {
+    const submit = setEl.querySelector('[data-action="qc-submit"]');
+    if (!submit || submit.dataset.bound) return;
+    submit.dataset.bound = '1';
+    const turnId = setEl.dataset.turnId;
+    const entry = state.deepen.entries.find((e) => e.role === 'question' && e.turnId === turnId);
+    if (!entry) return;
+    submit.addEventListener('click', () => {
+      const answers = collectAnswers(setEl, entry.questions);
+      submit.disabled = true;
+      pushDeepen('you', answers.map((a) => `${a.header}: ${a.values.join(', ') || '(skip)'}`).join(' · '));
+      fetch('/deepen/answer', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ turnId, answers }),
+      }).then(() => startHeartbeat()).catch((e) => pushDeepen('error', `Answer failed: ${e.message}`));
+    });
   });
 }
 

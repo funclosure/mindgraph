@@ -9,6 +9,7 @@ import { createFsStore } from '../adapters/fsStore.js';
 import { deepenHandler } from './deepenHandler.js';
 import { stubRunner } from './stubRunner.js';
 import { undoHandler } from "./undoHandler.js";
+import { createQuestionChannel } from './questionChannel.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +31,8 @@ const docPath = docPathFlag
 const activeSlug = slugFromDocPath(docPath);
 const graphsDir = path.dirname(docPath);
 const fsStore = createFsStore({ baseDir: graphsDir });
+const questionChannel = createQuestionChannel();
+let turnCounter = 0;
 // The real agentRunner (dynamically imported) reads this to locate the .md it
 // must edit, keeping it aligned with the fsStore base dir.
 process.env.MINDGRAPH_MD_DIR = graphsDir;
@@ -141,6 +144,9 @@ async function handleDeepen(req, res, url) {
     return;
   }
 
+  turnCounter += 1;
+  const turnId = `turn-${Date.now().toString(36)}-${turnCounter}`;
+
   let closed = false;
   const keepAlive = setInterval(() => {
     if (!closed) res.write(': ping\n\n');
@@ -149,6 +155,8 @@ async function handleDeepen(req, res, url) {
   const finish = () => {
     closed = true;
     clearInterval(keepAlive);
+    // If the agent is still waiting on an answer when the client leaves, free it.
+    questionChannel.cancel(turnId, 'deepen cancelled: client disconnected');
   };
   req.on('close', finish);
 
@@ -163,6 +171,17 @@ async function handleDeepen(req, res, url) {
     if (!closed) res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
   };
 
+  // Tell the client which turn this stream is, so its POST /deepen/answer can
+  // be correlated back to the waiting runner.
+  emit({ type: 'ready', turnId });
+
+  // Capability handed to the runner: emit a question event, then await the
+  // client's answer via the shared channel.
+  const askQuestions = (questions) => {
+    emit({ type: 'question', turnId, questions });
+    return questionChannel.ask(turnId);
+  };
+
   const runner = await selectRunner(emit);
   if (!runner) {
     finish();
@@ -170,7 +189,7 @@ async function handleDeepen(req, res, url) {
     return;
   }
 
-  await deepenHandler({ slug, conceptId: concept, prompt, store: fsStore, runner, emit });
+  await deepenHandler({ slug, conceptId: concept, prompt, store: fsStore, runner, emit, askQuestions });
   finish();
   res.end();
 }
@@ -184,6 +203,21 @@ const server = http.createServer((req, res) => {
     const result = undoHandler({ slug, store: fsStore });
     res.writeHead(result.ok ? 200 : 409, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
     res.end(JSON.stringify(result));
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/deepen/answer') {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; if (body.length > 1_000_000) req.destroy(); });
+    req.on('end', () => {
+      let delivered = false;
+      try {
+        const payload = JSON.parse(body || '{}');
+        delivered = questionChannel.answer(payload.turnId, payload.answers ?? []);
+      } catch { /* malformed body -> delivered stays false */ }
+      res.writeHead(delivered ? 200 : 409, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(JSON.stringify({ ok: delivered }));
+    });
     return;
   }
 

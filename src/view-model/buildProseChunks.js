@@ -63,6 +63,13 @@ export function buildProseChunks(vm) {
       para = newParagraph();
     }
 
+    // Paragraph break on source change so chunks never straddle two sources.
+    if (para.segmentIds.length && seg.sourceId && para.sourceId && seg.sourceId !== para.sourceId) {
+      chunks.push(finalizeParagraph(para, vm));
+      para = newParagraph();
+    }
+    if (!para.sourceId && seg.sourceId) para.sourceId = seg.sourceId;
+
     // Append this segment to the current paragraph.
     if (!para.speaker && seg.speaker) para.speaker = seg.speaker;
     if (!para.segmentIds.length) para.timeSpan.start = seg.start;
@@ -93,6 +100,7 @@ function newParagraph() {
     kind: 'paragraph',
     text: '',
     speaker: undefined,
+    sourceId: undefined,
     segmentIds: [],
     timeSpan: { start: 0, end: 0 },
     conceptMentions: [],
