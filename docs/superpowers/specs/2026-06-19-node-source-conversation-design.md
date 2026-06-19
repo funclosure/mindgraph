@@ -1,7 +1,7 @@
 # Node ⇄ Source Conversation ("Ask")
 
 **Date:** 2026-06-19
-**Status:** Design
+**Status:** Implemented
 **Author:** drafted with Claude (Opus 4.8)
 **Supersedes:** the interaction model in `2026-06-19-conversational-deepen-design.md` (the discussion-as-source *artifact* survives; the *one-shot, always-grows, asks-structured-questions* flow is replaced).
 
