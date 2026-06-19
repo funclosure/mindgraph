@@ -389,6 +389,14 @@ function bindAskControls() {
   if (add) add.addEventListener('click', () => runCrystallize(state.selectedConceptId));
   const undo = document.querySelector('[data-action="ask-undo"]');
   if (undo) undo.addEventListener('click', runUndo);
+  // Tapping the header re-frames the graph camera on the anchored node (handy
+  // after panning away). selectedConceptId already drives a zoom-to-node target.
+  const focus = document.querySelector('[data-action="ask-focus"]');
+  if (focus) focus.addEventListener('click', () => {
+    if (!state.selectedConceptId) return;
+    state.cameraMode = 'selection';
+    render();
+  });
 }
 
 function pushAsk(role, text) {

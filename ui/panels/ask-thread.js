@@ -26,7 +26,7 @@ export function renderAskThread(vm) {
     ? `<button class="ask-undo" data-action="ask-undo">Undo</button>`
     : '';
   return (
-    `<div class="ask-head">Ask: <strong>${escapeHtml(vm.conceptLabel)}</strong></div>` +
+    `<button class="ask-head" data-action="ask-focus" title="Zoom to this node">Ask: <strong>${escapeHtml(vm.conceptLabel)}</strong></button>` +
     `<div class="ask-thread">${entries}${thinking}</div>` +
     `<div class="ask-input">` +
       `<input id="ask-prompt" type="text" placeholder="Ask about ${escapeHtml(vm.conceptLabel)}…" ${vm.busy ? 'disabled' : ''} />` +

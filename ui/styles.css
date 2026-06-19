@@ -370,7 +370,8 @@ button { cursor: pointer; color: inherit; }
    .is-hidden's display:none must win (an #id selector would outrank it). */
 #prose-ask:not(.is-hidden) { display: flex; flex-direction: column; }
 .ask-empty { color: rgba(232, 226, 211, 0.55); font: 13px/1.5 system-ui, sans-serif; padding: 8px 4px; }
-.ask-head { color: rgba(232, 226, 211, 0.95); font: 13px/1.5 system-ui, sans-serif; margin-bottom: 8px; }
+.ask-head { display: block; width: 100%; text-align: left; color: rgba(232, 226, 211, 0.95); font: 13px/1.5 system-ui, sans-serif; margin-bottom: 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 4px 6px; cursor: pointer; }
+.ask-head:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--border); }
 .ask-thread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .ask-entry { font: 12px/1.45 system-ui, sans-serif; padding: 6px 8px; border-radius: 6px; }
 .ask-agent { color: rgba(232, 226, 211, 0.78); background: rgba(255, 255, 255, 0.05); }
