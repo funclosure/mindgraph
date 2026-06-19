@@ -17,7 +17,7 @@ export async function stubCrystallizeRunner({ slug, conceptId, messages, store, 
   const md = entry?.md;
   if (typeof md !== 'string') { emit({ type: 'progress', message: 'stub: no markdown' }); return; }
 
-  const angle = messages?.[messages.length - 1]?.text?.slice(0, 24) || 'discussion';
+  const angle = (messages?.find((m) => m.role === 'you')?.text || 'discussion').slice(0, 24);
   const suffix = Date.now().toString(36);
   const sourceId = `disc-${conceptId}-${suffix}`;
   const conceptIdNew = `stub-driver-${suffix}`;
