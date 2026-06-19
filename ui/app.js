@@ -16,8 +16,8 @@ import { renderDigestInspector } from './panels/digest-inspector.js';
 import { attachScrollBinding } from './scroll-binding.js';
 import { createLayoutDebugPanel } from './layout-debug-panel.js';
 import { registry } from '../src/operations/index.js';
-import { renderDeepenThread } from './panels/deepen-thread.js';
-import { renderQuestionCards, collectAnswers } from './panels/question-card.js';
+import { renderAskThread } from './panels/ask-thread.js';
+import { streamPost } from './sse-stream.js';
 import { escapeHtml } from './util.js';
 
 // The dev server (src/ui/dev-server.js) serves whichever mindgraph
@@ -58,7 +58,7 @@ const state = {
   proseChunks: undefined,
   sourceTab: 'source',
   activeSourceId: null,
-  deepen: { entries: [], busy: false, canUndo: false },
+  ask: { entries: [], busy: false, canUndo: false, canCrystallize: false, thinking: null },
 };
 
 // ---------------------------------------------------------------------------
@@ -172,7 +172,7 @@ function render() {
   updateTopbar();
   renderSourceSwitcher();
   updateProsePanel();
-  updateDeepenPanel();
+  updateAskPanel();
   updateOverviewStrip();
   updateViewPopover();
   updateDigestInspector();
@@ -297,9 +297,9 @@ function bindProseTabs() {
 function setSourceTab(tab) {
   state.sourceTab = tab;
   document.getElementById('tab-source')?.classList.toggle('is-active', tab === 'source');
-  document.getElementById('tab-deepen')?.classList.toggle('is-active', tab === 'deepen');
+  document.getElementById('tab-ask')?.classList.toggle('is-active', tab === 'ask');
   document.getElementById('prose-source')?.classList.toggle('is-hidden', tab !== 'source');
-  document.getElementById('prose-deepen')?.classList.toggle('is-hidden', tab !== 'deepen');
+  document.getElementById('prose-ask')?.classList.toggle('is-hidden', tab !== 'ask');
 }
 
 function updateProsePanel() {
@@ -341,59 +341,66 @@ function renderSourceSwitcher() {
 }
 
 // ---------------------------------------------------------------------------
-// Deepen tab — node-anchored conversation
+// Ask tab — node-anchored conversation grounded in the source
 // ---------------------------------------------------------------------------
 
 let lastDeepenAnchor;
 
-function updateDeepenPanel() {
-  const el = document.getElementById('prose-deepen');
+function updateAskPanel() {
+  const el = document.getElementById('prose-ask');
   if (!el) return;
   const conceptId = state.selectedConceptId;
   // When the anchored concept changes, reset the thread and reveal the tab.
   if (conceptId && conceptId !== lastDeepenAnchor) {
     lastDeepenAnchor = conceptId;
-    state.deepen = { entries: [], busy: false, canUndo: false };
-    setSourceTab('deepen');
+    state.ask = { entries: [], busy: false, canUndo: false, canCrystallize: false, thinking: null };
+    setSourceTab('ask');
   }
   const concept = conceptId ? state.viewModel?.concepts?.byId?.[conceptId] : null;
-  const thinking = state.deepen.thinking
-    ? { seconds: Math.round((Date.now() - state.deepen.thinking.startedAt) / 1000) }
+  const thinking = state.ask.thinking
+    ? { seconds: Math.round((Date.now() - state.ask.thinking.startedAt) / 1000) }
     : null;
-  el.innerHTML = renderDeepenThread({
+  el.innerHTML = renderAskThread({
     conceptId,
     conceptLabel: concept?.label ?? conceptId ?? '',
-    busy: state.deepen.busy,
-    entries: state.deepen.entries,
-    canUndo: state.deepen.canUndo,
+    busy: state.ask.busy,
+    entries: state.ask.entries,
+    canUndo: state.ask.canUndo,
+    canCrystallize: state.ask.canCrystallize,
     thinking,
   });
-  bindDeepenControls();
-  bindQuestionSubmits();
-  const thread = el.querySelector('.deepen-thread');
+  bindAskControls();
+  const thread = el.querySelector('.ask-thread');
   if (thread) thread.scrollTop = thread.scrollHeight;
 }
 
-function bindDeepenControls() {
-  const run = document.querySelector('[data-action="deepen-run"]');
-  if (run) run.addEventListener('click', () => {
-    const prompt = document.getElementById('deepen-prompt')?.value?.trim() || '';
-    runDeepen(state.selectedConceptId, prompt);
-  });
-  const undo = document.querySelector('[data-action="deepen-undo"]');
-  if (undo) undo.addEventListener('click', runUndo);
-  const input = document.getElementById('deepen-prompt');
+function bindAskControls() {
+  const send = document.querySelector('[data-action="ask-send"]');
+  const input = document.getElementById('ask-prompt');
+  const submit = () => {
+    const text = input?.value?.trim();
+    if (text) runAsk(state.selectedConceptId, text);
+  };
+  if (send) send.addEventListener('click', submit);
   if (input) input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      runDeepen(state.selectedConceptId, input.value.trim());
-    }
+    if (event.key === 'Enter') { event.preventDefault(); submit(); }
   });
+  const add = document.querySelector('[data-action="ask-add"]');
+  if (add) add.addEventListener('click', () => runCrystallize(state.selectedConceptId));
+  const undo = document.querySelector('[data-action="ask-undo"]');
+  if (undo) undo.addEventListener('click', runUndo);
 }
 
-function pushDeepen(role, text) {
-  state.deepen.entries.push({ role, text });
-  updateDeepenPanel();
+function pushAsk(role, text) {
+  state.ask.entries.push({ role, text });
+  updateAskPanel();
+}
+
+// Conversation messages the server expects: only the human/agent turns.
+function askMessages() {
+  return state.ask.entries
+    .filter((e) => e.role === 'you' || e.role === 'agent')
+    .map((e) => ({ role: e.role, text: e.text }));
 }
 
 function applyDeepenedDocument(nextDocument, anchorId) {
@@ -440,111 +447,80 @@ function applyDeepenedDocument(nextDocument, anchorId) {
 
 let deepenHeartbeat;
 
-function runDeepen(conceptId, prompt) {
-  if (!conceptId || state.deepen.busy) return;
-  state.deepen.busy = true;
-  if (prompt) pushDeepen('you', prompt);
-  pushDeepen('agent', `Deepening "${conceptId}" …`);
-  let turnId = null;
-
-  const qs = new URLSearchParams({ concept: conceptId });
-  if (prompt) qs.set('prompt', prompt);
-  const source = new EventSource(`/deepen?${qs.toString()}`);
-
+// Talk turn: stream a source-grounded answer; never changes the graph.
+function runAsk(conceptId, text) {
+  if (!conceptId || state.ask.busy) return;
+  state.ask.busy = true;
+  pushAsk('you', text);
   startHeartbeat();
-  const finish = () => {
-    stopHeartbeat();
-    source.close();
-    state.deepen.busy = false;
-    updateDeepenPanel();
-  };
-
-  source.addEventListener('ready', (event) => {
-    try { turnId = JSON.parse(event.data).turnId; window.__lastTurnId = turnId; } catch { /* ignore */ }
-  });
-
-  source.addEventListener('progress', (event) => {
-    try { pushDeepen('agent', JSON.parse(event.data).message); } catch { /* ignore */ }
-  });
-
-  source.addEventListener('question', (event) => {
-    stopHeartbeat();
-    let questions = [];
-    let qTurn = turnId;
-    try { const d = JSON.parse(event.data); questions = d.questions ?? []; qTurn = d.turnId ?? turnId; } catch { /* ignore */ }
-    renderQuestionInThread(questions, qTurn);
-  });
-
-  source.addEventListener('document', (event) => {
-    try {
-      applyDeepenedDocument(JSON.parse(event.data).document, conceptId);
-      pushDeepen('result', 'Applied. Graph updated.');
-      state.deepen.canUndo = true;
-    } catch (error) {
-      pushDeepen('error', `Failed: ${error.message}`);
+  let agentEntry = null; // accumulate streamed answer chunks into one entry
+  streamPost('/ask', { concept: conceptId, messages: askMessages() }, (event) => {
+    if (event.type === 'answer') {
+      stopHeartbeat();
+      if (!agentEntry) { agentEntry = { role: 'agent', text: '' }; state.ask.entries.push(agentEntry); }
+      agentEntry.text += event.data?.text ?? '';
+      updateAskPanel();
+    } else if (event.type === 'error') {
+      pushAsk('error', event.data?.message ?? 'error');
     }
-    finish();
-  });
-  source.addEventListener('error', (event) => {
-    let message = 'connection lost';
-    try { message = JSON.parse(event.data).message; } catch { /* native error has no data */ }
-    pushDeepen('error', `Error: ${message}`);
-    finish();
+    // `progress`/`done` are informational; the heartbeat covers the wait.
+  }).catch((e) => pushAsk('error', `Ask failed: ${e.message}`)).finally(() => {
+    stopHeartbeat();
+    state.ask.busy = false;
+    state.ask.canCrystallize = state.ask.entries.some((e) => e.role === 'agent');
+    updateAskPanel();
   });
 }
 
-// The heartbeat is a single pinned status line (state.deepen.thinking), NOT a
+// Crystallize turn: weave the conversation into the graph as a discussion source.
+function runCrystallize(conceptId) {
+  if (!conceptId || state.ask.busy) return;
+  state.ask.busy = true;
+  pushAsk('result', 'Adding to graph…');
+  startHeartbeat();
+  streamPost('/crystallize', { concept: conceptId, messages: askMessages() }, (event) => {
+    if (event.type === 'progress') {
+      pushAsk('agent', event.data?.message ?? '');
+    } else if (event.type === 'document') {
+      applyDeepenedDocument(event.data?.document, conceptId);
+      pushAsk('result', 'Added. Graph updated.');
+      state.ask.canUndo = true;
+    } else if (event.type === 'error') {
+      pushAsk('error', event.data?.message ?? 'error');
+    }
+  }).catch((e) => pushAsk('error', `Add failed: ${e.message}`)).finally(() => {
+    stopHeartbeat();
+    state.ask.busy = false;
+    updateAskPanel();
+  });
+}
+
+// The heartbeat is a single pinned status line (state.ask.thinking), NOT a
 // thread entry — streamed progress entries land above it, and it clears cleanly
 // regardless of what arrived after it started.
 function startHeartbeat() {
   stopHeartbeat();
-  state.deepen.thinking = { startedAt: Date.now() };
-  updateDeepenPanel();
-  deepenHeartbeat = setInterval(updateDeepenPanel, 1000);
+  state.ask.thinking = { startedAt: Date.now() };
+  updateAskPanel();
+  deepenHeartbeat = setInterval(updateAskPanel, 1000);
 }
 
 function stopHeartbeat() {
   if (deepenHeartbeat) { clearInterval(deepenHeartbeat); deepenHeartbeat = null; }
-  state.deepen.thinking = null;
-}
-
-function renderQuestionInThread(questions, turnId) {
-  if (!questions.length) return;
-  state.deepen.entries.push({ role: 'question', html: renderQuestionCards(questions, turnId), questions, turnId });
-  updateDeepenPanel();
-}
-
-function bindQuestionSubmits() {
-  document.querySelectorAll('.qc-set').forEach((setEl) => {
-    const submit = setEl.querySelector('[data-action="qc-submit"]');
-    if (!submit || submit.dataset.bound) return;
-    submit.dataset.bound = '1';
-    const turnId = setEl.dataset.turnId;
-    const entry = state.deepen.entries.find((e) => e.role === 'question' && e.turnId === turnId);
-    if (!entry) return;
-    submit.addEventListener('click', () => {
-      const answers = collectAnswers(setEl, entry.questions);
-      submit.disabled = true;
-      pushDeepen('you', answers.map((a) => `${a.header}: ${a.values.join(', ') || '(skip)'}`).join(' · '));
-      fetch('/deepen/answer', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ turnId, answers }),
-      }).then(() => startHeartbeat()).catch((e) => pushDeepen('error', `Answer failed: ${e.message}`));
-    });
-  });
+  state.ask.thinking = null;
 }
 
 function runUndo() {
-  if (state.deepen.busy) return;
+  if (state.ask.busy) return;
   fetch('/undo')
     .then((response) => response.json())
     .then((result) => {
-      if (!result.ok) { pushDeepen('error', `Undo: ${result.message}`); return; }
+      if (!result.ok) { pushAsk('error', `Undo: ${result.message}`); return; }
       rebuildFromDocument(result.document);
-      state.deepen.canUndo = false;
-      pushDeepen('result', 'Reverted the last deepen.');
+      state.ask.canUndo = false;
+      pushAsk('result', 'Reverted the last add.');
     })
-    .catch((error) => pushDeepen('error', `Undo failed: ${error.message}`));
+    .catch((error) => pushAsk('error', `Undo failed: ${error.message}`));
 }
 
 function updateOverviewStrip() {
