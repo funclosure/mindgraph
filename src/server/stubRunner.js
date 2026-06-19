@@ -44,7 +44,7 @@ export async function stubRunner({ slug, conceptId, prompt, store, emit, askQues
 
 @source ${sourceId}
 type: discussion
-title: "Deepen: ${conceptId} (${angle})"
+title: Deepen: ${conceptId} (${angle})
 
 @block ${sourceId}-d1 source=${sourceId} kind=paragraph
 ${block}
@@ -63,7 +63,7 @@ relations:
   - ${conceptIdNew} -> ${conceptId} accelerates 0.75
 
 @section ${sourceId}-sec
-title: "Deepen: ${conceptId} (${angle})"
+title: Deepen: ${conceptId} (${angle})
 summary: A stub deepen discussion woven into the graph.
 steps: ${sourceId}-s1
 `;
