@@ -1,7 +1,7 @@
 # Conversational Deepen — Discussion-as-Source
 
 **Date:** 2026-06-19
-**Status:** Design
+**Status:** Implemented
 **Author:** drafted with Claude (Opus 4.8)
 
 ## Problem
