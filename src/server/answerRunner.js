@@ -1,0 +1,60 @@
+import { readSkill, loadSdk } from './agentSdk.js';
+
+// Read-only talk runner. Answers a question about the anchored node, grounded in
+// its preloaded source context. Streams `answer` (assistant text) + `progress`
+// (tool use). Never edits the file.
+//   ctx: { concept:{id,label,aliases}, blocks:[{id,text}], neighbors:[{id,label,type,direction}] }
+//   messages: [{ role:'you'|'agent', text }]  (full conversation so far)
+export async function answerRunner({ conceptId, context, messages, emit }) {
+  const { query } = await loadSdk();
+
+  const blockText = (context?.blocks ?? []).map((b) => `[${b.id}] ${b.text}`).join('\n\n');
+  const neighborText = (context?.neighbors ?? [])
+    .map((n) => `- ${n.label} (${n.direction === 'out' ? `${conceptId} ${n.type} ${n.id}` : `${n.id} ${n.type} ${conceptId}`})`)
+    .join('\n') || '(none)';
+  const label = context?.concept?.label ?? conceptId;
+
+  const systemPrompt = `${readSkill()}
+
+---
+You are the mindgraph "Ask" agent. The reader has selected one concept in a digested source and wants to talk about it, grounded in that source. Answer concisely and conversationally (a few sentences). Ground your answer in the SOURCE CONTEXT below; quote or cite block ids when useful. If the question goes beyond the source, you MAY use WebSearch/WebFetch — but say so and attribute it; never present outside facts as if the source stated them. Do NOT edit any file. Do NOT author concepts or relations — this is conversation, not graph editing.
+
+ANCHOR CONCEPT: ${label} (id: ${conceptId})
+
+SOURCE CONTEXT (blocks that foreground this concept):
+${blockText || '(no preloaded blocks — use Read/Grep on the source if needed)'}
+
+GRAPH NEIGHBORS:
+${neighborText}`;
+
+  // Replay the conversation as the prompt; the latest reader message is last.
+  const prompt = (messages ?? [])
+    .map((m) => `${m.role === 'agent' ? 'Assistant' : 'Reader'}: ${m.text}`)
+    .join('\n') || `Reader: Tell me about "${label}".`;
+
+  const allowedTools = ['Read', 'Grep', 'WebSearch', 'WebFetch'];
+  const conversation = query({
+    prompt,
+    options: {
+      systemPrompt,
+      model: process.env.MINDGRAPH_MODEL || 'claude-sonnet-4-6',
+      allowedTools,
+      canUseTool: async (toolName, input) => {
+        if (allowedTools.includes(toolName)) return { behavior: 'allow', updatedInput: input };
+        return { behavior: 'deny', message: `Tool ${toolName} is not permitted in Ask.` };
+      },
+    },
+  });
+
+  for await (const message of conversation) {
+    const content = message?.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content) {
+      if (block?.type === 'text' && block.text?.trim()) {
+        emit({ type: 'answer', text: block.text });
+      } else if (block?.type === 'tool_use' && block.name) {
+        emit({ type: 'progress', message: `Claude: ${block.name}` });
+      }
+    }
+  }
+}
