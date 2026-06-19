@@ -56,6 +56,7 @@ function normalizeSourceFirstForViewModel(document) {
     blockSpanById[block.id] = span;
     return {
       id: block.id,
+      sourceId: block.sourceId ?? null,
       start: span.start,
       end: span.end,
       speaker: '',
@@ -301,6 +302,7 @@ function deriveFirstSeenAt(document) {
 function buildTranscriptVM(document) {
   const segments = (document.transcript?.segments ?? []).map((segment) => ({
     id: segment.id,
+    ...(segment.sourceId != null ? { sourceId: segment.sourceId } : {}),
     start: segment.start,
     end: segment.end,
     speaker: segment.speaker,
@@ -599,6 +601,7 @@ function buildDocumentMetaVM(document, conceptsVM, relationsVM, timelineVM, tran
     title: document.transcript?.title ?? 'Untitled Transcript',
     source: document.transcript?.source ?? '',
     speakers: document.transcript?.speakers ?? [],
+    sources: (document.sources ?? []).map((s) => ({ id: s.id, title: s.title ?? '', type: s.type ?? 'source' })),
     durationSeconds,
     counts: {
       transcriptSegments: transcriptVM.segments.length,
