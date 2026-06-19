@@ -350,11 +350,12 @@ function updateAskPanel() {
   const el = document.getElementById('prose-ask');
   if (!el) return;
   const conceptId = state.selectedConceptId;
-  // When the anchored concept changes, reset the thread and reveal the tab.
+  // When the anchored concept changes, reset the thread so the next time the
+  // reader opens Ask it's about the newly selected node. Do NOT switch tabs —
+  // the reader chooses when to leave the Source pane and talk.
   if (conceptId && conceptId !== lastDeepenAnchor) {
     lastDeepenAnchor = conceptId;
     state.ask = { entries: [], busy: false, canUndo: false, canCrystallize: false, thinking: null };
-    setSourceTab('ask');
   }
   const concept = conceptId ? state.viewModel?.concepts?.byId?.[conceptId] : null;
   const thinking = state.ask.thinking
@@ -487,9 +488,10 @@ function runCrystallize(conceptId) {
   pushAsk('result', 'Adding to graph…');
   startHeartbeat();
   streamPost('/crystallize', { concept: conceptId, messages: askMessages() }, (event) => {
-    if (event.type === 'progress') {
-      pushAsk('agent', event.data?.message ?? '');
-    } else if (event.type === 'document') {
+    // The agent's read/edit play-by-play is intentionally hidden — the reader
+    // doesn't need it. The pinned "Thinking…" heartbeat covers the wait; we only
+    // surface the final outcome.
+    if (event.type === 'document') {
       applyDeepenedDocument(event.data?.document, conceptId);
       pushAsk('result', 'Added. Graph updated.');
       state.ask.canUndo = true;
