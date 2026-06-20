@@ -501,8 +501,11 @@ function runCrystallize(conceptId) {
     // doesn't need it. The pinned "Thinking…" heartbeat covers the wait; we only
     // surface the final outcome.
     if (event.type === 'document') {
+      // Name the concepts the agent wove in, so the reader sees the result.
+      const prevIds = new Set((state.viewModel?.concepts?.atomic ?? []).map((c) => c.id));
       applyDeepenedDocument(event.data?.document, conceptId);
-      pushAsk('result', 'Added. Graph updated.');
+      const added = (state.viewModel?.concepts?.atomic ?? []).filter((c) => !prevIds.has(c.id));
+      pushAsk('result', added.length ? `Added: ${added.map((c) => c.label).join(', ')}.` : 'Added. Graph updated.');
       state.ask.canUndo = true;
     } else if (event.type === 'error') {
       pushAsk('error', event.data?.message ?? 'error');
