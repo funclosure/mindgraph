@@ -22,6 +22,17 @@ test('renders bullet lists and paragraphs', () => {
   assert.match(html, /<ul class="md-list"><li>one<\/li><li>two<\/li><\/ul>/);
 });
 
+test('renders numbered lists', () => {
+  const html = renderMarkdown('1. first\n2. second');
+  assert.match(html, /<ol class="md-list"><li>first<\/li><li>second<\/li><\/ol>/);
+});
+
+test('renders standalone headings small', () => {
+  const html = renderMarkdown('## The frame\n\nbody text here');
+  assert.match(html, /<div class="md-h">The frame<\/div>/);
+  assert.match(html, /<p>body text here<\/p>/);
+});
+
 test('renders only http(s) links, leaves bare [b012] citations alone', () => {
   const html = renderMarkdown('See [docs](https://example.com) and block [b012].');
   assert.match(html, /<a href="https:\/\/example\.com" target="_blank" rel="noopener noreferrer">docs<\/a>/);

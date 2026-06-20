@@ -48,6 +48,8 @@ ${neighborText}`;
       systemPrompt,
       model: process.env.MINDGRAPH_MODEL || 'claude-sonnet-4-6',
       allowedTools,
+      // Stream the answer token-by-token as the model generates it.
+      includePartialMessages: true,
       canUseTool: async (toolName, input) => {
         if (allowedTools.includes(toolName)) return { behavior: 'allow', updatedInput: input };
         return { behavior: 'deny', message: `Tool ${toolName} is not permitted in Ask.` };
@@ -56,12 +58,20 @@ ${neighborText}`;
   });
 
   for await (const message of conversation) {
+    // Live text deltas — emit each as it arrives for a real streaming feel.
+    if (message?.type === 'stream_event') {
+      const ev = message.event;
+      if (ev?.type === 'content_block_delta' && ev.delta?.type === 'text_delta' && ev.delta.text) {
+        emit({ type: 'answer', text: ev.delta.text });
+      }
+      continue;
+    }
+    // Assembled assistant messages: text was already streamed via deltas, so
+    // only surface tool use here (don't re-emit the full text).
     const content = message?.message?.content;
     if (!Array.isArray(content)) continue;
     for (const block of content) {
-      if (block?.type === 'text' && block.text?.trim()) {
-        emit({ type: 'answer', text: block.text });
-      } else if (block?.type === 'tool_use' && block.name) {
+      if (block?.type === 'tool_use' && block.name) {
         emit({ type: 'progress', message: `Claude: ${block.name}` });
       }
     }
