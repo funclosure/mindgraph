@@ -43,6 +43,7 @@ const state = {
   // layout is now a getter; defined via Object.defineProperty after sim exists in bootstrap()
   graphRenderState: undefined,
   selectedConceptId: undefined,
+  selectedConceptIds: [],
   hoveredConceptId: undefined,
   selectedFrameRef: undefined,
   digestExpanded: false,
@@ -273,6 +274,7 @@ function computeHighlightTargets(state) {
 function computeGraphRenderState() {
   return buildGraphRenderState(state.viewModel, {
     selectedConceptId: state.selectedConceptId,
+    selectedConceptIds: state.selectedConceptIds,
     selectedFrameRef: state.selectedFrameRef,
     playheadTime: state.playheadTime,
     activeLevel: state.activeLevel,

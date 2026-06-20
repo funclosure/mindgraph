@@ -6,21 +6,24 @@ import { escapeHtml } from '../util.js';
 
 export function renderProse(chunks, state) {
   const activeIds = new Set(state.graphRenderState?.activeNodeIds ?? []);
-  const selectedId = state.selectedConceptId;
+  const selectedIds = new Set(
+    state.selectedConceptIds?.length ? state.selectedConceptIds
+      : (state.selectedConceptId ? [state.selectedConceptId] : []),
+  );
   const playheadTime = state.playheadTime ?? 0;
-  const html = chunks.map((chunk) => renderChunk(chunk, activeIds, selectedId, playheadTime)).join('');
+  const html = chunks.map((chunk) => renderChunk(chunk, activeIds, selectedIds, playheadTime)).join('');
   return `<article class="prose-article">${html}</article>`;
 }
 
-function renderChunk(chunk, activeIds, selectedId, playheadTime) {
+function renderChunk(chunk, activeIds, selectedIds, playheadTime) {
   if (chunk.kind === 'overview') {
     return `<h2 class="prose-overview" data-time-start="${chunk.timeSpan.start}">${escapeHtml(chunk.title)}</h2>`;
   }
-  return renderParagraph(chunk, activeIds, selectedId, playheadTime);
+  return renderParagraph(chunk, activeIds, selectedIds, playheadTime);
 }
 
-function renderParagraph(para, activeIds, selectedId, playheadTime) {
-  const inner = renderParagraphInner(para.text, para.conceptMentions, activeIds, selectedId);
+function renderParagraph(para, activeIds, selectedIds, playheadTime) {
+  const inner = renderParagraphInner(para.text, para.conceptMentions, activeIds, selectedIds);
   const isCurrent = isTimeInSpan(playheadTime, para.timeSpan);
   const cls = ['prose-block'];
   if (isCurrent) cls.push('is-current');
@@ -36,7 +39,7 @@ function isTimeInSpan(time, span) {
   return time >= span.start && time < span.end;
 }
 
-function renderParagraphInner(text, mentions, activeIds, selectedId) {
+function renderParagraphInner(text, mentions, activeIds, selectedIds) {
   if (!mentions.length) return escapeHtml(text);
   const parts = [];
   let cursor = 0;
@@ -44,7 +47,7 @@ function renderParagraphInner(text, mentions, activeIds, selectedId) {
     if (m.start > cursor) parts.push(escapeHtml(text.slice(cursor, m.start)));
     const phrase = text.slice(m.start, m.end);
     const isActive = activeIds.has(m.conceptId);
-    const isSelected = selectedId === m.conceptId;
+    const isSelected = selectedIds.has(m.conceptId);
     const cls = ['concept'];
     if (isActive) cls.push('concept--active');
     if (isSelected) cls.push('concept--selected');

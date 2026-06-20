@@ -5,6 +5,24 @@
 import { screenToWorld, zoomAround, applyDpr } from './camera.js';
 import { hitTestAt } from './hit-test.js';
 
+// Maintain the selection set. Plain click selects one; additive (Shift/⌘-click)
+// toggles a node in/out. `selectedConceptId` stays the "primary" (last acted) for
+// camera framing and single-node code paths.
+function setSelection(state, conceptId, additive) {
+  const set = new Set(state.selectedConceptIds ?? []);
+  if (!conceptId) {
+    set.clear();
+  } else if (additive) {
+    if (set.has(conceptId)) set.delete(conceptId);
+    else set.add(conceptId);
+  } else {
+    set.clear();
+    set.add(conceptId);
+  }
+  state.selectedConceptIds = [...set];
+  state.selectedConceptId = set.has(conceptId) ? conceptId : (state.selectedConceptIds.at(-1) ?? undefined);
+}
+
 function resizeCanvasNow(state) {
   // Synchronously match the canvas's pixel buffer to its CSS box.
   // Used after layout shifts (e.g. prose collapse) so the canvas
@@ -122,18 +140,19 @@ export function bindEvents(state, render, scheduleDraw) {
     });
   });
   document.querySelectorAll('[data-action="select-concept"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (event) => {
       const conceptId = btn.dataset.conceptId;
       const concept = state.viewModel.concepts.byId?.[conceptId];
       const firstSeen = concept?.firstSeenAt;
       const isProseSpan = btn.classList.contains('concept');
+      const additive = event.shiftKey || event.metaKey;
       // Auto-advance the playhead only when the click did NOT come from a prose
       // mention. Prose-span clicks should never teleport — the user clicked a
       // word in their current view.
       if (!isProseSpan && typeof firstSeen === 'number' && firstSeen > state.playheadTime) {
         state.playheadTime = firstSeen;
       }
-      state.selectedConceptId = conceptId;
+      setSelection(state, conceptId, additive);
       state.selectedFrameRef = undefined;
       state.cameraMode = 'selection';
       render();
@@ -289,14 +308,17 @@ export function bindEvents(state, render, scheduleDraw) {
       const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       const world = screenToWorld(state.camera, screen);
       const hit = hitTestAt(state, world);
+      const additive = e.shiftKey || e.metaKey;
       if (hit) {
-        state.selectedConceptId = hit.id;
+        setSelection(state, hit.id, additive);
         state.selectedFrameRef = undefined;
         state.cameraMode = 'selection';
         if (state.sim) state.sim.reheat(0.05);     // v3 tuning: very subtle selection nudge
         scrollProseToConcept(state.selectedConceptId);
-      } else {
-        state.selectedConceptId = undefined;
+      } else if (!additive) {
+        // Clicking empty space clears the selection — unless a modifier is held
+        // (so Shift/⌘-clicking the background doesn't wipe a multi-selection).
+        setSelection(state, null, false);
         state.selectedFrameRef = undefined;
         if (state.cameraMode === 'selection') state.cameraMode = 'auto';
       }

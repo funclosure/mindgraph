@@ -34,7 +34,7 @@ function buildCumulativeVisibility(viewModel, playheadTime, currentConceptIds = 
 
 function deriveCameraTarget(viewModel, layout, viewport, opts) {
   if (!layout || !viewport) return undefined;
-  const { activeLevel, playheadTime, cumulative, selectedConceptId } = opts;
+  const { activeLevel, playheadTime, cumulative, selectedConceptIds = [] } = opts;
   const frame = viewModel.selectors.getActiveFrameAtTime(activeLevel, playheadTime);
   const rawFg = frame?.foregroundConcepts ?? [];
 
@@ -47,14 +47,18 @@ function deriveCameraTarget(viewModel, layout, viewport, opts) {
   // corner of a wide zoom-out). Fit a bbox around the selected concept and
   // its immediate relation neighbors so the local relationship structure
   // around the selection stays legible.
-  if (selectedConceptId) {
-    const selPoint = pointFor(selectedConceptId);
-    if (selPoint) {
-      const neighborIds = (viewModel.selectors.getConceptNeighbors(selectedConceptId) ?? [])
-        .map((c) => c.id);
-      const points = [selPoint, ...neighborIds.map(pointFor).filter(Boolean)];
+  if (selectedConceptIds.length) {
+    const selPoints = selectedConceptIds.map(pointFor).filter(Boolean);
+    if (selPoints.length) {
+      const neighborIds = unique(selectedConceptIds.flatMap(
+        (id) => (viewModel.selectors.getConceptNeighbors(id) ?? []).map((c) => c.id),
+      ));
+      const points = [...selPoints, ...neighborIds.map(pointFor).filter(Boolean)];
+      // Center on the centroid of the selected set so multi-selection stays framed.
+      const cx0 = selPoints.reduce((s, p) => s + p.x, 0) / selPoints.length;
+      const cy0 = selPoints.reduce((s, p) => s + p.y, 0) / selPoints.length;
       if (points.length === 1) {
-        return boundsAroundPoint(selPoint, 120, viewport);
+        return boundsAroundPoint(selPoints[0], 120, viewport);
       }
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const p of points) {
@@ -63,7 +67,7 @@ function deriveCameraTarget(viewModel, layout, viewport, opts) {
         if (p.x > maxX) maxX = p.x;
         if (p.y > maxY) maxY = p.y;
       }
-      return fitTarget(minX, minY, maxX, maxY, selPoint.x, selPoint.y, viewport, 0.2);
+      return fitTarget(minX, minY, maxX, maxY, cx0, cy0, viewport, 0.2);
     }
   }
 
@@ -173,25 +177,26 @@ function inferViewportMode({ zoomLevel, focusMode }) {
   return 'overview';
 }
 
-function buildFocusSets(viewModel, { selectedConceptId, selectedFrameRef, playheadTime, activeLevel }) {
-  const focusMode = selectedConceptId
+function buildFocusSets(viewModel, { selectedConceptIds, selectedFrameRef, playheadTime, activeLevel }) {
+  const focusMode = selectedConceptIds.length
     ? 'concept'
     : selectedFrameRef
       ? 'frame'
       : 'playhead';
 
-  const selectedNodeIds = unique([
-    selectedConceptId,
-    ...(selectedFrameRef ? viewModel.selectors.getFrameConcepts(selectedFrameRef).map((a) => a.id) : []),
-  ]);
+  const frameConceptIds = selectedFrameRef
+    ? viewModel.selectors.getFrameConcepts(selectedFrameRef).map((a) => a.id)
+    : [];
+
+  const selectedNodeIds = unique([...selectedConceptIds, ...frameConceptIds]);
 
   const activeNodeIds = unique(viewModel.selectors.getActiveConceptIdsAtTime(playheadTime, activeLevel));
   const playheadRelationIds = unique(viewModel.selectors.getActiveRelationActivationsAtTime(playheadTime, activeLevel).map((a) => a.id));
 
-  const primaryFocusIds = selectedConceptId
-    ? [selectedConceptId]
+  const primaryFocusIds = selectedConceptIds.length
+    ? selectedConceptIds
     : selectedFrameRef
-      ? unique(viewModel.selectors.getFrameConcepts(selectedFrameRef).map((a) => a.id))
+      ? frameConceptIds
       : activeNodeIds;
 
   const nearContextIds = unique(primaryFocusIds.flatMap((id) => viewModel.selectors.getConceptNeighbors(id).map((concept) => concept.id)));
@@ -212,6 +217,7 @@ function buildFocusSets(viewModel, { selectedConceptId, selectedFrameRef, playhe
 
 export function buildGraphRenderState(viewModel, {
   selectedConceptId,
+  selectedConceptIds,
   selectedFrameRef,
   playheadTime,
   activeLevel = 'meso',
@@ -219,7 +225,9 @@ export function buildGraphRenderState(viewModel, {
   layout,
   viewport,
 } = {}) {
-  const focus = buildFocusSets(viewModel, { selectedConceptId, selectedFrameRef, playheadTime, activeLevel });
+  // Accept a selection set; fall back to the single id for back-compat.
+  const selectedIds = selectedConceptIds ?? (selectedConceptId ? [selectedConceptId] : []);
+  const focus = buildFocusSets(viewModel, { selectedConceptIds: selectedIds, selectedFrameRef, playheadTime, activeLevel });
   const cumulative = buildCumulativeVisibility(viewModel, playheadTime, focus.activeNodeIds);
   // Overview frames may nominate clusters (not atoms) in their foreground.
   // To make that convention legible, fan a clustered foreground entry out to
@@ -335,7 +343,7 @@ export function buildGraphRenderState(viewModel, {
     activeLevel,
     playheadTime,
     cumulative,
-    selectedConceptId,
+    selectedConceptIds: selectedIds,
   });
 
   return {
