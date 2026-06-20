@@ -22,6 +22,8 @@ export function renderAskThread(vm) {
       return `<div class="ask-entry ask-${e.role}">${escapeHtml(e.text)}</div>`;
     })
     .join('');
+  // Tappable starter questions while the conversation is empty.
+  const starters = vm.entries.length === 0 ? renderStarters(labels) : '';
   // The heartbeat is a single pinned line at the end of the thread while the
   // agent is working; it is not part of the entry log.
   const thinking = vm.thinking
@@ -35,11 +37,23 @@ export function renderAskThread(vm) {
     : '';
   return (
     `<button class="ask-head" data-action="ask-focus" title="Zoom to the selection">Ask: <strong>${headLabel}</strong></button>` +
-    `<div class="ask-thread">${entries}${thinking}</div>` +
+    `<div class="ask-thread">${entries}${thinking}${starters}</div>` +
     `<div class="ask-input">` +
       `<input id="ask-prompt" type="text" placeholder="${placeholder}" ${vm.busy ? 'disabled' : ''} />` +
       `<button data-action="ask-send" ${vm.busy ? 'disabled' : ''}>${vm.busy ? '…' : 'Send'}</button>` +
       add + undo +
+    `</div>`
+  );
+}
+
+// Suggested first questions, adapting to single- vs multi-selection.
+function renderStarters(labels) {
+  const prompts = labels.length > 1
+    ? ['How do these relate?', 'Compare them', 'Why do they matter together?']
+    : ['What is this about?', 'Why does it matter?', 'How does it connect to its neighbors?'];
+  return (
+    `<div class="ask-starters">` +
+    prompts.map((p) => `<button class="ask-starter" data-action="ask-starter" data-prompt="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join('') +
     `</div>`
   );
 }
