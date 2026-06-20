@@ -2,11 +2,19 @@ import { escapeHtml } from '../util.js';
 import { renderMarkdown } from '../markdown.js';
 
 // Render the Ask tab. `vm`:
-//   { conceptId, conceptLabel, busy, entries:[{role,text}], canUndo, canCrystallize, thinking:{seconds}|null }
+//   { hasSelection, conceptLabels:[…], busy, entries:[{role,text}], canUndo, canCrystallize, thinking:{seconds}|null }
 export function renderAskThread(vm) {
-  if (!vm.conceptId) {
-    return `<div class="ask-empty">Select a concept to talk about it in the context of the source.</div>`;
+  if (!vm.hasSelection) {
+    return `<div class="ask-empty">Select a concept to talk about it in the context of the source. Shift- or ⌘-click to add more and ask about them together.</div>`;
   }
+  const labels = vm.conceptLabels ?? [];
+  const headLabel = labels.length <= 1
+    ? escapeHtml(labels[0] ?? '')
+    : labels.length === 2
+      ? `${escapeHtml(labels[0])} &amp; ${escapeHtml(labels[1])}`
+      : `${escapeHtml(labels[0])} + ${labels.length - 1} more`;
+  const placeholder = labels.length > 1 ? 'Ask about these…' : `Ask about ${escapeHtml(labels[0] ?? '')}…`;
+
   const entries = vm.entries
     .map((e) => {
       // Agent answers render as (safe) Markdown; everything else is plain text.
@@ -26,10 +34,10 @@ export function renderAskThread(vm) {
     ? `<button class="ask-undo" data-action="ask-undo">Undo</button>`
     : '';
   return (
-    `<button class="ask-head" data-action="ask-focus" title="Zoom to this node">Ask: <strong>${escapeHtml(vm.conceptLabel)}</strong></button>` +
+    `<button class="ask-head" data-action="ask-focus" title="Zoom to the selection">Ask: <strong>${headLabel}</strong></button>` +
     `<div class="ask-thread">${entries}${thinking}</div>` +
     `<div class="ask-input">` +
-      `<input id="ask-prompt" type="text" placeholder="Ask about ${escapeHtml(vm.conceptLabel)}…" ${vm.busy ? 'disabled' : ''} />` +
+      `<input id="ask-prompt" type="text" placeholder="${placeholder}" ${vm.busy ? 'disabled' : ''} />` +
       `<button data-action="ask-send" ${vm.busy ? 'disabled' : ''}>${vm.busy ? '…' : 'Send'}</button>` +
       add + undo +
     `</div>`

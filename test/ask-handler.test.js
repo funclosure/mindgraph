@@ -49,17 +49,18 @@ test('askHandler preloads node context, runs the runner, and never writes the do
   const data = new Map([['demo', { md: MD, json: registry.run('compile', { markdown: MD }).value.document }]]);
   const store = { get: (s) => data.get(s), put: (s, v) => data.set(s, v) };
   const events = [];
-  const runner = async ({ conceptId, context, messages, emit }) => {
-    assert.equal(conceptId, 'powerful-ai');
-    assert.equal(context.concept.label, 'Powerful AI');
-    assert.ok(context.blocks.some((b) => /Powerful AI could arrive/.test(b.text)));
+  const runner = async ({ conceptIds, contexts, messages, emit }) => {
+    assert.deepEqual(conceptIds, ['powerful-ai']);
+    assert.equal(contexts[0].conceptId, 'powerful-ai');
+    assert.equal(contexts[0].context.concept.label, 'Powerful AI');
+    assert.ok(contexts[0].context.blocks.some((b) => /Powerful AI could arrive/.test(b.text)));
     assert.equal(messages[messages.length - 1].text, 'what is this?');
     emit({ type: 'answer', text: 'It is about imminent powerful AI.' });
   };
 
   await askHandler({
     slug: 'demo',
-    conceptId: 'powerful-ai',
+    conceptIds: ['powerful-ai'],
     messages: [{ role: 'you', text: 'what is this?' }],
     store,
     runner,

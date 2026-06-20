@@ -142,15 +142,16 @@ function openSseResponse(req, res) {
 
 async function handleAsk(req, res) {
   const payload = await readJsonBody(req);
-  if (!payload?.concept) {
+  const conceptIds = payload?.concepts ?? (payload?.concept ? [payload.concept] : []);
+  if (!conceptIds.length) {
     res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
-    res.end('Missing required field: concept');
+    res.end('Missing required field: concept(s)');
     return;
   }
   const { emit, finish } = openSseResponse(req, res);
   await askHandler({
     slug: payload.slug || activeSlug,
-    conceptId: payload.concept,
+    conceptIds,
     messages: payload.messages ?? [],
     store: fsStore,
     runner: useStub ? stubAnswerRunner : answerRunner,

@@ -1,13 +1,14 @@
 // No-API runners for MINDGRAPH_STUB_DEEPEN. stubAnswerRunner mirrors answerRunner
 // (emits an `answer`, writes nothing); stubCrystallizeRunner mirrors
 // crystallizeRunner (weaves a discussion @source).
-export async function stubAnswerRunner({ conceptId, context, messages, emit }) {
+export async function stubAnswerRunner({ conceptIds, contexts, messages, emit }) {
   const last = messages?.[messages.length - 1]?.text ?? '';
-  const snippet = context?.blocks?.[0]?.text?.slice(0, 160) ?? '(no source preloaded)';
-  emit({ type: 'progress', message: `stub: answering about ${conceptId}` });
+  const labels = (contexts ?? []).map((c) => c.context?.concept?.label ?? c.conceptId);
+  const snippet = contexts?.[0]?.context?.blocks?.[0]?.text?.slice(0, 160) ?? '(no source preloaded)';
+  emit({ type: 'progress', message: `stub: answering about ${labels.join(', ') || (conceptIds ?? []).join(', ')}` });
   emit({
     type: 'answer',
-    text: `(stub) You asked: "${last}". This node, "${context?.concept?.label ?? conceptId}", is grounded in: ${snippet}`,
+    text: `(stub) You asked: "${last}". Selected: **${labels.join(', ')}**. First is grounded in: ${snippet}`,
   });
 }
 

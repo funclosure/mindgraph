@@ -352,21 +352,22 @@ let lastDeepenAnchor;
 function updateAskPanel() {
   const el = document.getElementById('prose-ask');
   if (!el) return;
-  const conceptId = state.selectedConceptId;
-  // When the anchored concept changes, reset the thread so the next time the
-  // reader opens Ask it's about the newly selected node. Do NOT switch tabs —
-  // the reader chooses when to leave the Source pane and talk.
-  if (conceptId && conceptId !== lastDeepenAnchor) {
-    lastDeepenAnchor = conceptId;
+  const ids = state.selectedConceptIds ?? [];
+  // When the selection set changes, reset the thread so the next time the reader
+  // opens Ask it's about the current selection. Do NOT switch tabs — the reader
+  // chooses when to leave the Source pane and talk.
+  const key = ids.join('|');
+  if (key && key !== lastDeepenAnchor) {
+    lastDeepenAnchor = key;
     state.ask = { entries: [], busy: false, canUndo: false, canCrystallize: false, thinking: null };
   }
-  const concept = conceptId ? state.viewModel?.concepts?.byId?.[conceptId] : null;
+  const conceptLabels = ids.map((id) => state.viewModel?.concepts?.byId?.[id]?.label ?? id);
   const thinking = state.ask.thinking
     ? { seconds: Math.round((Date.now() - state.ask.thinking.startedAt) / 1000) }
     : null;
   el.innerHTML = renderAskThread({
-    conceptId,
-    conceptLabel: concept?.label ?? conceptId ?? '',
+    hasSelection: ids.length > 0,
+    conceptLabels,
     busy: state.ask.busy,
     entries: state.ask.entries,
     canUndo: state.ask.canUndo,
@@ -383,7 +384,7 @@ function bindAskControls() {
   const input = document.getElementById('ask-prompt');
   const submit = () => {
     const text = input?.value?.trim();
-    if (text) runAsk(state.selectedConceptId, text);
+    if (text) runAsk(text);
   };
   if (send) send.addEventListener('click', submit);
   if (input) input.addEventListener('keydown', (event) => {
@@ -459,14 +460,16 @@ function applyDeepenedDocument(nextDocument, anchorId) {
 
 let deepenHeartbeat;
 
-// Talk turn: stream a source-grounded answer; never changes the graph.
-function runAsk(conceptId, text) {
-  if (!conceptId || state.ask.busy) return;
+// Talk turn: stream a source-grounded answer about the whole selection; never
+// changes the graph.
+function runAsk(text) {
+  const ids = state.selectedConceptIds ?? [];
+  if (!ids.length || state.ask.busy) return;
   state.ask.busy = true;
   pushAsk('you', text);
   startHeartbeat();
   let agentEntry = null; // accumulate streamed answer chunks into one entry
-  streamPost('/ask', { concept: conceptId, messages: askMessages() }, (event) => {
+  streamPost('/ask', { concepts: ids, messages: askMessages() }, (event) => {
     if (event.type === 'answer') {
       stopHeartbeat();
       if (!agentEntry) { agentEntry = { role: 'agent', text: '' }; state.ask.entries.push(agentEntry); }
