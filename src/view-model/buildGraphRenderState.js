@@ -316,12 +316,19 @@ export function buildGraphRenderState(viewModel, {
     }
   }
 
-  // Cumulative gate: nothing introduced after the playhead is visible.
+  // Cumulative gate: nothing introduced after the playhead is visible — EXCEPT
+  // an explicitly selected node (and its edges to already-visible neighbors).
+  // Selecting a concept that first appears later in the timeline should still
+  // reveal it on the graph, in place, without scrolling the reader's prose away.
   for (const id of [...visibleNodeIds]) {
-    if (!cumulative.conceptIds.has(id)) visibleNodeIds.delete(id);
+    if (!cumulative.conceptIds.has(id) && !selectedNodeIds.has(id)) visibleNodeIds.delete(id);
   }
-  for (const id of [...visibleEdgeIds]) {
-    if (!cumulative.edgeIds.has(id)) visibleEdgeIds.delete(id);
+  for (const edge of viewModel.graph.edges) {
+    if (!visibleEdgeIds.has(edge.id)) continue;
+    const touchesSelected = selectedNodeIds.has(edge.from) || selectedNodeIds.has(edge.to);
+    const endpointsVisible = visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to);
+    const keep = (cumulative.edgeIds.has(edge.id) || touchesSelected) && endpointsVisible;
+    if (!keep) visibleEdgeIds.delete(edge.id);
   }
 
   const cameraTarget = deriveCameraTarget(viewModel, layout, viewport, {
