@@ -471,6 +471,7 @@ button { cursor: pointer; color: inherit; }
 .view-popover__row { display: flex; flex-direction: column; gap: 6px; }
 .view-popover__label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .view-popover__levels { display: inline-flex; gap: 4px; }
+.view-popover__hint { color: var(--quiet); font-size: 0.72rem; line-height: 1.4; margin-top: 4px; max-width: 240px; }
 .vp-level {
   padding: 4px 10px;
   border-radius: 999px;
