@@ -74,13 +74,6 @@ function cssEscape(s) {
 // render     — full re-render (state → DOM + canvas)
 // scheduleDraw — rAF-gated canvas-only redraw (for hot drag path)
 export function bindEvents(state, render, scheduleDraw) {
-  document.querySelectorAll('[data-action="toggle-view-popover"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.viewPopoverOpen = !state.viewPopoverOpen;
-      render();
-    });
-  });
-
   // Prose-handle is a static element in index.html — guard against accumulating
   // listeners across re-renders with a dataset flag (same pattern as canvas).
   const proseHandle = document.getElementById('prose-handle');

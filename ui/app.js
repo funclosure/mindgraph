@@ -11,7 +11,7 @@ import { buildProseChunks } from '../src/view-model/buildProseChunks.js';
 import { renderProse } from './panels/prose.js';
 import { renderOverviewStrip } from './panels/overview-strip.js';
 import { renderTopbar } from './panels/topbar.js';
-import { renderViewPopover } from './panels/view-popover.js';
+import { renderGraphFocus } from './panels/graph-focus.js';
 import { renderDigestInspector } from './panels/digest-inspector.js';
 import { attachScrollBinding } from './scroll-binding.js';
 import { createLayoutDebugPanel } from './layout-debug-panel.js';
@@ -49,7 +49,6 @@ const state = {
   digestExpanded: false,
   playheadTime: 0,
   activeLevel: 'macro',
-  viewPopoverOpen: false,
   prosCollapsed: false,
   camera: { zoom: 1, pan: { x: 0, y: 0 } },
   viewport: { width: 0, height: 0 },
@@ -183,7 +182,7 @@ function render() {
   updateProsePanel();
   updateAskPanel();
   updateOverviewStrip();
-  updateViewPopover();
+  updateGraphFocus();
   updateDigestInspector();
   kickAnimationLoop();
   bindEvents(state, render, kickAnimationLoop);
@@ -602,10 +601,10 @@ function updateOverviewStrip() {
   el.innerHTML = renderOverviewStrip(state.viewModel, state);
 }
 
-function updateViewPopover() {
-  const el = document.getElementById('view-popover');
+function updateGraphFocus() {
+  const el = document.getElementById('graph-focus');
   if (!el) return;
-  el.innerHTML = renderViewPopover(state);
+  el.innerHTML = renderGraphFocus(state);
 }
 
 function updateDigestInspector() {

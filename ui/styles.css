@@ -452,36 +452,37 @@ button { cursor: pointer; color: inherit; }
   padding: 0 2px;
 }
 
-.view-popover {
+/* Always-visible graph-focus control, overlaying the top-left of the graph. */
+.graph-focus {
   position: absolute;
-  top: calc(var(--header-height) + 6px);
-  right: calc(var(--prose-width) + 12px);
-  z-index: 20;
-}
-.app[data-prose-collapsed="true"] .view-popover { right: 12px; }
-.view-popover__panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  top: 12px;
+  left: 12px;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
   border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.78rem;
-  min-width: 220px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
-}
-.view-popover__row { display: flex; flex-direction: column; gap: 6px; }
-.view-popover__label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
-.view-popover__levels { display: inline-flex; gap: 4px; }
-.view-popover__hint { color: var(--quiet); font-size: 0.72rem; line-height: 1.4; margin-top: 4px; max-width: 240px; }
-.vp-level {
-  padding: 4px 10px;
-  border-radius: 999px;
+  background: rgba(20, 22, 28, 0.78);
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(245, 234, 210, 0.85);
+  backdrop-filter: blur(6px);
 }
-.vp-level.is-active {
-  background: rgba(214, 176, 109, 0.18);
-  border-color: rgba(214, 176, 109, 0.42);
+.graph-focus:empty { display: none; }
+.gf-title { color: var(--quiet); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 4px; cursor: help; }
+.gf-level {
+  font: 12px system-ui, sans-serif;
+  padding: 3px 9px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.gf-level:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.gf-level.is-active {
+  color: var(--text);
+  background: rgba(214, 176, 109, 0.16);
+  border-color: rgba(214, 176, 109, 0.4);
 }
 
 .source-switcher { padding: 8px 12px; border-bottom: 1px solid var(--border); }
