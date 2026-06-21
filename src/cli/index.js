@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, exec } from 'node:child_process';
+import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { createEmptyDocument, summarizeDocument, validateDocument } from '../core/schema.js';
@@ -991,14 +992,7 @@ if (command === 'view') {
     docPath = graphs[0];
   }
 
-  console.log(`mindgraph: ${path.relative(process.cwd(), docPath)}  →  ${url}${stub ? '  (stub — no API)' : ''}`);
-  console.log('  (Ctrl-C to stop)');
-
-  const env = { ...process.env };
-  if (stub) env.MINDGRAPH_STUB_DEEPEN = '1';
-  const child = spawn(process.execPath, [serverScript, '--doc', docPath, '--port', port, '--host', host], { stdio: 'inherit', env });
-
-  setTimeout(() => {
+  const openBrowser = (delay) => setTimeout(() => {
     const cmd =
       process.platform === 'darwin' ? `open ${JSON.stringify(url)}` :
       process.platform === 'win32' ? `start "" ${JSON.stringify(url)}` :
@@ -1006,12 +1000,47 @@ if (command === 'view') {
     exec(cmd, (err) => {
       if (err) console.error(`(Could not auto-open browser; visit ${url} manually.)`);
     });
-  }, 800);
+  }, delay);
 
-  for (const sig of ['SIGINT', 'SIGTERM']) {
-    process.on(sig, () => { child.kill(sig); });
+  // Ask an already-running server which document it's serving. Returns null if
+  // nothing answers on the port (so we know it's free to bind).
+  const probeHealth = (baseUrl) => new Promise((resolve) => {
+    const req = http.get(`${baseUrl}/health`, { timeout: 700 }, (res) => {
+      if (res.statusCode !== 200) { res.resume(); resolve(null); return; }
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve(null); } });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+
+  const existing = await probeHealth(url);
+  if (existing?.ok && existing.doc && path.resolve(existing.doc) === docPath) {
+    // Same graph already live on this port — reuse it instead of crashing on
+    // EADDRINUSE. Just point the browser at it.
+    console.log(`mindgraph: reusing the server already running at ${url} (serving ${existing.slug}).`);
+    openBrowser(0);
+  } else if (existing?.ok) {
+    // A different graph holds the port; don't silently open the wrong one.
+    console.error(`mindgraph: ${url} is already serving a different graph ("${existing.slug}").`);
+    console.error(`  Stop it with \`lsof -ti tcp:${port} | xargs kill\`, or open this one elsewhere: mindgraph open${target ? ` ${target}` : ''} --port <n>.`);
+    process.exit(1);
+  } else {
+    console.log(`mindgraph: ${path.relative(process.cwd(), docPath)}  →  ${url}${stub ? '  (stub — no API)' : ''}`);
+    console.log('  (Ctrl-C to stop)');
+
+    const env = { ...process.env };
+    if (stub) env.MINDGRAPH_STUB_DEEPEN = '1';
+    const child = spawn(process.execPath, [serverScript, '--doc', docPath, '--port', port, '--host', host], { stdio: 'inherit', env });
+
+    openBrowser(800);
+
+    for (const sig of ['SIGINT', 'SIGTERM']) {
+      process.on(sig, () => { child.kill(sig); });
+    }
+    child.on('exit', (code) => process.exit(code ?? 0));
   }
-  child.on('exit', (code) => process.exit(code ?? 0));
 } else if (command === 'mcp') {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);

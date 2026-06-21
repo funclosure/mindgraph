@@ -185,6 +185,14 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || `${host}:${port}`}`);
   const pathname = url.pathname === '/' ? '/ui/index.html' : decodeURIComponent(url.pathname);
 
+  if (req.method === 'GET' && pathname === '/health') {
+    // Lets `mindgraph open` detect an already-running server and decide whether
+    // to reuse it (same document) or warn (a different graph is being served).
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(JSON.stringify({ ok: true, slug: activeSlug, doc: docPath }));
+    return;
+  }
+
   if (req.method === "GET" && pathname === "/undo") {
     const slug = url.searchParams.get("slug") || activeSlug;
     const result = undoHandler({ slug, store: fsStore });
@@ -214,6 +222,18 @@ const server = http.createServer((req, res) => {
   }
 
   serveStatic(pathname, res);
+});
+
+server.on('error', (err) => {
+  // Don't let an occupied port crash with an unhandled 'error' stack trace.
+  // `mindgraph open` probes /health first and usually reuses an existing server;
+  // this clean message covers the cases it can't (e.g. a non-mindgraph process).
+  if (err.code === 'EADDRINUSE') {
+    console.error(`mindgraph: port ${port} on ${host} is already in use.`);
+    console.error(`  Reuse the running server, free the port with \`lsof -ti tcp:${port} | xargs kill\`, or pass --port <n>.`);
+    process.exit(1);
+  }
+  throw err;
 });
 
 server.listen(port, host, () => {
