@@ -360,10 +360,19 @@ function renderSourceSwitcher() {
 
 let lastDeepenAnchor;
 
+// What Ask talks about: the explicit selection if there is one, otherwise the
+// current section the reader is on — the same focus the graph spotlights. `auto`
+// distinguishes "you picked this" from "this is where you're reading".
+function askFocus() {
+  const selected = state.selectedConceptIds ?? [];
+  if (selected.length) return { ids: selected, auto: false };
+  return { ids: state.graphRenderState?.focusConceptIds ?? [], auto: true };
+}
+
 function updateAskPanel() {
   const el = document.getElementById('prose-ask');
   if (!el) return;
-  const ids = state.selectedConceptIds ?? [];
+  const { ids, auto } = askFocus();
   // When the selection set changes, reset the thread so the next time the reader
   // opens Ask it's about the current selection. Do NOT switch tabs — the reader
   // chooses when to leave the Source pane and talk.
@@ -378,6 +387,7 @@ function updateAskPanel() {
     : null;
   el.innerHTML = renderAskThread({
     hasSelection: ids.length > 0,
+    auto,
     conceptLabels,
     busy: state.ask.busy,
     entries: state.ask.entries,
@@ -497,7 +507,7 @@ let deepenHeartbeat;
 // Talk turn: stream a source-grounded answer about the whole selection; never
 // changes the graph.
 function runAsk(text) {
-  const ids = state.selectedConceptIds ?? [];
+  const { ids } = askFocus();
   if (!ids.length || state.ask.busy) return;
   state.ask.busy = true;
   pushAsk('you', text);

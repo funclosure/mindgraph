@@ -193,8 +193,17 @@ function buildFocusSets(viewModel, { selectedConceptIds, selectedFrameRef, playh
 
   const selectedNodeIds = unique([...selectedConceptIds, ...frameConceptIds]);
 
-  const activeNodeIds = unique(viewModel.selectors.getActiveConceptIdsAtTime(playheadTime, activeLevel));
-  const playheadRelationIds = unique(viewModel.selectors.getActiveRelationActivationsAtTime(playheadTime, activeLevel).map((a) => a.id));
+  // Overview/macro are CAMERA framings, never emphasis scopes. Pulled all the way
+  // out, the overview frame foregrounds nearly every concept, so keying emphasis
+  // off it lights the whole graph — which is why a selection-free Whole map used
+  // to sit there fully lit as you scrolled. Clamp emphasis to the SECTION you're
+  // reading instead, so Whole map spotlights the current section while the camera
+  // (keyed on activeLevel elsewhere) stays wide. Section/step levels are unchanged.
+  const emphasisLevel = activeLevel === 'overview' ? 'section'
+    : activeLevel === 'macro' ? 'meso'
+    : activeLevel;
+  const activeNodeIds = unique(viewModel.selectors.getActiveConceptIdsAtTime(playheadTime, emphasisLevel));
+  const playheadRelationIds = unique(viewModel.selectors.getActiveRelationActivationsAtTime(playheadTime, emphasisLevel).map((a) => a.id));
 
   const primaryFocusIds = selectedConceptIds.length
     ? selectedConceptIds
@@ -317,51 +326,64 @@ export function buildGraphRenderState(viewModel, {
     if (shouldShow) visibleEdgeIds.add(edge.id);
   }
 
-  // One scalar names the single real decision: are we spotlighting a selection,
-  // or following the reading playhead? Everything downstream (node dimming, edge
-  // dimming) reads this instead of re-asking "is there a selection?".
+  // What's emphasized: an explicit selection if there is one, otherwise the
+  // section you're reading. `mode` names the source (a selection frames the camera
+  // and gets a ring; a section just glows).
   const mode = selectedNodeIds.size > 0 ? 'spotlight' : 'reading';
+  const focusNodeIds = mode === 'spotlight' ? selectedNodeIds : activeNodeIds;
 
-  // Dimming. In spotlight mode only the selected node + its neighbors stay
-  // bright, everything else dims — at EVERY focus level. (At Whole map the
-  // overview frame marks nearly every concept "active", so we must ignore that
-  // exemption when there's a selection, or nothing would dim.) In reading mode we
-  // follow playhead focus: keep the currently-active nodes bright.
+  // Nodes and edges follow the focus at EVERY level: whatever's in focus — an
+  // explicit selection, or the section you're reading — stays bright (with its
+  // neighbors) while the rest fall to a quiet backdrop. On Whole map nothing is
+  // HIDDEN (the cumulative gate is lifted below, so all concepts stay on screen);
+  // the backdrop just keeps the focused section from being lost in a field of
+  // equally bright dots. The empty-focus guard leaves the full map lit in the
+  // overview tail, where there's no current section to focus.
+  const wholeMap = activeLevel === 'overview' || activeLevel === 'macro';
+  const dimming = focusNodeIds.size > 0;
+
   for (const node of viewModel.graph.nodes) {
     if (!visibleNodeIds.has(node.id)) {
       dimmedNodeIds.add(node.id);
       continue;
     }
     if (node.level === 'clustered') continue;
-    const keepBright = mode === 'spotlight'
-      ? (selectedNodeIds.has(node.id) || neighborNodeIds.has(node.id))
-      : (activeNodeIds.has(node.id) || neighborNodeIds.has(node.id));
+    const keepBright = !dimming || focusNodeIds.has(node.id) || neighborNodeIds.has(node.id);
     if (!keepBright) dimmedNodeIds.add(node.id);
   }
 
-  // Cumulative gate: nothing introduced after the playhead is visible — EXCEPT
-  // an explicitly selected node (and its edges to already-visible neighbors).
-  // Selecting a concept that first appears later in the timeline should still
-  // reveal it on the graph, in place, without scrolling the reader's prose away.
-  for (const id of [...visibleNodeIds]) {
-    if (!cumulative.conceptIds.has(id) && !selectedNodeIds.has(id)) visibleNodeIds.delete(id);
+  // Cumulative gate: while reading, nothing introduced after the playhead is
+  // visible yet — EXCEPT an explicitly selected node (and its edges to already-
+  // visible neighbors), so selecting a concept that first appears later still
+  // reveals it in place. Whole map is exempt entirely: it shows the ENTIRE graph
+  // no matter how far you've read — seeing every concept at once IS the point of
+  // Whole map. The progressive reveal lives at the narrower (reading) levels.
+  if (!wholeMap) {
+    for (const id of [...visibleNodeIds]) {
+      if (!cumulative.conceptIds.has(id) && !selectedNodeIds.has(id)) visibleNodeIds.delete(id);
+    }
   }
   for (const edge of viewModel.graph.edges) {
     if (!visibleEdgeIds.has(edge.id)) continue;
     const touchesSelected = selectedNodeIds.has(edge.from) || selectedNodeIds.has(edge.to);
     const endpointsVisible = visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to);
-    const keep = (cumulative.edgeIds.has(edge.id) || touchesSelected) && endpointsVisible;
+    // Whole map draws every edge whose endpoints are on screen; while reading,
+    // only those the playhead has revealed (or that touch the selection).
+    const keep = (wholeMap || cumulative.edgeIds.has(edge.id) || touchesSelected) && endpointsVisible;
     if (!keep) visibleEdgeIds.delete(edge.id);
   }
 
-  // Edge spotlight, producer-owned (mirrors the node dimming): in spotlight mode,
-  // every visible edge that does NOT touch the selection dims. Computed once here
-  // so the renderer doesn't re-derive it inline.
+  // Edge spotlight, producer-owned. Edges always follow the focus — even on Whole
+  // map, where nodes stay fully visible but a bright web of every relation would
+  // dominate. Whenever there's a focus (a selection, or the section you're
+  // reading), edges touching it stay bright and every other visible edge dims to
+  // a faint backdrop. The dimmed edges are still drawn (just quiet), so topology
+  // doesn't flicker as the focus moves.
   const dimmedEdgeIds = new Set();
-  if (mode === 'spotlight') {
+  if (focusNodeIds.size > 0) {
     for (const edge of viewModel.graph.edges) {
       if (!visibleEdgeIds.has(edge.id)) continue;
-      if (!(selectedNodeIds.has(edge.from) || selectedNodeIds.has(edge.to))) dimmedEdgeIds.add(edge.id);
+      if (!(focusNodeIds.has(edge.from) || focusNodeIds.has(edge.to))) dimmedEdgeIds.add(edge.id);
     }
   }
 
@@ -374,6 +396,9 @@ export function buildGraphRenderState(viewModel, {
 
   return {
     mode,
+    // The unified focus: what the graph is spotlighting and what Ask references —
+    // the explicit selection if there is one, otherwise the current section.
+    focusConceptIds: [...focusNodeIds],
     viewportMode,
     focusMode: focus.focusMode,
     visibleNodeIds: [...visibleNodeIds],

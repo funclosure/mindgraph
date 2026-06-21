@@ -2,10 +2,12 @@ import { escapeHtml } from '../util.js';
 import { renderMarkdown } from '../markdown.js';
 
 // Render the Ask tab. `vm`:
-//   { hasSelection, conceptLabels:[…], busy, entries:[{role,text}], canUndo, canCrystallize, thinking:{seconds}|null }
+//   { hasSelection, auto, conceptLabels:[…], busy, entries:[{role,text}], canUndo, canCrystallize, thinking:{seconds}|null }
+// `auto` means the focus came from the section the reader is on, not an explicit
+// pick — so the header says so and Ask still has something to talk about.
 export function renderAskThread(vm) {
   if (!vm.hasSelection) {
-    return `<div class="ask-empty">Select a concept to talk about it in the context of the source. Shift- or ⌘-click to add more and ask about them together.</div>`;
+    return `<div class="ask-empty">Scroll the source to talk about the section you're reading — or select a concept (Shift- or ⌘-click to add more) to focus on it.</div>`;
   }
   const labels = vm.conceptLabels ?? [];
   const headLabel = labels.length <= 1
@@ -13,7 +15,10 @@ export function renderAskThread(vm) {
     : labels.length === 2
       ? `${escapeHtml(labels[0])} &amp; ${escapeHtml(labels[1])}`
       : `${escapeHtml(labels[0])} + ${labels.length - 1} more`;
-  const placeholder = labels.length > 1 ? 'Ask about these…' : `Ask about ${escapeHtml(labels[0] ?? '')}…`;
+  const lead = vm.auto ? 'This section' : 'Ask';
+  const placeholder = vm.auto
+    ? 'Ask about this section…'
+    : labels.length > 1 ? 'Ask about these…' : `Ask about ${escapeHtml(labels[0] ?? '')}…`;
 
   const entries = vm.entries
     .map((e) => {
@@ -36,7 +41,7 @@ export function renderAskThread(vm) {
     ? `<button class="ask-undo" data-action="ask-undo">Undo</button>`
     : '';
   return (
-    `<button class="ask-head" data-action="ask-focus" title="Zoom to the selection">Ask: <strong>${headLabel}</strong></button>` +
+    `<button class="ask-head" data-action="ask-focus" title="${vm.auto ? 'The section you\'re reading' : 'Zoom to the selection'}">${lead}: <strong>${headLabel}</strong></button>` +
     `<div class="ask-thread">${entries}${thinking}${starters}</div>` +
     `<div class="ask-input">` +
       `<input id="ask-prompt" type="text" placeholder="${placeholder}" ${vm.busy ? 'disabled' : ''} />` +
