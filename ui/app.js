@@ -59,6 +59,7 @@ const state = {
   proseChunks: undefined,
   sourceTab: 'source',
   activeSourceId: null,
+  sourceMenuOpen: false,
   ask: { entries: [], busy: false, canUndo: false, canCrystallize: false, thinking: null },
 };
 
@@ -133,6 +134,13 @@ async function bootstrap() {
   }
   render();
   bindProseTabs();
+  // Close the source dropdown when clicking outside it.
+  document.addEventListener('mousedown', (e) => {
+    if (state.sourceMenuOpen && !e.target.closest('.source-dd')) {
+      state.sourceMenuOpen = false;
+      renderSourceSwitcher();
+    }
+  });
   document.querySelector('.app').dataset.proseCollapsed = String(state.prosCollapsed);
 
   // Re-apply DPR + redraw whenever the canvas's box changes — window
@@ -320,22 +328,44 @@ function updateProsePanel() {
   el.scrollTop = saved;
 }
 
+function sourceLabel(s) {
+  return s.type === 'discussion' ? (s.title || s.id) : (s.title || 'Source');
+}
+
+// One-line dropdown for the source list — scales as crystallize adds discussions.
 function renderSourceSwitcher() {
   const el = document.getElementById('source-switcher');
   if (!el) return;
   const sources = state.viewModel?.documentMeta?.sources ?? [];
   // Only show the switcher once a deepen has woven in a second source.
-  if (sources.length <= 1) { el.innerHTML = ''; return; }
+  if (sources.length <= 1) { el.innerHTML = ''; state.sourceMenuOpen = false; return; }
   if (!state.activeSourceId) state.activeSourceId = sources[0].id;
-  el.innerHTML = sources.map((s) => {
-    const active = s.id === state.activeSourceId ? ' is-active' : '';
-    const kind = s.type === 'discussion' ? ' source-chip--discussion' : '';
-    const label = s.type === 'discussion' ? (s.title || s.id) : (s.title || 'Source');
-    return `<button class="source-chip${active}${kind}" data-source-id="${escapeHtml(s.id)}">${escapeHtml(label)}</button>`;
+  const active = sources.find((s) => s.id === state.activeSourceId) ?? sources[0];
+  // Primary sources first, then discussions (stable within each group).
+  const ordered = [...sources].sort((a, b) => (a.type === 'discussion' ? 1 : 0) - (b.type === 'discussion' ? 1 : 0));
+  const open = state.sourceMenuOpen;
+  const items = ordered.map((s) => {
+    const isActive = s.id === state.activeSourceId ? ' is-active' : '';
+    const kind = s.type === 'discussion' ? ' source-dd-item--discussion' : '';
+    return `<button class="source-dd-item${isActive}${kind}" data-source-id="${escapeHtml(s.id)}">${escapeHtml(sourceLabel(s))}</button>`;
   }).join('');
-  el.querySelectorAll('.source-chip').forEach((btn) => {
+  el.innerHTML =
+    `<div class="source-dd${open ? ' is-open' : ''}">` +
+      `<button class="source-dd-toggle" data-action="source-toggle" aria-expanded="${open}">` +
+        `<span class="source-dd-label">${escapeHtml(sourceLabel(active))}</span>` +
+        `<span class="source-dd-caret">▾</span>` +
+      `</button>` +
+      `<div class="source-dd-menu"${open ? '' : ' hidden'}>${items}</div>` +
+    `</div>`;
+  el.querySelector('[data-action="source-toggle"]')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    state.sourceMenuOpen = !state.sourceMenuOpen;
+    renderSourceSwitcher();
+  });
+  el.querySelectorAll('.source-dd-item').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.activeSourceId = btn.dataset.sourceId;
+      state.sourceMenuOpen = false;
       // Full render so the swapped-in prose's concept mentions get their click
       // handlers re-bound (bindEvents re-queries fresh prose spans every render).
       render();

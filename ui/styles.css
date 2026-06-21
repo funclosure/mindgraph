@@ -476,8 +476,17 @@ button { cursor: pointer; color: inherit; }
   border-color: rgba(214, 176, 109, 0.42);
 }
 
-.source-switcher { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--border, #2a2a2a); }
+.source-switcher { padding: 8px 12px; border-bottom: 1px solid var(--border); }
 .source-switcher:empty { display: none; }
-.source-chip { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border, #3a3a3a); background: transparent; color: inherit; cursor: pointer; opacity: 0.7; }
-.source-chip.is-active { opacity: 1; border-color: var(--accent, #6aa7ff); }
-.source-chip--discussion { border-style: dashed; }
+.source-dd { position: relative; }
+.source-dd-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04); color: var(--text); cursor: pointer; font: 13px system-ui, sans-serif; }
+.source-dd-toggle:hover { background: rgba(255, 255, 255, 0.07); }
+.source-dd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-dd-caret { opacity: 0.55; transition: transform 0.15s ease; }
+.source-dd.is-open .source-dd-caret { transform: rotate(180deg); }
+.source-dd-menu { position: absolute; left: 0; right: 0; top: calc(100% + 3px); z-index: 30; max-height: 260px; overflow-y: auto; background: var(--panel-soft); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+.source-dd-item { display: block; width: 100%; text-align: left; padding: 7px 11px; background: transparent; border: 0; color: rgba(236, 230, 215, 0.82); cursor: pointer; font: 13px system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.source-dd-item:hover { background: rgba(255, 255, 255, 0.06); }
+.source-dd-item.is-active { color: var(--text); font-weight: 600; }
+.source-dd-item--discussion { padding-left: 22px; color: rgba(236, 230, 215, 0.68); }
+.source-dd-item--discussion::before { content: "↳ "; opacity: 0.5; }
