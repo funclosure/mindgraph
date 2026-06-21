@@ -317,16 +317,15 @@ export function buildGraphRenderState(viewModel, {
     if (shouldShow) visibleEdgeIds.add(edge.id);
   }
 
-  // At "Whole map" focus the reader wants the whole map lit — selecting a node
-  // should emphasize it (ring/edges) without dimming everything else. Only dim
-  // for focus at the tighter levels (section / step).
-  const dimForFocus = activeLevel !== 'overview' && activeLevel !== 'macro';
+  // Selecting a node spotlights it: the selection + its neighbors stay bright and
+  // everything else dims, at every focus level (including Whole map — there the
+  // camera stays wide, so you see the whole map with the selection spotlit).
   for (const node of viewModel.graph.nodes) {
     if (!visibleNodeIds.has(node.id)) {
       dimmedNodeIds.add(node.id);
       continue;
     }
-    if (dimForFocus && !activeNodeIds.has(node.id) && !selectedNodeIds.has(node.id) && !neighborNodeIds.has(node.id) && node.level !== 'clustered') {
+    if (!activeNodeIds.has(node.id) && !selectedNodeIds.has(node.id) && !neighborNodeIds.has(node.id) && node.level !== 'clustered') {
       dimmedNodeIds.add(node.id);
     }
   }
