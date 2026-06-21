@@ -403,6 +403,7 @@ function updateAskPanel() {
     canUndo: state.ask.canUndo,
     canCrystallize: state.ask.canCrystallize,
     thinking,
+    validBlockIds: new Set((state.document?.sourceBlocks ?? []).map((b) => b.id)),
   });
   bindAskControls();
   const thread = el.querySelector('.ask-thread');
@@ -426,6 +427,26 @@ function bindAskControls() {
   if (undo) undo.addEventListener('click', runUndo);
   document.querySelectorAll('[data-action="ask-starter"]').forEach((btn) => {
     btn.addEventListener('click', () => runAsk(btn.dataset.prompt));
+  });
+  document.querySelectorAll('[data-action="cite"]').forEach((btn) => {
+    btn.addEventListener('click', () => jumpToBlock(btn.dataset.blockId));
+  });
+}
+
+// Jump from an Ask citation (e.g. b074) to that passage in the Source pane:
+// switch to the block's source, reveal the Source tab, and scroll + flash it.
+function jumpToBlock(blockId) {
+  const block = (state.document?.sourceBlocks ?? []).find((b) => b.id === blockId);
+  if (!block) return;
+  if (block.sourceId && block.sourceId !== state.activeSourceId) state.activeSourceId = block.sourceId;
+  setSourceTab('source');
+  render(); // applies the source switch + re-renders prose with block-id markers
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`#prose-source .prose-block[data-block-ids~="${blockId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('cite-flash');
+    setTimeout(() => el.classList.remove('cite-flash'), 1600);
   });
   // Tapping the header re-frames the graph camera on the anchored node (handy
   // after panning away). selectedConceptId already drives a zoom-to-node target.

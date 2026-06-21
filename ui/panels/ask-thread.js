@@ -17,8 +17,8 @@ export function renderAskThread(vm) {
 
   const entries = vm.entries
     .map((e) => {
-      // Agent answers render as (safe) Markdown; everything else is plain text.
-      if (e.role === 'agent') return `<div class="ask-entry ask-agent md">${renderMarkdown(e.text)}</div>`;
+      // Agent answers render as (safe) Markdown, with source-block citations made clickable.
+      if (e.role === 'agent') return `<div class="ask-entry ask-agent md">${renderMarkdown(e.text, vm.validBlockIds)}</div>`;
       return `<div class="ask-entry ask-${e.role}">${escapeHtml(e.text)}</div>`;
     })
     .join('');

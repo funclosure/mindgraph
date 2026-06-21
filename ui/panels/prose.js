@@ -28,7 +28,7 @@ function renderParagraph(para, activeIds, selectedIds, playheadTime) {
   const cls = ['prose-block'];
   if (isCurrent) cls.push('is-current');
   return (
-    `<section class="${cls.join(' ')}" data-time-start="${para.timeSpan.start}" data-time-end="${para.timeSpan.end}">` +
+    `<section class="${cls.join(' ')}" data-time-start="${para.timeSpan.start}" data-time-end="${para.timeSpan.end}" data-block-ids="${escapeHtml((para.segmentIds ?? []).join(' '))}">` +
       `<p class="prose-para">${inner}</p>` +
     `</section>`
   );

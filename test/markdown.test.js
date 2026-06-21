@@ -27,6 +27,13 @@ test('renders numbered lists', () => {
   assert.match(html, /<ol class="md-list"><li>first<\/li><li>second<\/li><\/ol>/);
 });
 
+test('linkifies only real source-block citations', () => {
+  const html = renderMarkdown('Grounded in b074 but not b999.', new Set(['b074']));
+  assert.match(html, /<button class="md-cite" data-action="cite" data-block-id="b074">b074<\/button>/);
+  assert.match(html, /not b999/);
+  assert.doesNotMatch(html, /data-block-id="b999"/);
+});
+
 test('renders standalone headings small', () => {
   const html = renderMarkdown('## The frame\n\nbody text here');
   assert.match(html, /<div class="md-h">The frame<\/div>/);

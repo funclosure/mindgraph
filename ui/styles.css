@@ -386,6 +386,13 @@ button { cursor: pointer; color: inherit; }
 .ask-entry.md li { margin: 2px 0; }
 .ask-entry.md code { background: rgba(255, 255, 255, 0.1); padding: 1px 4px; border-radius: 3px; font-size: 11px; }
 .ask-entry.md a { color: rgba(150, 190, 240, 0.95); }
+.md-cite { font: inherit; font-size: 0.82em; line-height: 1; vertical-align: baseline; padding: 1px 5px; margin: 0 1px; border-radius: 5px; border: 1px solid var(--border); background: rgba(214, 176, 109, 0.1); color: var(--gold-soft); cursor: pointer; }
+.md-cite:hover { background: rgba(214, 176, 109, 0.22); color: var(--gold-bright); }
+.prose-block.cite-flash { animation: citeFlash 1.6s ease; border-radius: 6px; }
+@keyframes citeFlash {
+  0% { background: rgba(214, 176, 109, 0.28); }
+  100% { background: transparent; }
+}
 .ask-input { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .ask-input input { flex: 1; min-width: 0; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border); color: rgba(232, 226, 211, 0.95); border-radius: 6px; padding: 6px 8px; font: 12px system-ui, sans-serif; }
 .ask-input button { background: rgba(255, 255, 255, 0.08); color: rgba(232, 226, 211, 0.95); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; cursor: pointer; font: 12px system-ui, sans-serif; }
