@@ -50,6 +50,7 @@ const state = {
   playheadTime: 0,
   activeLevel: 'macro',
   prosCollapsed: false,
+  askOpen: false,
   camera: { zoom: 1, pan: { x: 0, y: 0 } },
   viewport: { width: 0, height: 0 },
   cameraMode: 'auto',
@@ -140,6 +141,7 @@ async function bootstrap() {
     }
   });
   document.querySelector('.app').dataset.proseCollapsed = String(state.prosCollapsed);
+  document.querySelector('.app').dataset.askOpen = String(state.askOpen);
 
   // Re-apply DPR + redraw whenever the canvas's box changes — window
   // resize, prose toggle, future drag-resize, all unified through one

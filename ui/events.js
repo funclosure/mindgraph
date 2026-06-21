@@ -102,6 +102,18 @@ export function bindEvents(state, render, scheduleDraw) {
     });
   });
 
+  // Ask panel toggle — show/hide the side-by-side Ask column. Resize the canvas
+  // synchronously since the prose region width changes with it.
+  document.querySelectorAll('[data-action="toggle-ask"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.askOpen = !state.askOpen;
+      const app = document.querySelector('.app');
+      if (app) app.dataset.askOpen = String(state.askOpen);
+      resizeCanvasNow(state);
+      render();
+    });
+  });
+
   document.querySelectorAll('[data-action="set-level"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.activeLevel = btn.dataset.level;

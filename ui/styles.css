@@ -12,7 +12,7 @@
   --gold: #d6b06d;
   --gold-soft: #b89461;
   --gold-bright: #f4cf86;
-  --prose-width: min(900px, 54vw);
+  --prose-width: min(620px, 44vw);
   --header-height: 44px;
   --strip-height: 44px;
 }
@@ -342,6 +342,9 @@ button { cursor: pointer; color: inherit; }
 }
 .prose-pane--source { flex: 1.15 1 0; }
 .prose-pane--ask { flex: 1 1 0; border-left: 1px solid var(--border); }
+/* Ask is toggled off by default: hide its pane and keep the reading column narrow. */
+.app[data-ask-open="false"] .prose-pane--ask { display: none; }
+.app[data-ask-open="true"] { --prose-width: min(900px, 54vw); }
 .prose-pane__head {
   flex: 0 0 auto;
   color: var(--quiet);

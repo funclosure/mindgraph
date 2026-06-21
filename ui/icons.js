@@ -20,6 +20,13 @@ export function settingsIcon(opts = {}) {
   `);
 }
 
+export function chatIcon(opts = {}) {
+  // Lucide "message-circle" (MIT).
+  return svg(opts, `
+    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>
+  `);
+}
+
 export function panelRightCloseIcon(opts = {}) {
   return svg(opts, `
     <rect width="18" height="18" x="3" y="3" rx="2"/>
