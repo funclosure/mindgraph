@@ -49,7 +49,7 @@ const state = {
   digestExpanded: false,
   playheadTime: 0,
   activeLevel: 'macro',
-  prosCollapsed: false,
+  sourceOpen: true,
   askOpen: false,
   camera: { zoom: 1, pan: { x: 0, y: 0 } },
   viewport: { width: 0, height: 0 },
@@ -140,7 +140,7 @@ async function bootstrap() {
       renderSourceSwitcher();
     }
   });
-  document.querySelector('.app').dataset.proseCollapsed = String(state.prosCollapsed);
+  document.querySelector('.app').dataset.sourceOpen = String(state.sourceOpen);
   document.querySelector('.app').dataset.askOpen = String(state.askOpen);
 
   // Re-apply DPR + redraw whenever the canvas's box changes — window

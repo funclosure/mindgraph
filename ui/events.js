@@ -76,34 +76,20 @@ function cssEscape(s) {
 export function bindEvents(state, render, scheduleDraw) {
   // Prose-handle is a static element in index.html — guard against accumulating
   // listeners across re-renders with a dataset flag (same pattern as canvas).
-  const proseHandle = document.getElementById('prose-handle');
-  if (proseHandle && !proseHandle.dataset.boundToggle) {
-    proseHandle.dataset.boundToggle = '1';
-    proseHandle.addEventListener('click', () => {
-      state.prosCollapsed = !state.prosCollapsed;
-      const app = document.querySelector('.app');
-      if (app) app.dataset.proseCollapsed = String(state.prosCollapsed);
-      render();
-    });
-  }
 
-  // Prose collapse button — rendered inside the prose panel (fresh each render).
-  document.querySelectorAll('[data-action="toggle-prose"]:not(#prose-handle)').forEach((btn) => {
+  // Source / Ask panel toggles in the top nav. Each shows/hides its panel; the
+  // prose region width follows how many are open, so resize the canvas
+  // synchronously before paint to avoid a stretch blink.
+  document.querySelectorAll('[data-action="toggle-source"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      state.prosCollapsed = !state.prosCollapsed;
+      state.sourceOpen = !state.sourceOpen;
       const app = document.querySelector('.app');
-      if (app) app.dataset.proseCollapsed = String(state.prosCollapsed);
-      // Resize canvas synchronously before paint so the new layout's
-      // first frame already has the right pixel buffer (no stretch blink).
-      // Reading getBoundingClientRect inside applyDpr forces layout, which
-      // is what we want here — we need the post-toggle box dimensions.
+      if (app) app.dataset.sourceOpen = String(state.sourceOpen);
       resizeCanvasNow(state);
       render();
     });
   });
 
-  // Ask panel toggle — show/hide the side-by-side Ask column. Resize the canvas
-  // synchronously since the prose region width changes with it.
   document.querySelectorAll('[data-action="toggle-ask"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.askOpen = !state.askOpen;

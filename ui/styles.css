@@ -37,17 +37,20 @@ button { cursor: pointer; color: inherit; }
   grid-template-columns: minmax(0, 1fr) var(--prose-width);
   grid-template-rows: var(--header-height) minmax(0, 1fr) var(--strip-height);
   grid-template-areas:
-    "header  prose"
+    "header  header"
     "graph   prose"
     "strip   prose";
   width: 100vw;
   height: 100vh;
   background: var(--bg);
 }
-.app[data-prose-collapsed="true"] {
-  grid-template-columns: minmax(0, 1fr) 0;
-}
-.app[data-prose-collapsed="true"] .prose { display: none; }
+/* The prose region holds Source and/or Ask; each toggles independently from the
+   top nav. Width follows how many are open; both off collapses the region. */
+.app[data-source-open="true"][data-ask-open="true"] { --prose-width: min(900px, 54vw); }
+.app[data-source-open="false"][data-ask-open="false"] { grid-template-columns: minmax(0, 1fr) 0; }
+.app[data-source-open="false"][data-ask-open="false"] .prose { display: none; }
+.app[data-source-open="false"] .prose-pane--source { display: none; }
+.app[data-ask-open="false"] .prose-pane--ask { display: none; }
 
 .topbar {
   grid-area: header;
@@ -101,6 +104,17 @@ button { cursor: pointer; color: inherit; }
   border-color: rgba(214, 176, 109, 0.32);
   color: var(--gold-bright);
 }
+/* [Source][Chat] panel toggles — icon + label, so they're wider than the square
+   icon buttons. */
+.topbar-actions button.panel-toggle {
+  width: auto;
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  gap: 5px;
+  font: 12px/1 system-ui, sans-serif;
+}
+.panel-toggle span { line-height: 1; }
 
 .graph-cell {
   grid-area: graph;
@@ -342,9 +356,7 @@ button { cursor: pointer; color: inherit; }
 }
 .prose-pane--source { flex: 1.15 1 0; }
 .prose-pane--ask { flex: 1 1 0; border-left: 1px solid var(--border); }
-/* Ask is toggled off by default: hide its pane and keep the reading column narrow. */
-.app[data-ask-open="false"] .prose-pane--ask { display: none; }
-.app[data-ask-open="true"] { --prose-width: min(900px, 54vw); }
+.app[data-source-open="false"] .prose-pane--ask { border-left: none; }
 .prose-pane__head {
   flex: 0 0 auto;
   color: var(--quiet);
