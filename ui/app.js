@@ -272,8 +272,10 @@ function computeHighlightTargets(state) {
     const isActive = active.has(id);
     const isDimmed = dimmed.has(id);
     out[id] = {
-      alpha: isSelected ? 1.0 : isActive ? 0.95 : isDimmed ? 0.22 : 0.85,
-      tint: isActive ? 1.0 : 0.0,
+      // Dimmed beats active: with a selection, non-selection nodes dim even though
+      // the overview frame marks them "active".
+      alpha: isSelected ? 1.0 : isDimmed ? 0.22 : isActive ? 0.95 : 0.85,
+      tint: isActive && !isDimmed ? 1.0 : 0.0,
     };
   }
   return out;

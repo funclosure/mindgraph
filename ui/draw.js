@@ -150,9 +150,9 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
     // active↔dim transitions slide instead of snapping. Fall back to inline
     // target values for the very first frame, before the animator has seeded.
     const hAlpha = animState?.highlightAlpha ?? (
-      isSelected ? 1 : isActive ? 0.95 : isDimmed ? 0.22 : 0.85
+      isSelected ? 1 : isDimmed ? 0.22 : isActive ? 0.95 : 0.85
     );
-    const hTint = animState?.highlightTint ?? (isActive ? 1 : 0);
+    const hTint = animState?.highlightTint ?? (isActive && !isDimmed ? 1 : 0);
 
     const parentClusterId = node.parentIds?.[0];
     const baseColor = parentClusterId ? clusterColor(parentClusterId) : '#b8a07a';
