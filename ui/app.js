@@ -132,7 +132,6 @@ async function bootstrap() {
     });
   }
   render();
-  bindProseTabs();
   // Close the source dropdown when clicking outside it.
   document.addEventListener('mousedown', (e) => {
     if (state.sourceMenuOpen && !e.target.closest('.source-dd')) {
@@ -297,19 +296,6 @@ function updateTopbar() {
   el.innerHTML = renderTopbar(state.viewModel, state.document, state);
 }
 
-function bindProseTabs() {
-  document.querySelectorAll('.prose-tab').forEach((btn) => {
-    btn.addEventListener('click', () => setSourceTab(btn.dataset.tab));
-  });
-}
-
-function setSourceTab(tab) {
-  state.sourceTab = tab;
-  document.getElementById('tab-source')?.classList.toggle('is-active', tab === 'source');
-  document.getElementById('tab-ask')?.classList.toggle('is-active', tab === 'ask');
-  document.getElementById('prose-source')?.classList.toggle('is-hidden', tab !== 'source');
-  document.getElementById('prose-ask')?.classList.toggle('is-hidden', tab !== 'ask');
-}
 
 function updateProsePanel() {
   const el = document.getElementById('prose-source');
@@ -438,7 +424,6 @@ function jumpToBlock(blockId) {
   const block = (state.document?.sourceBlocks ?? []).find((b) => b.id === blockId);
   if (!block) return;
   if (block.sourceId && block.sourceId !== state.activeSourceId) state.activeSourceId = block.sourceId;
-  setSourceTab('source');
   render(); // applies the source switch + re-renders prose with block-id markers
   requestAnimationFrame(() => {
     const el = document.querySelector(`#prose-source .prose-block[data-block-ids~="${blockId}"]`);

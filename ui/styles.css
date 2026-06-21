@@ -332,43 +332,33 @@ button { cursor: pointer; color: inherit; }
   color: rgba(232, 226, 211, 0.9);
 }
 
-.prose-tabs {
+/* Horizontal split: Source pane on top, Ask pane below, both always visible. */
+.prose-pane {
   display: flex;
-  gap: 4px;
-  padding: 8px 12px 0;
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
-
-.prose-tab {
-  background: none;
-  border: none;
-  color: rgba(232, 226, 211, 0.55);
-  font: 12px/1.6 system-ui, sans-serif;
-  padding: 6px 10px;
-  cursor: pointer;
-  border-radius: 6px 6px 0 0;
+.prose-pane--source { flex: 1.3 1 0; }
+.prose-pane--ask { flex: 1 1 0; border-top: 1px solid var(--border); }
+.prose-pane__head {
+  flex: 0 0 auto;
+  color: var(--quiet);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 8px 12px 4px;
 }
-
-.prose-tab.is-active {
-  color: rgba(232, 226, 211, 0.95);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.prose-tab:disabled { opacity: 0.4; cursor: default; }
 
 .prose-view {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 18px 24px;
+  padding: 12px 24px 18px;
 }
 
-.prose-view.is-hidden { display: none; }
-
-/* Only lay out the Deepen view as a flex column when it is visible; otherwise
-   .is-hidden's display:none must win (an #id selector would outrank it). */
-#prose-ask:not(.is-hidden) { display: flex; flex-direction: column; }
+#prose-ask { display: flex; flex-direction: column; padding: 8px 16px 14px; }
 .ask-empty { color: rgba(232, 226, 211, 0.55); font: 13px/1.5 system-ui, sans-serif; padding: 8px 4px; }
 .ask-head { display: block; width: 100%; text-align: left; color: rgba(232, 226, 211, 0.95); font: 13px/1.5 system-ui, sans-serif; margin-bottom: 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 4px 6px; cursor: pointer; }
 .ask-head:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--border); }

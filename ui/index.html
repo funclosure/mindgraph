@@ -17,13 +17,15 @@
       </div>
       <div class="strip" id="overview-strip"></div>
       <aside class="prose" id="prose">
-        <div class="prose-tabs" role="tablist">
-          <button class="prose-tab is-active" id="tab-source" role="tab" data-tab="source">Source</button>
-          <button class="prose-tab" id="tab-ask" role="tab" data-tab="ask">Ask</button>
-        </div>
-        <div id="source-switcher" class="source-switcher"></div>
-        <div class="prose-view" id="prose-source"></div>
-        <div class="prose-view is-hidden" id="prose-ask"></div>
+        <section class="prose-pane prose-pane--source">
+          <div class="prose-pane__head">Source</div>
+          <div id="source-switcher" class="source-switcher"></div>
+          <div class="prose-view" id="prose-source"></div>
+        </section>
+        <section class="prose-pane prose-pane--ask">
+          <div class="prose-pane__head">Ask</div>
+          <div class="prose-view" id="prose-ask"></div>
+        </section>
       </aside>
     </div>
     <script type="module" src="/ui/app.js"></script>
