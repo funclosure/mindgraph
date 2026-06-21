@@ -50,14 +50,18 @@ function dotRadius(node) {
   return Math.max(2.5, Math.min(6, 2.5 + (node?.degree ?? 0) * 0.4));
 }
 
-export function edgeRenderStyle(edge, { touchesSelection = false, isActive = false, animOpacity = 1 } = {}) {
+export function edgeRenderStyle(edge, { touchesSelection = false, isActive = false, isDimmed = false, animOpacity = 1 } = {}) {
   const inferred = edge?.provenance === 'inferred';
-  const alpha = touchesSelection || isActive
+  // Selection spotlight: edges on the selection pop; edges off it fade — even
+  // when "active" (at Whole map nearly every edge is active).
+  const alpha = touchesSelection
     ? 0.95
+    : isDimmed ? 0.06
+    : isActive ? 0.95
     : inferred ? 0.22 : 0.16;
   const lineWidth = touchesSelection
     ? 1.4
-    : isActive ? 1.0 : inferred ? 0.8 : 0.6;
+    : isDimmed ? 0.5 : isActive ? 1.0 : inferred ? 0.8 : 0.6;
   const dash = inferred
     ? (touchesSelection || isActive ? [7, 4] : [6, 4])
     : [];
@@ -106,8 +110,9 @@ function drawEdges(ctx, vm, layout, grs, animator) {
 
     const touchesSelection = selectedNode.has(edge.from) || selectedNode.has(edge.to);
     const isActive = activeEdge.has(edge.id);
+    const isDimmed = selectedNode.size > 0 && !touchesSelection;
 
-    const style = edgeRenderStyle(edge, { touchesSelection, isActive, animOpacity });
+    const style = edgeRenderStyle(edge, { touchesSelection, isActive, isDimmed, animOpacity });
     ctx.strokeStyle = style.strokeStyle;
     ctx.lineWidth = style.lineWidth;
 
