@@ -117,12 +117,12 @@ When digesting a new article, transcript, or paper:
 After compiling a source-first graph, launch the live server against it and inspect it in the browser. The easy launcher opens the most recently edited graph (or one you name) and starts the interactive **Ask** agent:
 
 ```bash
-npm run ask                 # newest graphs/*.mindgraph.md
-npm run ask -- <slug>       # newest graph whose filename contains <slug>
-npm run ask -- --stub       # no-API stub (demo without credentials)
+mindgraph open              # newest graphs/*.mindgraph.md (equivalently: npm run ask)
+mindgraph open <slug>       # newest graph whose filename contains <slug>
+mindgraph open --stub       # no-API stub (demo without credentials)
 ```
 
-`npm run ask` serves the `.mindgraph.md` live (compiling in-browser) with the Ask/crystallize agent wired up. For a read-only pass without the agent, `npm run server -- --doc graphs/<slug>.mindgraph.md` or the static `npm run ui:dev -- --doc graphs/<slug>.mindgraph.json` still work.
+`mindgraph open` (alias `mindgraph ask`, or `npm run ask`) serves the `.mindgraph.md` live (compiling in-browser) with the Ask/crystallize agent wired up and opens the browser. For a read-only pass without the agent, `mindgraph view graphs/<slug>.mindgraph.json` (static reader) still works.
 
 Check:
 
@@ -156,7 +156,7 @@ Do not:
 
 ## Node conversation ("Ask") and crystallize
 
-Launch with `npm run ask`. Selecting a node opens an **Ask** conversation grounded in its source:
+Launch with `mindgraph open`. Selecting a node opens an **Ask** conversation grounded in its source:
 
 - **Talk** is the default: the agent answers questions about the node from the source (web opt-in, attributed). Talk is fast and never changes the graph — it writes nothing.
 - **Add to graph** crystallizes the conversation into a new `@source` of `type: discussion`: 1–3 derived `@concept`s (each binding verbatim to a discussion block), the anchor as `latent`, and cross-source `@relation`s to existing concepts. Agent proposes; Undo reverts the whole woven turn.

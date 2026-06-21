@@ -56,6 +56,7 @@ Usage:
   mindgraph digest apply <document-file> --plan <plan-file>
   mindgraph digest evaluate <document-file> [--json]
   mindgraph view [<document-file>] [--port <n>] [--host <h>]
+  mindgraph open [<graph>] [--port <n>] [--host <h>] [--stub]
 
 When -o is omitted from ingest/build, mindgraph defaults to ./graphs/<slug>.mindgraph.json
 if a ./graphs/ directory exists in the current working directory.
@@ -83,7 +84,8 @@ Commands:
   stats recompute        Recompute concept recurrence and activation stats
   digest apply           Apply a batch digest plan: concepts, relations, activations, macro frames, ignored spans
   digest evaluate        Report digest quality signals: empty frames, unused concepts, inactive relations, top activations
-  view                   Open the reading UI for a document in the browser
+  view                   Open the read-only reading UI for a document in the browser
+  open / ask             Launch the live UI (with the Ask agent) and open the browser; defaults to the newest graphs/*.mindgraph.md
 
 Transcript formats currently supported:
   [00:01:23] Speaker: text
@@ -941,6 +943,71 @@ if (command === 'view') {
   }, 600);
 
   // Forward exit signals so Ctrl+C cleanly stops the dev server.
+  for (const sig of ['SIGINT', 'SIGTERM']) {
+    process.on(sig, () => { child.kill(sig); });
+  }
+  child.on('exit', (code) => process.exit(code ?? 0));
+} else if (command === 'open' || command === 'ask') {
+  // Launch the live UI (with the Ask agent) and open the browser. Defaults to the
+  // most recently edited graphs/*.mindgraph.md; pass a name fragment or a path to
+  // pick a specific graph. `--stub` uses the no-API stub runners.
+  let target;
+  let flagArgs;
+  if (subcommand && !subcommand.startsWith('-')) { target = subcommand; flagArgs = rest; }
+  else { flagArgs = subcommand !== undefined ? [subcommand, ...rest] : rest; }
+  const flags = parseFlags(flagArgs);
+  const stub = flagArgs.includes('--stub');
+  const port = String(flags['--port'] ?? '4173');
+  const host = String(flags['--host'] ?? '127.0.0.1');
+  const url = `http://${host}:${port}`;
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const serverScript = path.resolve(__dirname, '..', 'server', 'index.js');
+  const graphsDir = path.resolve(process.cwd(), 'graphs');
+
+  const listGraphs = () => {
+    try {
+      return fs.readdirSync(graphsDir)
+        .filter((f) => f.endsWith('.mindgraph.md'))
+        .map((f) => path.join(graphsDir, f));
+    } catch {
+      return [];
+    }
+  };
+
+  let docPath;
+  if (target) {
+    if (fs.existsSync(target)) {
+      docPath = path.resolve(target);
+    } else {
+      const match = listGraphs().find((f) => path.basename(f).includes(target));
+      if (!match) { console.error(`No graph matching "${target}" in graphs/.`); process.exit(1); }
+      docPath = match;
+    }
+  } else {
+    const graphs = listGraphs().sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+    if (!graphs.length) { console.error('No graphs/*.mindgraph.md found. Pass a file: mindgraph open <path>'); process.exit(1); }
+    docPath = graphs[0];
+  }
+
+  console.log(`mindgraph: ${path.relative(process.cwd(), docPath)}  →  ${url}${stub ? '  (stub — no API)' : ''}`);
+  console.log('  (Ctrl-C to stop)');
+
+  const env = { ...process.env };
+  if (stub) env.MINDGRAPH_STUB_DEEPEN = '1';
+  const child = spawn(process.execPath, [serverScript, '--doc', docPath, '--port', port, '--host', host], { stdio: 'inherit', env });
+
+  setTimeout(() => {
+    const cmd =
+      process.platform === 'darwin' ? `open ${JSON.stringify(url)}` :
+      process.platform === 'win32' ? `start "" ${JSON.stringify(url)}` :
+      `xdg-open ${JSON.stringify(url)}`;
+    exec(cmd, (err) => {
+      if (err) console.error(`(Could not auto-open browser; visit ${url} manually.)`);
+    });
+  }, 800);
+
   for (const sig of ['SIGINT', 'SIGTERM']) {
     process.on(sig, () => { child.kill(sig); });
   }
