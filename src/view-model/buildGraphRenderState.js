@@ -46,8 +46,11 @@ function deriveCameraTarget(viewModel, layout, viewport, opts) {
   // the currently-active region (which can leave the selected dot tiny in a
   // corner of a wide zoom-out). Fit a bbox around the selected concept and
   // its immediate relation neighbors so the local relationship structure
-  // around the selection stays legible.
-  if (selectedConceptIds.length) {
+  // around the selection stays legible. EXCEPT at "Whole map" focus, where the
+  // reader wants to keep seeing the whole map — selecting a node should not zoom
+  // the camera in; it just highlights.
+  const selectionFramesCamera = activeLevel !== 'overview' && activeLevel !== 'macro';
+  if (selectedConceptIds.length && selectionFramesCamera) {
     const selPoints = selectedConceptIds.map(pointFor).filter(Boolean);
     if (selPoints.length) {
       const neighborIds = unique(selectedConceptIds.flatMap(
@@ -314,12 +317,16 @@ export function buildGraphRenderState(viewModel, {
     if (shouldShow) visibleEdgeIds.add(edge.id);
   }
 
+  // At "Whole map" focus the reader wants the whole map lit — selecting a node
+  // should emphasize it (ring/edges) without dimming everything else. Only dim
+  // for focus at the tighter levels (section / step).
+  const dimForFocus = activeLevel !== 'overview' && activeLevel !== 'macro';
   for (const node of viewModel.graph.nodes) {
     if (!visibleNodeIds.has(node.id)) {
       dimmedNodeIds.add(node.id);
       continue;
     }
-    if (!activeNodeIds.has(node.id) && !selectedNodeIds.has(node.id) && !neighborNodeIds.has(node.id) && node.level !== 'clustered') {
+    if (dimForFocus && !activeNodeIds.has(node.id) && !selectedNodeIds.has(node.id) && !neighborNodeIds.has(node.id) && node.level !== 'clustered') {
       dimmedNodeIds.add(node.id);
     }
   }
