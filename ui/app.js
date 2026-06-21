@@ -12,6 +12,7 @@ import { renderProse } from './panels/prose.js';
 import { renderOverviewStrip } from './panels/overview-strip.js';
 import { renderTopbar } from './panels/topbar.js';
 import { renderGraphFocus } from './panels/graph-focus.js';
+import { nodeEmphasis } from './emphasis.js';
 import { renderDigestInspector } from './panels/digest-inspector.js';
 import { attachScrollBinding } from './scroll-binding.js';
 import { createLayoutDebugPanel } from './layout-debug-panel.js';
@@ -254,30 +255,21 @@ function kickAnimationLoop() {
 // ---------------------------------------------------------------------------
 
 function computeHighlightTargets(state) {
-  // Per-atom target alpha + tint for the easing pass in the animator. Tier
-  // semantics: selected wins (alpha 1), then active (alpha 0.95 + tint 1),
-  // then dimmed (alpha 0.22), else revealed default (alpha 0.85). The values
-  // mirror the inline cascade that drawAtomicNodes previously hard-coded —
-  // moving them here lets the animator ease between them across frames.
+  // Per-atom target {alpha, tint} for the animator's easing pass. The emphasis
+  // tier and its style are resolved through ui/emphasis.js — the SAME function
+  // draw.js uses for its first-frame fallback, so the eased target and the
+  // fallback can never diverge.
   const grs = state.graphRenderState;
   if (!grs) return undefined;
   const visible = grs.visibleNodeIds ?? [];
   if (!visible.length) return {};
-  const active = new Set(grs.activeNodeIds ?? []);
-  const dimmed = new Set(grs.dimmedNodeIds ?? []);
-  const selected = new Set(grs.selectedNodeIds ?? []);
+  const sets = {
+    selected: new Set(grs.selectedNodeIds ?? []),
+    dimmed: new Set(grs.dimmedNodeIds ?? []),
+    active: new Set(grs.activeNodeIds ?? []),
+  };
   const out = {};
-  for (const id of visible) {
-    const isSelected = selected.has(id);
-    const isActive = active.has(id);
-    const isDimmed = dimmed.has(id);
-    out[id] = {
-      // Dimmed beats active: with a selection, non-selection nodes dim even though
-      // the overview frame marks them "active".
-      alpha: isSelected ? 1.0 : isDimmed ? 0.22 : isActive ? 0.95 : 0.85,
-      tint: isActive && !isDimmed ? 1.0 : 0.0,
-    };
-  }
+  for (const id of visible) out[id] = nodeEmphasis(id, sets);
   return out;
 }
 

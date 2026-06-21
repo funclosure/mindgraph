@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLayoutSimulator } from '../ui/layout.js';
 import { buildGraphRenderState } from '../src/view-model/buildGraphRenderState.js';
-import { edgeRenderStyle } from '../ui/draw.js';
+import { edgeStyle } from '../ui/emphasis.js';
 
 function concept(id, parentIds = []) {
   return {
@@ -240,8 +240,9 @@ test('unrelated concepts that start too close separate beyond local floor', () =
 });
 
 test('inferred passive edges render more legibly than source passive edges', () => {
-  const source = edgeRenderStyle({ provenance: undefined }, { touchesSelection: false, isActive: false, animOpacity: 1 });
-  const inferred = edgeRenderStyle({ provenance: 'inferred' }, { touchesSelection: false, isActive: false, animOpacity: 1 });
+  const sets = { selectedNodes: new Set(), dimmedEdges: new Set(), activeEdges: new Set(), animOpacity: 1 };
+  const source = edgeStyle({ provenance: undefined }, sets);
+  const inferred = edgeStyle({ provenance: 'inferred' }, sets);
 
   assert.deepEqual(inferred.dash, [6, 4]);
   assert.ok(inferred.alpha > source.alpha, `expected inferred alpha ${inferred.alpha} > source ${source.alpha}`);

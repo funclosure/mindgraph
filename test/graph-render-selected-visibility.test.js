@@ -77,3 +77,28 @@ test('selecting that concept reveals it on the graph despite the playhead', () =
   assert.ok(state.visibleNodeIds.includes('late-idea'), 'selected concept stays visible past the playhead');
   assert.ok(state.selectedNodeIds.includes('late-idea'));
 });
+
+test('mode is reading without a selection and spotlight with one', () => {
+  const reading = buildGraphRenderState(vm(), { playheadTime: 1e9, activeLevel: 'overview' });
+  assert.equal(reading.mode, 'reading');
+  const spotlight = buildGraphRenderState(vm(), { playheadTime: 1e9, activeLevel: 'overview', selectedConceptId: 'early-idea' });
+  assert.equal(spotlight.mode, 'spotlight');
+});
+
+test('dimmedEdgeIds: empty in reading mode; off-selection edges in spotlight mode', () => {
+  // Reading mode: no edge is spotlight-dimmed.
+  const reading = buildGraphRenderState(vm(), { playheadTime: 1e9, activeLevel: 'overview' });
+  assert.deepEqual(reading.dimmedEdgeIds, []);
+
+  // Spotlight on early-idea: the early→late edge touches the selection (not
+  // dimmed); any visible edge that does NOT touch early-idea is dimmed.
+  const spotlight = buildGraphRenderState(vm(), { playheadTime: 1e9, activeLevel: 'overview', selectedConceptId: 'early-idea' });
+  const dimmed = new Set(spotlight.dimmedEdgeIds);
+  // A visible edge is dimmed iff it does NOT touch the selected node.
+  const relations = registry.run('compile', { markdown: MD }).value.document.relations;
+  for (const r of relations) {
+    if (!spotlight.visibleEdgeIds.includes(r.id)) continue;
+    const touches = r.from === 'early-idea' || r.to === 'early-idea';
+    assert.equal(dimmed.has(r.id), !touches, `edge ${r.id} dim state should be ${!touches}`);
+  }
+});

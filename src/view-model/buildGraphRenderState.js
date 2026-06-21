@@ -317,19 +317,23 @@ export function buildGraphRenderState(viewModel, {
     if (shouldShow) visibleEdgeIds.add(edge.id);
   }
 
-  // Dimming. With a selection, spotlight it: only the selected node + its
-  // neighbors stay bright, everything else dims — at EVERY focus level. (At Whole
-  // map the overview frame marks nearly every concept "active", so we must ignore
-  // that exemption when there's a selection, or nothing would dim.) Without a
-  // selection, fall back to playhead focus: keep the currently-active nodes bright.
-  const hasSelection = selectedNodeIds.size > 0;
+  // One scalar names the single real decision: are we spotlighting a selection,
+  // or following the reading playhead? Everything downstream (node dimming, edge
+  // dimming) reads this instead of re-asking "is there a selection?".
+  const mode = selectedNodeIds.size > 0 ? 'spotlight' : 'reading';
+
+  // Dimming. In spotlight mode only the selected node + its neighbors stay
+  // bright, everything else dims — at EVERY focus level. (At Whole map the
+  // overview frame marks nearly every concept "active", so we must ignore that
+  // exemption when there's a selection, or nothing would dim.) In reading mode we
+  // follow playhead focus: keep the currently-active nodes bright.
   for (const node of viewModel.graph.nodes) {
     if (!visibleNodeIds.has(node.id)) {
       dimmedNodeIds.add(node.id);
       continue;
     }
     if (node.level === 'clustered') continue;
-    const keepBright = hasSelection
+    const keepBright = mode === 'spotlight'
       ? (selectedNodeIds.has(node.id) || neighborNodeIds.has(node.id))
       : (activeNodeIds.has(node.id) || neighborNodeIds.has(node.id));
     if (!keepBright) dimmedNodeIds.add(node.id);
@@ -350,6 +354,17 @@ export function buildGraphRenderState(viewModel, {
     if (!keep) visibleEdgeIds.delete(edge.id);
   }
 
+  // Edge spotlight, producer-owned (mirrors the node dimming): in spotlight mode,
+  // every visible edge that does NOT touch the selection dims. Computed once here
+  // so the renderer doesn't re-derive it inline.
+  const dimmedEdgeIds = new Set();
+  if (mode === 'spotlight') {
+    for (const edge of viewModel.graph.edges) {
+      if (!visibleEdgeIds.has(edge.id)) continue;
+      if (!(selectedNodeIds.has(edge.from) || selectedNodeIds.has(edge.to))) dimmedEdgeIds.add(edge.id);
+    }
+  }
+
   const cameraTarget = deriveCameraTarget(viewModel, layout, viewport, {
     activeLevel,
     playheadTime,
@@ -358,6 +373,7 @@ export function buildGraphRenderState(viewModel, {
   });
 
   return {
+    mode,
     viewportMode,
     focusMode: focus.focusMode,
     visibleNodeIds: [...visibleNodeIds],
@@ -367,6 +383,7 @@ export function buildGraphRenderState(viewModel, {
     selectedNodeIds: [...selectedNodeIds],
     neighborNodeIds: [...neighborNodeIds],
     dimmedNodeIds: [...dimmedNodeIds],
+    dimmedEdgeIds: [...dimmedEdgeIds],
     nodeScores: Object.fromEntries(nodeScores.entries()),
     cumulativeVisibleConceptIds: [...cumulative.conceptIds],
     cumulativeVisibleEdgeIds: [...cumulative.edgeIds],

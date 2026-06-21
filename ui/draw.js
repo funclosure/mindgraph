@@ -4,6 +4,7 @@
 
 import { computeVisibleLabels } from './labels.js';
 import { clusterColor } from './layout.js';
+import { nodeEmphasis, edgeStyle, SELECTED_RADIUS_BOOST, SELECTED_RING } from './emphasis.js';
 
 export function draw(ctx, state) {
   const { viewModel: vm, layout, graphRenderState: grs, viewport, animator } = state;
@@ -50,33 +51,11 @@ function dotRadius(node) {
   return Math.max(2.5, Math.min(6, 2.5 + (node?.degree ?? 0) * 0.4));
 }
 
-export function edgeRenderStyle(edge, { touchesSelection = false, isActive = false, isDimmed = false, animOpacity = 1 } = {}) {
-  const inferred = edge?.provenance === 'inferred';
-  // Selection spotlight: edges on the selection pop; edges off it fade — even
-  // when "active" (at Whole map nearly every edge is active).
-  const alpha = touchesSelection
-    ? 0.95
-    : isDimmed ? 0.06
-    : isActive ? 0.95
-    : inferred ? 0.22 : 0.16;
-  const lineWidth = touchesSelection
-    ? 1.4
-    : isDimmed ? 0.5 : isActive ? 1.0 : inferred ? 0.8 : 0.6;
-  const dash = inferred
-    ? (touchesSelection || isActive ? [7, 4] : [6, 4])
-    : [];
-  return {
-    alpha,
-    strokeStyle: `rgba(218, 184, 116, ${alpha * animOpacity})`,
-    lineWidth,
-    dash,
-  };
-}
-
 function drawEdges(ctx, vm, layout, grs, animator) {
   const visible = grs?.visibleEdgeIds ? new Set(grs.visibleEdgeIds) : null;
-  const activeEdge = new Set(grs?.activeEdgeIds ?? []);
-  const selectedNode = new Set(grs?.selectedNodeIds ?? []);
+  const activeEdges = new Set(grs?.activeEdgeIds ?? []);
+  const selectedNodes = new Set(grs?.selectedNodeIds ?? []);
+  const dimmedEdges = new Set(grs?.dimmedEdgeIds ?? []);
 
   // Small visual gap between line endpoint and dot perimeter, so the line
   // doesn't kiss the dot — feels less crowded at typical zooms.
@@ -108,11 +87,7 @@ function drawEdges(ctx, vm, layout, grs, animator) {
     const x2 = to.x - ux * toR;
     const y2 = to.y - uy * toR;
 
-    const touchesSelection = selectedNode.has(edge.from) || selectedNode.has(edge.to);
-    const isActive = activeEdge.has(edge.id);
-    const isDimmed = selectedNode.size > 0 && !touchesSelection;
-
-    const style = edgeRenderStyle(edge, { touchesSelection, isActive, isDimmed, animOpacity });
+    const style = edgeStyle(edge, { selectedNodes, dimmedEdges, activeEdges, animOpacity });
     ctx.strokeStyle = style.strokeStyle;
     ctx.lineWidth = style.lineWidth;
 
@@ -147,17 +122,15 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
     if (animOpacity <= 0.001) continue;
     const animScale = animState?.scale ?? 1;
     const radius = dotRadius(node) * animScale;
-    const isActive = active.has(node.id);
-    const isDimmed = dimmed.has(node.id);
     const isSelected = selected.has(node.id);
 
-    // Highlight tier (alpha + tint) is eased by the animator across frames so
-    // active↔dim transitions slide instead of snapping. Fall back to inline
-    // target values for the very first frame, before the animator has seeded.
-    const hAlpha = animState?.highlightAlpha ?? (
-      isSelected ? 1 : isDimmed ? 0.22 : isActive ? 0.95 : 0.85
-    );
-    const hTint = animState?.highlightTint ?? (isActive && !isDimmed ? 1 : 0);
+    // Emphasis (alpha + tint) is eased by the animator across frames so
+    // active↔dim transitions slide instead of snapping. The first-frame fallback
+    // (before the animator has seeded) resolves through the SAME nodeEmphasis the
+    // animator target uses, so they can't diverge.
+    const base = nodeEmphasis(node.id, { selected, dimmed, active });
+    const hAlpha = animState?.highlightAlpha ?? base.alpha;
+    const hTint = animState?.highlightTint ?? base.tint;
 
     const parentClusterId = node.parentIds?.[0];
     const baseColor = parentClusterId ? clusterColor(parentClusterId) : '#b8a07a';
@@ -168,15 +141,15 @@ function drawAtomicNodes(ctx, vm, layout, grs, animator) {
     ctx.beginPath();
     ctx.fillStyle = fillColor;
     ctx.globalAlpha = hAlpha * animOpacity;
-    ctx.arc(pos.x, pos.y, radius + (isSelected ? 1.5 : 0), 0, Math.PI * 2);
+    ctx.arc(pos.x, pos.y, radius + (isSelected ? SELECTED_RADIUS_BOOST : 0), 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
     if (isSelected) {
       ctx.beginPath();
-      ctx.strokeStyle = '#fff4db';
-      ctx.lineWidth = 1.6;
-      ctx.arc(pos.x, pos.y, radius + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = SELECTED_RING.color;
+      ctx.lineWidth = SELECTED_RING.width;
+      ctx.arc(pos.x, pos.y, radius + SELECTED_RING.extraRadius, 0, Math.PI * 2);
       ctx.stroke();
     }
   }
