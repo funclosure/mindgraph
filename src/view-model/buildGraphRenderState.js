@@ -317,17 +317,22 @@ export function buildGraphRenderState(viewModel, {
     if (shouldShow) visibleEdgeIds.add(edge.id);
   }
 
-  // Selecting a node spotlights it: the selection + its neighbors stay bright and
-  // everything else dims, at every focus level (including Whole map — there the
-  // camera stays wide, so you see the whole map with the selection spotlit).
+  // Dimming. With a selection, spotlight it: only the selected node + its
+  // neighbors stay bright, everything else dims — at EVERY focus level. (At Whole
+  // map the overview frame marks nearly every concept "active", so we must ignore
+  // that exemption when there's a selection, or nothing would dim.) Without a
+  // selection, fall back to playhead focus: keep the currently-active nodes bright.
+  const hasSelection = selectedNodeIds.size > 0;
   for (const node of viewModel.graph.nodes) {
     if (!visibleNodeIds.has(node.id)) {
       dimmedNodeIds.add(node.id);
       continue;
     }
-    if (!activeNodeIds.has(node.id) && !selectedNodeIds.has(node.id) && !neighborNodeIds.has(node.id) && node.level !== 'clustered') {
-      dimmedNodeIds.add(node.id);
-    }
+    if (node.level === 'clustered') continue;
+    const keepBright = hasSelection
+      ? (selectedNodeIds.has(node.id) || neighborNodeIds.has(node.id))
+      : (activeNodeIds.has(node.id) || neighborNodeIds.has(node.id));
+    if (!keepBright) dimmedNodeIds.add(node.id);
   }
 
   // Cumulative gate: nothing introduced after the playhead is visible — EXCEPT
