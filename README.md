@@ -190,23 +190,33 @@ That gives an LLM or human editor a concrete timeline to refine.
 
 ## Document shape
 
-A `mindgraph` document contains:
+There are two document shapes. New graphs use **source-first**; the older transcript pipeline produces the **frame-timeline** shape.
 
-- `transcript`: source metadata plus parsed segments
-- `concepts.atomic`: fine-grained recurring concepts
-- `concepts.clustered`: higher-level grouped concepts
-- `relations`: durable edges between concepts
-- `frames.micro`: low-level timestamped focus slices
-- `frames.meso`: merged topic windows
-- `frames.macro`: major episode phases
+### Source-first (`kind: "mindgraph.source-first"`)
 
-Each concept can later carry recurrence stats like:
-- `recurrenceCount`
-- `totalActivation`
-- `peakActivation`
-- `persistence`
+Compiled from a `.mindgraph.md` authoring file. The reading journey is the spine — sections group reader steps, each step reveals concepts and grounds them in source blocks. Top-level keys:
 
-And frame-level concept mentions are meant to be weighted, e.g.:
+- `title`, `meta` — `meta.durationSeconds` plus the `meta.authoring` provenance
+- `sources` — what's being digested: `{ id, type, title, path }`
+- `sourceBlocks` — grounded passages: `{ id, sourceId, kind, text, order }`
+- `concepts.atomic` / `concepts.clustered` — navigable ideas: `{ id, label, aliases, parentIds, firstSeenBlockId }`
+- `relations` — typed concept edges: `{ id, from, to, type, provenance, groundedInBlockIds }` (`provenance: "source"` is grounded in blocks; `"inferred"` marks common-knowledge scaffolding and renders dashed)
+- `readerSteps` — the journey: `{ id, sectionId, sourceBlockIds, summary, focusConcepts, focusRelations }`, where `focusConcepts` are weighted activations like `{ "id": "technological-adolescence", "weight": 0.9 }`
+- `sections` — narrative groupings: `{ id, title, summary, readerStepIds }`
+- `revisions` (and `intakes`) — why the graph changed over iterations
+
+The UI derives its reading frames (overview → section → step) from this structure; there is no separate micro/meso/macro array.
+
+### Frame-timeline (legacy transcript path)
+
+Produced by `ingest transcript` / `build timeline`:
+
+- `transcript` — source metadata plus parsed segments
+- `concepts.atomic` / `concepts.clustered` — fine-grained and grouped concepts
+- `relations` — durable edges between concepts
+- `frames.micro` / `frames.meso` / `frames.macro` — timestamped focus slices, merged topic windows, and major episode phases
+
+Concepts can carry recurrence stats (`recurrenceCount`, `totalActivation`, `peakActivation`, `persistence`), and frame-level concept mentions are weighted, e.g.:
 
 ```json
 {
