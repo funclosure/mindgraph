@@ -10,9 +10,9 @@ An LLM-native CLI and data model for turning transcripts into evolving concept t
 
 mindgraph has two sides, with a JSON document between them.
 
-**Producer side — agent + CLI.** The CLI is built for an LLM agent to operate end-to-end: ingest source material, generate frames at three levels, extract concepts and relations, set activations, recompute stats. Ergonomics target an AI user, not a human typist — idempotent upserts, JSON in / JSON out, parseable errors. You don't drive the CLI; you bring source material and review the output.
+**Producer side — agent + CLI.** The CLI is built for an LLM agent to operate end-to-end. For new graphs the preferred path is **source-first authoring**: the agent reads the material, writes an editable `.mindgraph.md`, then validates and compiles it to runtime JSON (an older transcript → micro/meso/macro pipeline remains for existing fixtures). Ergonomics target an AI user, not a human typist — idempotent upserts, JSON in / JSON out, parseable errors. You don't drive the CLI; you bring source material and review the output.
 
-**Consumer side — human + UI.** The UI presents the digested mindgraph as a reading surface: a graph that fills the window, a right-side prose panel that reads like an essay, scroll the prose and the graph reveals concepts as they appear in the text. Reading drives time. The point is to re-enter dense source material at your own pace, with conceptual and temporal structure visible.
+**Consumer side — human + UI.** The UI presents the digested mindgraph as a reading surface: a graph that fills the window plus a **Source** panel that reads like an essay — scroll the prose and the graph reveals and spotlights concepts as they appear in the text. A **focus** control (Whole map / Section / Current step) sets how tightly the view tracks your reading, and a **Chat** panel lets you ask the source about whatever's in focus. Reading drives time. The point is to re-enter dense source material at your own pace, with conceptual and temporal structure visible.
 
 **The document is the contract.** A `.mindgraph.json` file is the boundary. CLI writes it. UI reads it. Either side can change as long as the schema holds. The document is the durable artifact.
 
@@ -23,7 +23,7 @@ mindgraph itself is the **toolkit**; your transcript or research repo is the **c
 Install the CLI globally from a tagged release:
 
 ```bash
-npm install -g github:funclosure/mindgraph#v0.4.1
+npm install -g github:funclosure/mindgraph#v0.9.4
 ```
 
 Tag-pinning is recommended — npm's git-URL install path is fragile and a tag gives you a stable artifact. (Check this repo's releases page for newer tags.)
@@ -34,29 +34,33 @@ That puts `mindgraph` on your `PATH`. Sanity check:
 mindgraph --help
 ```
 
-Open the reading UI for the bundled sample (Awakening from the Meaning Crisis — Episode 1):
+**Read a graph.** Two ways to open the reading UI:
 
 ```bash
-mindgraph view
+mindgraph view          # read-only — opens the bundled sample, no API key
+mindgraph open          # live UI with the Ask agent — newest graphs/*.mindgraph.md
 ```
 
-Open the reading UI for your own document:
+`view` is a static reading surface. `open` adds the conversational **Ask** panel — talk to the source about the current focus, with answers that stream as Markdown and clickable `b###` citations that jump to the passage. Its agent runs on the Claude Agent SDK, so it needs Claude credentials in the environment; use `mindgraph open --stub` for an API-free stub. Point either at a specific document:
 
 ```bash
 mindgraph view ./graphs/my-episode.mindgraph.json
+mindgraph open my-episode          # name fragment or path; resolves under ./graphs
 ```
 
-Both forms boot a small dev server (default `http://127.0.0.1:4173`) and open your browser. Ctrl+C to stop. Use `--port <n>` if 4173 is taken.
+Both boot a small server (default `http://127.0.0.1:4173`) and open your browser. Ctrl+C to stop; `--port <n>` if 4173 is taken. Re-running `open` on a busy port reuses the server already running there instead of failing.
 
-To produce a document, run the CLI yourself or pair it with an LLM agent — see [LLM-actuator workflow](#llm-actuator-workflow) below.
+**Produce a graph.** The fastest path is the [Claude skill](#use-as-a-claude--superpowers-skill): tell the agent *"build a mindgraph for this article,"* and it drives the source-first pipeline for you. To do it by hand, see [Source-first authoring](#source-first-authoring).
 
-Requires Node 18+ (or Bun). No other system dependencies.
+Requires Node 18+ (or Bun). Runtime deps: `@anthropic-ai/claude-agent-sdk` and `zod` (used by the Ask agent); no other system dependencies.
 
 ## Use as a Claude / superpowers skill
 
 The producer-side workflow is packaged as a skill at [`skills/mindgraph/SKILL.md`](skills/mindgraph/SKILL.md). When loaded by Claude Code (or any compatible runtime) it triggers on phrases like "digest this lecture" or "build a mindgraph for this transcript" and walks the CLI command sequence end-to-end. Drop the file into your skills folder (typically `~/.claude/skills/mindgraph/`) and the agent does the rest.
 
 ## First commands
+
+> The commands in this and the next few sections are the lower-level transcript → micro/meso/macro pipeline, kept for existing fixtures. For **new** graphs, prefer [Source-first authoring](#source-first-authoring) (or the [Claude skill](#use-as-a-claude--superpowers-skill)), which is the path the producer workflow now follows.
 
 ```bash
 bun src/cli/index.js --help
@@ -151,10 +155,11 @@ The MCP server is an adapter over the same journey operations as the CLI. It doe
 
 ## Current scope
 
-- Canonical `.mindgraph.json` document with atomic + clustered concepts, typed relations, and a three-level frame timeline (micro / meso / macro)
-- CLI covering the full producer pipeline: bootstrap, validate, inspect, ingest transcripts, build timeline, upsert concepts and relations, set frame activations, merge into coarser frames, backfill activations across levels, recompute concept stats
+- Source-first authoring: editable `.mindgraph.md` → `validate` / `qa` / `compile` to runtime JSON (the preferred path for new graphs)
+- Canonical `.mindgraph.json` document with atomic + clustered concepts, typed relations, and a frame timeline
+- CLI covering the full producer pipeline: bootstrap, validate, inspect, source-first authoring, transcript ingest + staged build timeline, upsert concepts and relations, set frame activations, merge/backfill across levels, recompute stats
 - Timestamped and untimed transcript parsing (timed lines, captions, untimed paragraphs)
-- Reading-driven UI: continuous-physics force-directed graph, importance-driven screen-space labels, prose panel with click-bidirectional linking, chapter strip with click-to-jump and drift-forward auto-scroll, drag-to-rearrange on the graph
+- Reading UI: continuous-physics force-directed graph, screen-space labels, Source panel with click-bidirectional linking, Whole map / Section / Current step focus with selection spotlight, and a conversational **Ask** panel (streamed Markdown answers, clickable citations, "Add to graph")
 
 ## Transcript formats currently supported
 
@@ -283,19 +288,20 @@ Then open:
 http://127.0.0.1:4173
 ```
 
+`npm run ui:dev` serves the static reading surface (graph + Source). The **Ask** (Chat) panel needs the live agent server — start that with `mindgraph open` (or `mindgraph open --stub` for no API).
+
 What you see:
 
-- The window is split by a CSS grid: thin header on top, graph canvas in the left column, chapter strip below the graph, prose panel on the right.
-- The prose reads like an essay — chapters from macro frames, paragraphs joined from transcript segments. Concept mentions are gold-underlined inline.
-- **Live force-directed graph.** Concept positions emerge from a continuous physics simulation. Co-occurring concepts attract toward shorter ideal distances (exponential curve in co-occurrence strength); producer-asserted relations and cluster siblings modulate spring stiffness; unrelated pairs gently repel. The simulator is *warm when disturbed, sleeps when settled* — it idles at zero CPU when nothing changes and reheats subtly on scroll, selection, or drag.
-- **Reading drives time.** Scroll the prose; the graph reveals concepts as their `firstSeenAt` thresholds are crossed. Newly-revealed concepts bloom in (opacity + scale, 600 ms easeOutCubic) and join live dynamics — neighbors re-settle around the new arrival.
-- **Click-bidirectional linking.** Click a concept word in the prose → the camera flies to that concept on the graph; all its mentions in the prose glow brighter. Click a concept on the graph → the prose smooth-scrolls to its first mention.
-- **Drag to rearrange.** Pointer-down on a concept dot pins it under the cursor; neighbors react in real time. Release un-pins back into live dynamics. Pointer-down on empty canvas pans the camera as before.
-- **Maps-style labels.** Labels render in screen space (constant pixel size regardless of zoom), gated by an importance score × zoom threshold with collision avoidance. At default zoom only a handful of high-importance labels show; zooming in progressively reveals more.
-- **Chapter strip** at the bottom shows macro chapters proportionally. Click any segment to jump.
-- **Drift-forward** (▶ on the chapter strip) auto-scrolls the prose at the source's speech rate, so reading progresses in real time. Manual scroll cancels.
-- **View popover** (gear icon in the header) toggles the camera-cadence level (macro / meso / micro).
-- **Prose can be collapsed** (panel-right icon in the header) — graph fills the full window when hidden.
+- **Full-width top nav** with the document title and **[Source] [Chat]** toggles on the trailing edge. The graph fills the window; the Source and Chat panels open over the right side when toggled (both off → graph only).
+- **Focus control** on the graph — **Whole map / Section / Current step**. *Whole map* shows the entire graph at a wide camera no matter how far you've read; *Section* and *Current step* track your reading position and frame the camera tighter. A single focus — your selection, or the section you're reading — spotlights nodes and their edges while the rest fall to a quiet backdrop.
+- **Source panel.** Reads like an essay; concept mentions are gold-underlined inline, and the passage you're on highlights as you scroll. A one-line source dropdown switches between sources when a graph has more than one.
+- **Selection spotlight.** Click a concept (Shift- or ⌘-click to add more) → it and its links stay bright, the rest dim to the backdrop, and the camera frames the selection (except on Whole map, which stays wide).
+- **Ask (Chat panel).** Talk to the source about the current focus — your selection, or the section you're reading if nothing's selected. Answers stream as Markdown with clickable `b###` citations that jump to the source passage. **Add to graph** crystallizes an answer into new concepts and relations (with **Undo**).
+- **Live force-directed graph.** Concept positions emerge from a continuous physics simulation. Co-occurring concepts attract toward shorter ideal distances; producer-asserted relations and cluster siblings modulate spring stiffness; unrelated pairs gently repel. The simulator is *warm when disturbed, sleeps when settled* — it idles at zero CPU when nothing changes and reheats subtly on scroll, selection, or drag.
+- **Reading drives time.** Scroll the Source panel; at the narrower focus levels the graph reveals concepts as their `firstSeenAt` thresholds are crossed — newly-revealed concepts bloom in and neighbors re-settle around them. A source-progress strip at the bottom marks the semantic sections.
+- **Click-bidirectional linking.** Click a concept word in the prose → the camera flies to that concept on the graph; click a concept on the graph → the prose scrolls to its first mention.
+- **Drag to rearrange.** Pointer-down on a concept dot pins it under the cursor; neighbors react in real time. Release un-pins back into live dynamics. Pointer-down on empty canvas pans the camera.
+- **Screen-space labels.** Labels render at constant pixel size regardless of zoom, gated by an importance score × zoom threshold with collision avoidance. At a wide camera only a handful of high-importance labels show; zooming in reveals more.
 
 Syntax check:
 
