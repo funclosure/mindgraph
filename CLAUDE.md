@@ -53,7 +53,7 @@ Four layers, mapped onto the operating model. When in doubt about where new code
 - **Runtime:** Bun preferred for CLI (`bun src/cli/index.js …`); Node works for everything (`start:node`, `vm:example`, `ui:dev`).
 - **No bundler, no framework** in the UI. Browser loads `ui/app.js` as a module directly. Keep it that way unless explicitly asked.
 - **ES modules** throughout (`"type": "module"`).
-- **Dependencies are minimal** — currently zero runtime deps. Add new deps only with reason.
+- **Dependencies are minimal** — only `@anthropic-ai/claude-agent-sdk` (the live Ask agent in `src/server/`) and `zod`. Add new deps only with reason; the CLI/core/view-model layers stay dependency-free.
 - **Sample data:** `examples/out/episode-1-built.mindgraph.json` is the canonical input the UI loads. Built sample lives in `examples/out/`; raw fixtures in `examples/`.
 
 ## Specs in `docs/`
