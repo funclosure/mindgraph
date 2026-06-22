@@ -16,6 +16,10 @@ mindgraph has two sides, with a JSON document between them.
 
 **The document is the contract.** A `.mindgraph.json` file is the boundary. CLI writes it. UI reads it. Either side can change as long as the schema holds. The document is the durable artifact.
 
+**Where the intelligence lives — two layers, one per side.** *Producing* a graph is done by whatever agent drives the CLI: the CLI and `core/` are deterministic (no model, no API key — the only network call is fetching a web article's HTML), so the semantic work (choosing concepts, grounding relations, designing the reader journey) is the operating agent's, following the [skill](#use-as-a-claude--superpowers-skill). *Reading* a graph is where mindgraph carries its own model: the live **Ask** agent in `src/server/` calls the Claude Agent SDK (`claude-sonnet-4-6`, override via `MINDGRAPH_MODEL`). In short — the skill is how a graph gets *made*; the Agent SDK is how it gets *talked to*.
+
+**Do you need a Claude account?** Reading needs nothing — `mindgraph view` and the whole UI run with no credentials. Building graphs is credential-free too: the CLI is deterministic and `.mindgraph.md` is hand-editable (a good digest just needs *some* capable agent — Claude via the skill, another LLM, or you). The one feature that requires Claude credentials is the live **Ask** / "Add to graph" agent; `mindgraph open --stub` runs it API-free for development (canned responses, not real answers).
+
 mindgraph itself is the **toolkit**; your transcript or research repo is the **content workspace**. Build and evolve mindgraph here, then run it against files elsewhere.
 
 ## Quick start
