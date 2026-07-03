@@ -59,8 +59,15 @@ const VELOCITY_DECAY = 0.70;
 const SUBSTEPS = 4;
 const SUBSTEP_DECAY = Math.pow(VELOCITY_DECAY, 1 / SUBSTEPS);
 
-const SETTLED_ALPHA = 0.003;
-const SETTLED_VEL = 0.12;
+// Settling is judged on observed motion, not on alpha: alpha's half-life is
+// tuned for slow, relaxed relaxation (spec: "keep alpha > 0 for visible
+// relaxation"), so waiting for it to decay to ~0 takes 15–20 s — during which
+// any bloom/selection reheat restarts the wait and the rAF loop never stops.
+// Instead: settled = per-frame displacement stayed imperceptible for a run of
+// consecutive frames. reheat() resets the run so interactions always re-arm
+// the simulator.
+const SETTLED_DISPLACEMENT = 0.02;
+const SETTLED_CALM_FRAMES = 30;
 
 
 // ───── String hash helpers ─────────────────────────────────────────────────
@@ -380,10 +387,12 @@ export function createLayoutSimulator(viewModel, options = {}) {
     get bounds() { return computeBounds(); },
     alpha: 1.0,
     _maxVelocity: 0,
+    _calmFrames: 0,
 
     step(dt = 1 / 60) {
       const dtScale = Math.max(0.25, Math.min(2.0, dt * 60));
       const subAlpha = (this.alpha * dtScale) / SUBSTEPS;
+      let frameDisplacement = 0;
       for (let i = 0; i < SUBSTEPS; i += 1) {
         applyCharge();
         applyUnrelatedSeparation();
@@ -394,12 +403,19 @@ export function createLayoutSimulator(viewModel, options = {}) {
         applyCollision();
         clampVelocity();
         integrate(subAlpha, SUBSTEP_DECAY);
+        frameDisplacement += this._maxVelocity * subAlpha;
       }
       this.alpha *= Math.pow(0.5, dtScale / config.alphaHalfLifeFrames);
+      if (frameDisplacement < SETTLED_DISPLACEMENT) {
+        this._calmFrames += 1;
+      } else {
+        this._calmFrames = 0;
+      }
     },
 
     reheat(strength) {
       this.alpha = Math.min(1.0, this.alpha + strength);
+      this._calmFrames = 0;
     },
 
     updateConfig(overrides = {}) {
@@ -443,7 +459,7 @@ export function createLayoutSimulator(viewModel, options = {}) {
     },
 
     isSettled() {
-      return this.alpha < SETTLED_ALPHA && this._maxVelocity < SETTLED_VEL;
+      return this._calmFrames >= SETTLED_CALM_FRAMES;
     },
   };
 
@@ -474,6 +490,7 @@ export function createLayoutSimulator(viewModel, options = {}) {
 
   sim.alpha = INITIAL_ALPHA_AFTER_WARM_START;
   sim._maxVelocity = 0;
+  sim._calmFrames = 0;
 
   return sim;
 }

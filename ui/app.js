@@ -236,8 +236,8 @@ function kickAnimationLoop() {
       if (runawayFrames >= ANIMATION_LOOP_RUNAWAY_FRAMES) {
         console.warn(
           `mindgraph: animation loop ran ${ANIMATION_LOOP_RUNAWAY_FRAMES} frames without settling; force-stopping. ` +
-          `If this happens repeatedly, the simulator's stability margin may be too tight for this document — ` +
-          `try raising SUBSTEPS in ui/layout.js.`,
+          `The simulator reports motion for this long only if node forces never balance — ` +
+          `check sim._calmFrames / per-frame displacement in ui/layout.js for a persistent oscillation.`,
         );
         state.animationLoopActive = false;
         return;

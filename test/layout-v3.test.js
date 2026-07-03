@@ -311,6 +311,127 @@ test('updateConfig changes simulator config and reheats layout', () => {
   assert.ok(sim.alpha > 0, `expected updateConfig to reheat, got alpha ${sim.alpha}`);
 });
 
+function maxFrameDisplacement(sim, concepts, prev) {
+  let maxDisp = 0;
+  for (const c of concepts) {
+    const p = sim.positions[c.id];
+    maxDisp = Math.max(maxDisp, dist(p, prev[c.id]));
+    prev[c.id] = { x: p.x, y: p.y };
+  }
+  return maxDisp;
+}
+
+// Hub-and-cluster topology shaped like a real digested document (a few hub
+// concepts, each with leaves, hubs linked to each other) — a long floppy
+// chain would creep for much longer than any real graph does.
+function clusteredGraph(hubCount, leavesPerHub) {
+  const concepts = [];
+  const edges = [];
+  for (let h = 0; h < hubCount; h += 1) {
+    concepts.push(concept(`hub-${h}`));
+    if (h > 0) edges.push(edge(`hub-link-${h}`, `hub-${h - 1}`, `hub-${h}`));
+    for (let l = 0; l < leavesPerHub; l += 1) {
+      concepts.push(concept(`leaf-${h}-${l}`));
+      edges.push(edge(`leaf-edge-${h}-${l}`, `hub-${h}`, `leaf-${h}-${l}`));
+    }
+  }
+  return { concepts, edges };
+}
+
+test('isSettled follows visible motion, not the alpha tail', () => {
+  const { concepts, edges } = clusteredGraph(5, 7);
+  const sim = createLayoutSimulator(vm({ concepts, edges }));
+  sim.reheat(1);
+
+  // Settle must arrive well inside the app's 1800-frame runaway budget…
+  let settledAt = -1;
+  for (let frame = 1; frame <= 1800 && settledAt < 0; frame += 1) {
+    sim.step(1 / 60);
+    if (sim.isSettled()) settledAt = frame;
+  }
+  assert.ok(settledAt > 0, 'expected settle within the 1800-frame runaway budget');
+
+  // …decoupled from alpha (the old criterion demanded alpha < 0.003, which the
+  // 145-frame half-life only reaches after ~1200 frames of undisturbed decay)…
+  assert.ok(
+    sim.alpha > 0.003 || settledAt < 1200,
+    `expected settle without waiting out the alpha tail (settled at ${settledAt}, alpha ${sim.alpha})`,
+  );
+
+  // …and honestly: nothing visible may still be moving when we stop stepping.
+  const prev = Object.fromEntries(concepts.map((c) => [c.id, { ...sim.positions[c.id] }]));
+  let residual = 0;
+  for (let i = 0; i < 60; i += 1) {
+    sim.step(1 / 60);
+    residual = Math.max(residual, maxFrameDisplacement(sim, concepts, prev));
+  }
+  assert.ok(residual < 0.03, `expected imperceptible residual motion after settle, got ${residual}px/frame`);
+});
+
+test('reheat after settle re-arms the simulator instead of latching', () => {
+  const { concepts, edges } = clusteredGraph(3, 3);
+  const sim = createLayoutSimulator(vm({ concepts, edges }));
+  sim.reheat(1);
+  let frames = 0;
+  while (!sim.isSettled() && frames < 2400) {
+    sim.step(1 / 60);
+    frames += 1;
+  }
+  assert.ok(sim.isSettled(), `expected initial settle within 2400 frames, ran ${frames}`);
+
+  // A disturbance (e.g. drag release) must wake the loop and settle again promptly.
+  sim.positions['hub-0'].x += 400;
+  sim.reheat(0.5);
+  assert.equal(sim.isSettled(), false, 'expected reheat to re-arm the simulator');
+
+  let resettleFrames = 0;
+  const prev = Object.fromEntries(concepts.map((c) => [c.id, { ...sim.positions[c.id] }]));
+  let calmSince = -1;
+  while (!sim.isSettled() && resettleFrames < 600) {
+    sim.step(1 / 60);
+    resettleFrames += 1;
+    if (maxFrameDisplacement(sim, concepts, prev) < 0.005) {
+      if (calmSince < 0) calmSince = resettleFrames;
+    } else {
+      calmSince = -1;
+    }
+  }
+  assert.ok(sim.isSettled(), `expected re-settle within 600 frames of a reheat, still unsettled (motion calm since ${calmSince})`);
+});
+
+test('periodic gentle reheats do not keep the simulator unsettled indefinitely', () => {
+  // A reading session: a concept bloom (reheat 0.01) or selection (0.05) every
+  // ~5s. The rAF loop in app.js force-stops with a console warning after 1800
+  // consecutive unsettled frames — under the old alpha-based criterion each
+  // gentle reheat restarted a ~1200-frame alpha tail, so the loop never rested.
+  const { concepts, edges } = clusteredGraph(5, 7);
+  const sim = createLayoutSimulator(vm({ concepts, edges }));
+  sim.reheat(1);
+  let frames = 0;
+  while (!sim.isSettled() && frames < 1800) {
+    sim.step(1 / 60);
+    frames += 1;
+  }
+  assert.ok(sim.isSettled(), 'expected initial settle within the runaway budget');
+
+  let consecutive = 0;
+  let maxConsecutive = 0;
+  for (let frame = 1; frame <= 3600; frame += 1) {
+    if (frame % 300 === 0) sim.reheat(frame % 900 === 0 ? 0.05 : 0.01);
+    if (sim.isSettled()) {
+      consecutive = 0;
+    } else {
+      sim.step(1 / 60);
+      consecutive += 1;
+      if (consecutive > maxConsecutive) maxConsecutive = consecutive;
+    }
+  }
+  assert.ok(
+    maxConsecutive < 300,
+    `expected gentle reheats on a settled graph to be cheap, longest unsettled run was ${maxConsecutive} frames`,
+  );
+});
+
 test('createLayoutSimulator seeds existing nodes from initialPositions (local-growth)', () => {
   const concepts = [concept('a'), concept('b'), concept('fresh')];
   const edges = [edge('e1', 'a', 'b')];
