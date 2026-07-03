@@ -80,12 +80,22 @@ export function validateSourceFirstDocument(doc) {
     if (!hasText(source.title)) errors.push(`sources.${source.id ?? '?'} title is required`);
   }
 
+  // Block timing in the view model is derived by sorting on `order`, so the
+  // values must be finite and unique for the reading timeline to be
+  // deterministic.
+  const blockIdByOrder = new Map();
   for (const block of blocks) {
     if (!hasText(block.id)) errors.push('sourceBlocks entry id is required');
     if (!sourceIds.has(block.sourceId)) errors.push(`sourceBlocks.${block.id ?? '?'} references missing source '${block.sourceId}'`);
     if (!hasText(block.kind)) errors.push(`sourceBlocks.${block.id ?? '?'} kind is required`);
     if (typeof block.text !== 'string') errors.push(`sourceBlocks.${block.id ?? '?'} text must be a string`);
-    if (typeof block.order !== 'number') errors.push(`sourceBlocks.${block.id ?? '?'} order must be a number`);
+    if (!Number.isFinite(block.order)) {
+      errors.push(`sourceBlocks.${block.id ?? '?'} order must be a finite number`);
+    } else if (blockIdByOrder.has(block.order)) {
+      errors.push(`sourceBlocks.${block.id ?? '?'} order ${block.order} is already used by '${blockIdByOrder.get(block.order)}'`);
+    } else {
+      blockIdByOrder.set(block.order, block.id);
+    }
   }
 
   for (const concept of atomic) {

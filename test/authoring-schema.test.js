@@ -112,6 +112,28 @@ test('validateSourceFirstDocument rejects missing references and focus-less visi
   assert.match(result.errors.join('\n'), /relations\.bad-relation source provenance requires groundedInBlockIds/);
 });
 
+test('validateSourceFirstDocument rejects duplicate and non-finite block orders', () => {
+  // The view model derives all block timing by sorting on `order`; duplicates
+  // make the reading timeline ambiguous and NaN poisons the sort comparator.
+  const duplicated = validateSourceFirstDocument(validDoc({
+    sourceBlocks: [
+      { id: 'b001', sourceId: 'rsi-note', kind: 'heading', text: 'Recursive Self-Improvement', order: 1 },
+      { id: 'b002', sourceId: 'rsi-note', kind: 'paragraph', text: 'A feedback process.', order: 1 },
+    ],
+  }));
+  assert.equal(duplicated.ok, false);
+  assert.match(duplicated.errors.join('\n'), /sourceBlocks\.b002 order 1 is already used by 'b001'/);
+
+  const nonFinite = validateSourceFirstDocument(validDoc({
+    sourceBlocks: [
+      { id: 'b001', sourceId: 'rsi-note', kind: 'heading', text: 'Recursive Self-Improvement', order: NaN },
+      { id: 'b002', sourceId: 'rsi-note', kind: 'paragraph', text: 'A feedback process.', order: 1 },
+    ],
+  }));
+  assert.equal(nonFinite.ok, false);
+  assert.match(nonFinite.errors.join('\n'), /sourceBlocks\.b001 order must be a finite number/);
+});
+
 test('validateSourceFirstDocument rejects duplicate concept IDs across atomic and clustered namespaces', () => {
   const base = validDoc();
   const doc = validDoc({
