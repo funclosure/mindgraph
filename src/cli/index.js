@@ -17,6 +17,7 @@ import { createAuthoringDraftFromText } from '../core/authoring/draft.js';
 import { formatSourceFirstValidationErrors } from '../core/authoring/schema.js';
 import { evaluateSourceFirstReading } from '../view-model/evaluateSourceFirstReading.js';
 import { registry } from '../operations/index.js';
+import { buildZshCompletion } from './completions.js';
 
 const pkg = createRequire(import.meta.url)('../../package.json');
 
@@ -58,6 +59,7 @@ Usage:
   mindgraph digest evaluate <document-file> [--json]
   mindgraph view [<document-file>] [--port <n>] [--host <h>]
   mindgraph open [<graph>] [--port <n>] [--host <h>] [--stub]
+  mindgraph completions zsh
 
 When -o is omitted from ingest/build, mindgraph defaults to ./graphs/<slug>.mindgraph.json
 if a ./graphs/ directory exists in the current working directory.
@@ -87,6 +89,7 @@ Commands:
   digest evaluate        Report digest quality signals: empty frames, unused concepts, inactive relations, top activations
   view                   Open the read-only reading UI for a document in the browser
   open / ask             Launch the live UI (with the Ask agent) and open the browser; defaults to the newest graphs/*.mindgraph.md
+  completions zsh        Print a zsh completion script (save into a $fpath dir as _mindgraph)
 
 Transcript formats currently supported:
   [00:01:23] Speaker: text
@@ -217,6 +220,15 @@ if (command === 'init') {
 
   writeJson(outputFile, doc);
   console.log(`Created starter document at ${outputFile}`);
+  process.exit(0);
+}
+
+if (command === 'completions') {
+  if (subcommand !== 'zsh') {
+    console.error(`Unsupported shell '${subcommand ?? ''}'. Supported: zsh`);
+    process.exit(1);
+  }
+  process.stdout.write(buildZshCompletion());
   process.exit(0);
 }
 

@@ -38,6 +38,14 @@ That puts `mindgraph` on your `PATH`. Sanity check:
 mindgraph --help
 ```
 
+**Tab completion (zsh).** The CLI prints its own completion script — save it into any directory on your `$fpath` and open a new shell:
+
+```bash
+mindgraph completions zsh > /opt/homebrew/share/zsh/site-functions/_mindgraph
+```
+
+`mindgraph <TAB>` then lists subcommands with descriptions, and `mindgraph open <TAB>` offers only `*.mindgraph.json|md` documents. Regenerate the file after upgrading the CLI. (If completions don't appear, clear the cache: `rm ~/.zcompdump*` and restart the shell.)
+
 **Read a graph.** Two ways to open the reading UI:
 
 ```bash
