@@ -80,6 +80,10 @@ export function evaluateSourceFirstReading(document) {
     totalActiveRelations,
     orphanedActiveRelations: orphanedRelations.length,
     orphanedRelations,
+    timing: {
+      ...(vm.documentMeta.timing ?? { mode: 'estimated', totalSeconds: vm.documentMeta.durationSeconds }),
+      blockCount: vm.transcript.segments.length,
+    },
     errors: [],
   };
 }

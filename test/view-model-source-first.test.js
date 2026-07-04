@@ -148,6 +148,70 @@ test('source-first active step concepts are visible before their exact first men
   assert.ok(renderState.cameraTarget, 'expected active source-step concept to produce a camera target');
 });
 
+function words(count) {
+  return Array.from({ length: count }, (_, i) => `word${i}`).join(' ');
+}
+
+function timingDoc({ blocks, meta }) {
+  return {
+    kind: 'mindgraph.source-first',
+    version: 1,
+    title: 'Timing Fixture',
+    sources: [{ id: 'article', type: 'article', title: 'Timing Fixture' }],
+    sourceBlocks: blocks,
+    readerSteps: [
+      {
+        id: 's001',
+        sectionId: 'whole',
+        sourceBlockIds: blocks.map((block) => block.id),
+        summary: 'Whole document.',
+        focusConcepts: [{ id: 'timing-concept', weight: 1, mode: 'explicit' }],
+        focusRelations: [],
+      },
+    ],
+    sections: [{ id: 'whole', title: 'Whole', summary: 'Whole.', readerStepIds: ['s001'] }],
+    concepts: {
+      atomic: [{ id: 'timing-concept', label: 'Timing Concept', parentIds: [], firstSeenBlockId: blocks[0].id }],
+      clustered: [],
+    },
+    relations: [],
+    intakes: [],
+    revisions: [],
+    ...(meta ? { meta } : {}),
+  };
+}
+
+test('estimated source-first timing is word-proportional with a floor for short blocks', () => {
+  // 220 wpm → seconds = words * 60/220. 44 words → 12 s; a 2-word heading
+  // hits the 4 s floor instead of vanishing.
+  const vm = buildMindgraphViewModel(timingDoc({
+    blocks: [
+      { id: 'b001', sourceId: 'article', kind: 'heading', text: 'Fast Systems', order: 0 },
+      { id: 'b002', sourceId: 'article', kind: 'paragraph', text: words(44), order: 1 },
+    ],
+  }));
+
+  assert.deepEqual(vm.transcript.segments.map((s) => [s.start, s.end]), [[0, 4], [4, 16]]);
+  assert.deepEqual(vm.documentMeta.timing, { mode: 'estimated', totalSeconds: 16 });
+  assert.equal(vm.documentMeta.durationSeconds, 16);
+});
+
+test('declared source-first duration is distributed proportionally to block word counts', () => {
+  // Estimates: 66 words → 18 s, 22 words → 6 s (sum 24). Declared 96 s scales
+  // both by 4 — not the old uniform 48/48 split.
+  const vm = buildMindgraphViewModel(timingDoc({
+    blocks: [
+      { id: 'b001', sourceId: 'article', kind: 'paragraph', text: words(66), order: 0 },
+      { id: 'b002', sourceId: 'article', kind: 'paragraph', text: words(22), order: 1 },
+    ],
+    meta: { durationSeconds: 96 },
+  }));
+
+  assert.deepEqual(vm.transcript.segments.map((s) => [s.start, s.end]), [[0, 72], [72, 96]]);
+  assert.deepEqual(vm.documentMeta.timing, { mode: 'declared', totalSeconds: 96 });
+  assert.equal(vm.documentMeta.durationSeconds, 96);
+});
+
 test('buildMindgraphViewModel uses explicit source-first duration metadata', () => {
   const doc = {
     kind: 'mindgraph.source-first',

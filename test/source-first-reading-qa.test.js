@@ -57,6 +57,40 @@ first_seen: b001
   });
 });
 
+test('evaluateSourceFirstReading reports the timing mode so the producer can see estimates', () => {
+  const doc = compile(`---
+kind: mindgraph.authoring
+version: 1
+title: QA Fixture
+---
+
+@source src
+type: text
+title: Source
+
+@block b001 source=src kind=paragraph
+The source says economic substitute, not the abstract graph label.
+
+@step s001 section=setup blocks=b001
+summary: A semantic concept should bind to source wording.
+focus:
+  - economic-substitute 1 explicit
+
+@section setup
+title: Setup
+steps: s001
+
+@concept economic-substitute
+label: Economic Substitute
+first_seen: b001
+`);
+
+  const report = evaluateSourceFirstReading(doc);
+  assert.equal(report.timing.mode, 'estimated');
+  assert.equal(report.timing.blockCount, 1);
+  assert.ok(report.timing.totalSeconds > 0, `expected positive estimated total, got ${report.timing.totalSeconds}`);
+});
+
 test('evaluateSourceFirstReading accepts aliases that bind semantic concepts to source text', () => {
   const doc = compile(`---
 kind: mindgraph.authoring

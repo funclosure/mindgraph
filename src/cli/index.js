@@ -357,6 +357,13 @@ if (command === 'authoring' && subcommand === 'qa') {
   } else {
     console.log(`Source-first reading QA: ${report.ok ? 'OK' : 'NEEDS REPAIR'}`);
     console.log(`Focus binding: ${report.boundFocusActivations}/${report.totalFocusActivations} (${Math.round(report.focusBindingRate * 100)}%)`);
+    if (report.timing) {
+      const minutes = Math.max(1, Math.ceil((report.timing.totalSeconds ?? 0) / 60));
+      const label = report.timing.mode === 'declared'
+        ? `declared (${minutes} min across ${report.timing.blockCount} blocks)`
+        : `estimated (~${minutes} min read across ${report.timing.blockCount} blocks — add duration_seconds to the frontmatter if this source is timed media)`;
+      console.log(`Timing: ${label}`);
+    }
     if (report.unboundFocus.length) {
       console.log('Unbound active concepts:');
       for (const gap of report.unboundFocus) {

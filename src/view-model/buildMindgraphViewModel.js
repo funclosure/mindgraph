@@ -3,23 +3,35 @@ function frameRefKey(level, index) {
 }
 
 const SOURCE_FIRST_SEGMENT_SECONDS = 60;
+const SOURCE_FIRST_WORDS_PER_MINUTE = 220;
+const SOURCE_FIRST_MIN_BLOCK_SECONDS = 4;
 
 function isSourceFirstDocument(document) {
   return document?.kind === 'mindgraph.source-first';
 }
 
-function sourceFirstSegmentSeconds(document, blockCount) {
-  const durationSeconds = document?.meta?.durationSeconds;
-  if (typeof durationSeconds === 'number' && Number.isFinite(durationSeconds) && durationSeconds > 0 && blockCount > 0) {
-    return durationSeconds / blockCount;
-  }
-  return SOURCE_FIRST_SEGMENT_SECONDS;
+// Source-first documents carry no timestamps, so block time is derived from a
+// reading-time estimate: word count at 220 wpm, floored so headings keep a
+// visible span. A declared meta.durationSeconds (timed media) rescales the
+// estimates proportionally instead of replacing them with a uniform split.
+function estimatedBlockSeconds(text) {
+  const wordCount = typeof text === 'string' ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+  return Math.max(SOURCE_FIRST_MIN_BLOCK_SECONDS, (wordCount / SOURCE_FIRST_WORDS_PER_MINUTE) * 60);
 }
 
-function spanForIndexes(startIndex, count, segmentSeconds = SOURCE_FIRST_SEGMENT_SECONDS) {
-  const start = startIndex * segmentSeconds;
-  const end = Math.max(start + segmentSeconds, (startIndex + Math.max(1, count)) * segmentSeconds);
-  return { start, end };
+function sourceFirstBlockTiming(document, orderedBlocks) {
+  const estimates = orderedBlocks.map((block) => estimatedBlockSeconds(block.text));
+  const estimatedTotal = estimates.reduce((sum, seconds) => sum + seconds, 0);
+  const declared = document?.meta?.durationSeconds;
+  if (typeof declared === 'number' && Number.isFinite(declared) && declared > 0 && estimatedTotal > 0) {
+    const scale = declared / estimatedTotal;
+    return {
+      mode: 'declared',
+      totalSeconds: declared,
+      durations: estimates.map((seconds) => seconds * scale),
+    };
+  }
+  return { mode: 'estimated', totalSeconds: estimatedTotal, durations: estimates };
 }
 
 function unionSpan(spans) {
@@ -48,11 +60,13 @@ function relationActivationFromStep(step, relationIdSet) {
 
 function normalizeSourceFirstForViewModel(document) {
   const orderedBlocks = [...(document.sourceBlocks ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const segmentSeconds = sourceFirstSegmentSeconds(document, orderedBlocks.length);
+  const timing = sourceFirstBlockTiming(document, orderedBlocks);
   const blockIndexById = Object.fromEntries(orderedBlocks.map((block, index) => [block.id, index]));
   const blockSpanById = {};
+  let cursor = 0;
   const segments = orderedBlocks.map((block, index) => {
-    const span = spanForIndexes(index, 1, segmentSeconds);
+    const span = { start: cursor, end: cursor + timing.durations[index] };
+    cursor = span.end;
     blockSpanById[block.id] = span;
     return {
       id: block.id,
@@ -139,6 +153,7 @@ function normalizeSourceFirstForViewModel(document) {
       clustered: document.concepts?.clustered ?? [],
     },
     sourceFlow: { readerSteps, sections, overview },
+    sourceFirstTiming: { mode: timing.mode, totalSeconds: timing.totalSeconds },
   };
 }
 
@@ -603,6 +618,7 @@ function buildDocumentMetaVM(document, conceptsVM, relationsVM, timelineVM, tran
     speakers: document.transcript?.speakers ?? [],
     sources: (document.sources ?? []).map((s) => ({ id: s.id, title: s.title ?? '', type: s.type ?? 'source' })),
     durationSeconds,
+    ...(document.sourceFirstTiming ? { timing: document.sourceFirstTiming } : {}),
     counts: {
       transcriptSegments: transcriptVM.segments.length,
       atomicConcepts: conceptsVM.atomic.length,
