@@ -20,8 +20,12 @@ test('buildZshCompletion generates a compdef script with commands and file globs
   assert.match(script, /^#compdef mindgraph/);
   assert.match(script, /'open:/, 'expected open in top-level command descriptions');
   assert.match(script, /'authoring:/, 'expected authoring in top-level command descriptions');
-  // open/view offer only mindgraph documents
+  // open/view offer only mindgraph documents…
   assert.match(script, /(?:open\|view|view\|open)\)[\s\S]*?\*\.mindgraph\.\(json\|md\)/);
+  // …and list documents under ./graphs directly, since `open` resolves name
+  // fragments against that directory (typing from the repo root must show them).
+  assert.match(script, /(?:open\|view|view\|open)\)[\s\S]*?graphs\/\*\.mindgraph\.\(json\|md\)\(N\)/);
+  assert.match(script, /_alternative/);
   // authoring markdown subcommands offer only authoring markdown
   assert.match(script, /\*\.mindgraph\.md/);
   // nested subcommands complete at position 3

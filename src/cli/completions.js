@@ -102,6 +102,22 @@ function describeLines(entries, indent) {
 
 function fileAction(arg, indent) {
   if (!arg) return `${indent}return`;
+  if (arg === 'graph') {
+    // `open` resolves name fragments against ./graphs, so list those
+    // documents directly (from any directory that has a graphs/ folder)
+    // alongside ordinary path completion.
+    return (
+      `${indent}local -a graph_docs\n` +
+      `${indent}graph_docs=( graphs/*.mindgraph.(json|md)(N) )\n` +
+      `${indent}if (( \${#graph_docs} )); then\n` +
+      `${indent}  _alternative \\\n` +
+      `${indent}    'graphs:mindgraph document under ./graphs:compadd -f -a graph_docs' \\\n` +
+      `${indent}    'files:file:_files -g "${ARG_GLOBS.graph}"'\n` +
+      `${indent}else\n` +
+      `${indent}  _files -g "${ARG_GLOBS.graph}"\n` +
+      `${indent}fi`
+    );
+  }
   const glob = ARG_GLOBS[arg];
   return glob ? `${indent}_files -g "${glob}"` : `${indent}_files`;
 }
