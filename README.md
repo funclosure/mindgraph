@@ -27,7 +27,7 @@ mindgraph itself is the **toolkit**; your transcript or research repo is the **c
 Install the CLI globally from a tagged release:
 
 ```bash
-npm install -g github:funclosure/mindgraph#v0.9.6
+npm install -g github:funclosure/mindgraph#v0.9.7
 ```
 
 Tag-pinning is recommended — npm's git-URL install path is fragile and a tag gives you a stable artifact. (Check this repo's releases page for newer tags.)
