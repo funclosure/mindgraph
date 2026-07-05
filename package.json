@@ -16,6 +16,7 @@
     "assets/",
     "examples/awakening.sample.transcript.txt",
     "examples/out/episode-1-built.mindgraph.json",
+    "examples/gallery/",
     "README.md",
     "CLAUDE.md"
   ],

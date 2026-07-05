@@ -11,6 +11,7 @@
 // ---------------------------------------------------------------------------
 
 export const COMMAND_TREE = [
+  { name: 'gallery', summary: 'List the bundled sample graphs' },
   { name: 'init', summary: 'Create an empty starter mindgraph document', arg: 'file' },
   { name: 'validate', summary: 'Validate a mindgraph JSON document', arg: 'doc' },
   { name: 'inspect', summary: 'Print a concise summary of a document', arg: 'doc' },

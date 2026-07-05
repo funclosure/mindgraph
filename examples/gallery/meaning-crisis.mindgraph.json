@@ -1,0 +1,1665 @@
+{
+  "kind": "mindgraph.source-first",
+  "version": 1,
+  "title": "Awakening from the Meaning Crisis - Introduction",
+  "sources": [
+    {
+      "id": "awakening-ep1",
+      "type": "transcript",
+      "title": "Awakening from the Meaning Crisis - Introduction",
+      "path": "/Users/victor/.codex/attachments/fafce125-257c-4f4b-8223-fa10e0cf98b7/pasted-text.txt"
+    }
+  ],
+  "sourceBlocks": [
+    {
+      "id": "b001",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Welcome. This is a series in which I am going to endeavor to put together pretty much all of my work. My name is John Vervaeke. I am an assistant professor at the University of Toronto in the psychology department and in the cognitive science program, and I also teach for the Buddhism, Psychology, and Mental Health program.",
+      "order": 0
+    },
+    {
+      "id": "b002",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "I have produced a lot of videos on various topics. What I want to do now in this series is draw it all together and present to you an overall unified argument, and show you the interconnections between pieces that you might have seen before.",
+      "order": 1
+    },
+    {
+      "id": "b003",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "How this got started is that I got very interested in a particular phenomenon. There seemed to be a growing confluence between people who are interested in Buddhism and people who are interested in cognitive science. We are going through what is called the mindfulness revolution. Mindfulness is being spoken of everywhere.",
+      "order": 2
+    },
+    {
+      "id": "b004",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Why is the mindfulness revolution occurring? It is occurring particularly because of this intersection between Buddhism and cognitive science. But why is this happening, why is it so explosive in nature, and what do we mean by mindfulness? Some of the work I have done is trying to get clear about that.",
+      "order": 3
+    },
+    {
+      "id": "b005",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "There are other things that seem convergent with this growing confluence between Buddhism and cognitive science. There is increasing academic and public interest in wisdom. Wisdom is now a hot topic within psychology and cognitive science. Books offering to train you in wisdom are again becoming popular, as with Stoicism and the philosophies of the Hellenistic period.",
+      "order": 4
+    },
+    {
+      "id": "b006",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "There is increasing academic and public interest in psychedelics and psychedelic experiences. People can be released from treatment-resistant addiction or overcome post-traumatic stress disorder. There is also increasing public and academic interest in happiness, and especially in meaning in life. People are talking not just about contentedness, but about what it is for a human life to be meaningful.",
+      "order": 5
+    },
+    {
+      "id": "b007",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "My contention is that it is no coincidence that all of these things are happening right now: Buddhism, mindfulness, wisdom, Stoicism, psychedelics, transformative and mystical experiences, and meaning in life. There is a unifying account for why this is happening.",
+      "order": 6
+    },
+    {
+      "id": "b008",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "But there is another set of things, the dark factors. We are going through a mental health crisis. Suicide is spiking. Many people express a sense of losing touch with reality. We encounter nihilism, cynicism, frustration, futility, and the abandonment of trust in public institutions.",
+      "order": 7
+    },
+    {
+      "id": "b009",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Religious affiliation is declining. Participation in clubs and organizations is in decline. There is an increasing sense of nonsense everywhere. People sense that we spend too much time in virtual environments, with connections between social media, depression, and loneliness. Our entertainment and mythologies are filled with zombies, superheroes, crisis, collapse, and apocalypse.",
+      "order": 8
+    },
+    {
+      "id": "b010",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "I think all of these negative factors also have a unifying explanation. Throughout this series I am going to argue that the positive factors and the negative factors all point to a unified explanation: our culture is experiencing a profound meaning crisis.",
+      "order": 9
+    },
+    {
+      "id": "b011",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "I am not claiming this is the only crisis we face. I want to talk about how the meaning crisis interacts with other crises: the environmental crisis and the socioeconomic crisis. These three crises are not independent from each other. They are interdependent in important ways.",
+      "order": 10
+    },
+    {
+      "id": "b012",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "What is this meaning that has come into crisis? Why do we hunger for it? How do we cultivate the wisdom to generate and enhance this meaning? Wisdom is ultimately about realizing meaning in life in both senses of the word: becoming aware and making real.",
+      "order": 11
+    },
+    {
+      "id": "b013",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Here are the three questions we will keep coming back to: What is this meaning? Why do we hunger for it? How do we cultivate the wisdom to realize it? We will address the meaning crisis, how this kind of meaning evolved, why it is important to our humanity, and the history of the meaning crisis.",
+      "order": 12
+    },
+    {
+      "id": "b014",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "We will talk about connections between meaning, wisdom, and self-transcendence. Self-transcendence is a core need because it performs core functions for human beings. We will see deep connections between meaning, wisdom, self-transcendence, and altered states of consciousness.",
+      "order": 13
+    },
+    {
+      "id": "b015",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Why do intelligent beings seek altered states of consciousness? Human beings have developed sophisticated processes for generating, harnessing, and interpreting altered states. We will talk about shamanism and ritual, flow states, psychedelics, mystical experiences, awakening experiences, transformative experience, quantum change, and perhaps a cognitive-scientific account of enlightenment.",
+      "order": 14
+    },
+    {
+      "id": "b016",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "We also have to talk about darker aspects of meaning-making: the connection between meaning-making and our endemic capacity for self-deception and self-destruction. Foolishness is different from ignorance. Ignorance is a lack of knowledge; foolishness is a lack of wisdom, when agency is undermined by self-deception and self-destructive behavior.",
+      "order": 15
+    },
+    {
+      "id": "b017",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "The very same machinery that makes you adaptively intelligent makes you susceptible to foolishness. This takes us into absurdity, alienation, futility, horror, meaninglessness, and despair. Horror undermines your sense of grip on reality. More people experience meaninglessness and despair.",
+      "order": 16
+    },
+    {
+      "id": "b018",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "When people use the word meaning, it is a metaphor. They mean there is something in life analogous to how a sentence has meaning: the pieces fit together, make an impact on cognition, and connect you to the world. Some of the most meaningful experiences are ineffable, which means we need to talk about different kinds of knowing.",
+      "order": 17
+    },
+    {
+      "id": "b019",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "We have reduced knowing to having justified true beliefs. But there is more to knowing than belief. There is knowing how to catch a baseball, knowing what it is like to have an experience, and knowing what it is like to participate in a relationship. Therapy often transforms not beliefs but how you see things, your sense of self, and your sense of realness.",
+      "order": 18
+    },
+    {
+      "id": "b020",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "This will give us a structural-functional account of meaning: its structure, cognitive processes, mechanisms, functions, and dysfunctions. We will have a historical account and a structural-functional account, and make them talk to each other. From that dialogue I propose a real response: awakening from the meaning crisis, not ideologically but transformatively and existentially.",
+      "order": 19
+    },
+    {
+      "id": "b021",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "This cannot be done simply. It is not a problem with simplistic answers. If someone offers an answer in an hour, they may be deceiving you, manipulating you, or self-deceived. This series will carefully and responsibly build an argument for how we can awaken from the meaning crisis and how it interacts with mental health, environmental, and socioeconomic crises.",
+      "order": 20
+    },
+    {
+      "id": "b022",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "My commitment is to offer rigorous rational argumentation, give proper scholastic credit, and offer good arguments and evidence. I do not claim absolute uncontested truth. I want this to be for people with genuine personal existential interest, so I will keep jargon and technicalities to a minimum and explain terms carefully.",
+      "order": 21
+    },
+    {
+      "id": "b023",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "We begin with how and why meaning is so deeply part of our humanity. I will start with the Upper Paleolithic transition around 40,000 BCE, not as an absolute beginning but as a time when the kind of humanity we recognize as us came into form.",
+      "order": 22
+    },
+    {
+      "id": "b024",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Around the Upper Paleolithic transition, human beings start doing things they were not doing before: representational art, sculpture, cave paintings, music, calendars, and projectile weapons. Time is being made meaningful through calendars, and space and time are made meaningful through projectile weaponry.",
+      "order": 23
+    },
+    {
+      "id": "b025",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Before this transition, human beings seem to have gone through a near-extinction event. Environmental pressure pushed humans toward the coasts. They diversified their diet, but more importantly they developed a sociocognitive response: broader trading networks that made them less subject to local environmental variation.",
+      "order": 24
+    },
+    {
+      "id": "b026",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Culture networked brains together long before the internet networked computers. Broader trading relationships opened the scale at which human cognition had to operate. Humans developed rituals for dealing with environmental challenge and the enhanced social network they were creating.",
+      "order": 25
+    },
+    {
+      "id": "b027",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Trade rituals help you deal with strangers. You need to communicate and form trust with people you do not personally know. Even a handshake preserves old functions: showing no weapons, allowing touch, sensing tension. You have to take another person's perspective and pick up on mental states.",
+      "order": 26
+    },
+    {
+      "id": "b028",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "This enhanced perspective-taking is what Daniel Siegel calls mindsight. As you increase your ability to pick up on other people's mental states, you increase your ability to pick up on your own mental states. This is part of the origin of metacognition and mindfulness.",
+      "order": 27
+    },
+    {
+      "id": "b029",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Initiation rituals solve the opposite problem. When you interact with strangers, loyalty to your group becomes more in question. Initiation rituals show commitment to the group through risk, threat, sacrifice, pain, and fear. They train emotion regulation and decentering, moving from egocentric perspective to being centered on the group.",
+      "order": 28
+    },
+    {
+      "id": "b030",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Vervaeke introduces exaptation: a mechanism evolved for one function can be reused for another. The tongue evolved to move food and detect poison, but because it is flexible, sensitive, and interrupts airflow, it can be exapted for speech. The brain similarly reuses cognitive machinery for new purposes.",
+      "order": 29
+    },
+    {
+      "id": "b031",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "The enhanced mental abilities coming out of trade and initiation rituals are taken up into shamanic rituals. Shamanism cultivates altered states of consciousness and exapts enhanced mindsight, emotional control, and mental control into practices for cognition.",
+      "order": 30
+    },
+    {
+      "id": "b032",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Shamans are pervasive in hunter-gatherer groups and become archetypal figures: wise old men, Yoda, Merlin. Without appealing to supernatural spirits, Vervaeke seeks a cognitive explanation for why shamans are effective in healthcare, group harmony, and hunting.",
+      "order": 31
+    },
+    {
+      "id": "b033",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Shamanism may help explain the cognitive explosion of the Upper Paleolithic transition. The brain hardware had existed for a long time, so the change is more plausibly a software change in how humans use the brain. Shamanism may play a role in that software change.",
+      "order": 32
+    },
+    {
+      "id": "b034",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Technology is the systematic use of a tool. A physical tool fits your biology and enhances it. A psychotechnology fits your brain and enhances how it operates. Literacy is a psychotechnology: it lets you leave ideas outside your head, connect your present brain to your past and future brain, and network your brain with other brains.",
+      "order": 33
+    },
+    {
+      "id": "b035",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Shamanism is a set of psychotechnologies for altering your state of consciousness and enhancing cognition. Shamans use sleep deprivation, singing, dancing, chanting, imitation, masks, isolation, wilderness, and sometimes psychedelics to bring about altered states.",
+      "order": 34
+    },
+    {
+      "id": "b036",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "These are disruptive strategies. The shaman disrupts the normal ways you find patterns in the world because the same way you find patterns adaptively can also lock you into self-deception. The nine-dot problem shows this: people project a square, follow learned dot-connecting rules, and cannot solve the problem until they disrupt the frame.",
+      "order": 35
+    },
+    {
+      "id": "b037",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Telling someone to think outside the box does not solve the problem. Giving them the belief that they must go outside the box does not help. What is needed is knowing how: how to alter attention, change perspective, alter salience, relevance, importance, and realness.",
+      "order": 36
+    },
+    {
+      "id": "b038",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "Shamanic practice disrupts everyday framing so the shaman can get enhanced insight: insight into environmental patterns, insight into other minds, and participatory knowing. When the shaman enacts the animal, he is not merely having beliefs about the deer; he is trying to become the deer in perspective, skill, and world.",
+      "order": 37
+    },
+    {
+      "id": "b039",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "By combining enhanced insight, mindsight, participatory knowing, charisma, artistry, and therapy, the shaman can trigger placebo and healing effects. Shamans enhance cognition and manipulate the meaning of things without necessarily being charlatans.",
+      "order": 38
+    },
+    {
+      "id": "b040",
+      "sourceId": "awakening-ep1",
+      "kind": "transcript",
+      "text": "The episode closes by connecting meaning-making, altered states of consciousness, enhanced capacity to be in touch with the world, and wisdom. The word shaman means one who knows, one who sees, one who has insight. Shamans are considered wise people, and the next video will return to how this made humans into meaning makers.\n\n# Reader Steps",
+      "order": 39
+    }
+  ],
+  "readerSteps": [
+    {
+      "id": "s001",
+      "sectionId": "series-frame",
+      "sourceBlockIds": [
+        "b001",
+        "b002"
+      ],
+      "summary": "Vervaeke frames the series as a unified argument connecting his prior work into one map.",
+      "focusConcepts": [
+        {
+          "id": "john-vervaeke-project",
+          "weight": 0.86,
+          "mode": "explicit"
+        },
+        {
+          "id": "unified-argument",
+          "weight": 0.92,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r001",
+          "weight": 0.86
+        }
+      ]
+    },
+    {
+      "id": "s002",
+      "sectionId": "light-convergence",
+      "sourceBlockIds": [
+        "b003",
+        "b004",
+        "b005",
+        "b006",
+        "b007"
+      ],
+      "summary": "The lecture gathers positive convergences - Buddhism, cognitive science, mindfulness, wisdom, Stoicism, psychedelics, and meaning - as symptoms of a deeper search.",
+      "focusConcepts": [
+        {
+          "id": "cultural-convergence",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "mindfulness-revolution",
+          "weight": 0.84,
+          "mode": "explicit"
+        },
+        {
+          "id": "wisdom-hunger",
+          "weight": 0.84,
+          "mode": "explicit"
+        },
+        {
+          "id": "meaning-hunger",
+          "weight": 0.8,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r002",
+          "weight": 0.82
+        },
+        {
+          "id": "r003",
+          "weight": 0.76
+        },
+        {
+          "id": "r004",
+          "weight": 0.78
+        }
+      ]
+    },
+    {
+      "id": "s003",
+      "sectionId": "dark-convergence",
+      "sourceBlockIds": [
+        "b008",
+        "b009",
+        "b010",
+        "b011"
+      ],
+      "summary": "The dark symptoms - mental health crisis, nihilism, loss of trust, virtuality, and apocalyptic imagery - are also read as pointing toward the meaning crisis.",
+      "focusConcepts": [
+        {
+          "id": "dark-convergence",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "institutional-distrust",
+          "weight": 0.78,
+          "mode": "explicit"
+        },
+        {
+          "id": "apocalyptic-imagery",
+          "weight": 0.78,
+          "mode": "explicit"
+        },
+        {
+          "id": "meaning-crisis",
+          "weight": 0.92,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r005",
+          "weight": 0.88
+        },
+        {
+          "id": "r006",
+          "weight": 0.78
+        }
+      ]
+    },
+    {
+      "id": "s004",
+      "sectionId": "core-questions",
+      "sourceBlockIds": [
+        "b012",
+        "b013",
+        "b014",
+        "b015"
+      ],
+      "summary": "The series centers on three questions about meaning, hunger for meaning, and cultivating wisdom, then links them to self-transcendence and altered states.",
+      "focusConcepts": [
+        {
+          "id": "meaning-crisis",
+          "weight": 0.96,
+          "mode": "explicit"
+        },
+        {
+          "id": "wisdom-realizes-meaning",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "self-transcendence",
+          "weight": 0.84,
+          "mode": "explicit"
+        },
+        {
+          "id": "altered-states",
+          "weight": 0.82,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r007",
+          "weight": 0.9
+        },
+        {
+          "id": "r008",
+          "weight": 0.78
+        },
+        {
+          "id": "r009",
+          "weight": 0.76
+        }
+      ]
+    },
+    {
+      "id": "s005",
+      "sectionId": "dark-side",
+      "sourceBlockIds": [
+        "b016",
+        "b017"
+      ],
+      "summary": "Meaning-making has a shadow: the same adaptive intelligence that enables cognition also makes humans vulnerable to self-deception, foolishness, horror, and despair.",
+      "focusConcepts": [
+        {
+          "id": "self-deception",
+          "weight": 0.9,
+          "mode": "explicit"
+        },
+        {
+          "id": "foolishness",
+          "weight": 0.86,
+          "mode": "explicit"
+        },
+        {
+          "id": "adaptive-intelligence",
+          "weight": 0.84,
+          "mode": "explicit"
+        },
+        {
+          "id": "existential-disorientation",
+          "weight": 0.82,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r010",
+          "weight": 0.82
+        },
+        {
+          "id": "r011",
+          "weight": 0.82
+        },
+        {
+          "id": "r012",
+          "weight": 0.78
+        }
+      ]
+    },
+    {
+      "id": "s006",
+      "sectionId": "knowing",
+      "sourceBlockIds": [
+        "b018",
+        "b019",
+        "b020",
+        "b021",
+        "b022"
+      ],
+      "summary": "The method expands knowing beyond belief and pairs historical explanation with cognitive mechanism, aiming at existential transformation rather than a simple ideological answer.",
+      "focusConcepts": [
+        {
+          "id": "knowing-beyond-belief",
+          "weight": 0.9,
+          "mode": "explicit"
+        },
+        {
+          "id": "structural-functional-account",
+          "weight": 0.88,
+          "mode": "explicit"
+        },
+        {
+          "id": "historical-account",
+          "weight": 0.86,
+          "mode": "explicit"
+        },
+        {
+          "id": "simplistic-answers",
+          "weight": 0.76,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r013",
+          "weight": 0.82
+        },
+        {
+          "id": "r014",
+          "weight": 0.84
+        },
+        {
+          "id": "r015",
+          "weight": 0.72
+        }
+      ]
+    },
+    {
+      "id": "s007",
+      "sectionId": "upper-paleolithic",
+      "sourceBlockIds": [
+        "b023",
+        "b024",
+        "b025",
+        "b026"
+      ],
+      "summary": "The Upper Paleolithic transition becomes the first origin story: meaning-making expands with symbolic cognition, projectiles, calendars, trade, and distributed cognition.",
+      "focusConcepts": [
+        {
+          "id": "upper-paleolithic-transition",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "symbolic-cognition",
+          "weight": 0.86,
+          "mode": "explicit"
+        },
+        {
+          "id": "sociocognitive-response",
+          "weight": 0.84,
+          "mode": "explicit"
+        },
+        {
+          "id": "distributed-cognition",
+          "weight": 0.84,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r016",
+          "weight": 0.84
+        },
+        {
+          "id": "r017",
+          "weight": 0.86
+        },
+        {
+          "id": "r018",
+          "weight": 0.76
+        }
+      ]
+    },
+    {
+      "id": "s008",
+      "sectionId": "ritual-training",
+      "sourceBlockIds": [
+        "b027",
+        "b028",
+        "b029"
+      ],
+      "summary": "Trade and initiation rituals train the social mind: perspective-taking, mindsight, self-awareness, emotion regulation, decentering, trust, and loyalty.",
+      "focusConcepts": [
+        {
+          "id": "trade-rituals",
+          "weight": 0.88,
+          "mode": "explicit"
+        },
+        {
+          "id": "initiation-rituals",
+          "weight": 0.88,
+          "mode": "explicit"
+        },
+        {
+          "id": "mindsight",
+          "weight": 0.84,
+          "mode": "explicit"
+        },
+        {
+          "id": "decentering",
+          "weight": 0.8,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r019",
+          "weight": 0.86
+        },
+        {
+          "id": "r020",
+          "weight": 0.78
+        },
+        {
+          "id": "r021",
+          "weight": 0.84
+        }
+      ]
+    },
+    {
+      "id": "s009",
+      "sectionId": "exaptation-shamanism",
+      "sourceBlockIds": [
+        "b030",
+        "b031",
+        "b032",
+        "b033",
+        "b034",
+        "b035"
+      ],
+      "summary": "Exaptation and psychotechnology explain shamanism as a software change: ritual-trained capacities are reused to alter consciousness and enhance cognition.",
+      "focusConcepts": [
+        {
+          "id": "exaptation",
+          "weight": 0.9,
+          "mode": "explicit"
+        },
+        {
+          "id": "shamanism",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "psychotechnology",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "cognition-enhancement",
+          "weight": 0.86,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r022",
+          "weight": 0.84
+        },
+        {
+          "id": "r023",
+          "weight": 0.88
+        },
+        {
+          "id": "r024",
+          "weight": 0.86
+        }
+      ]
+    },
+    {
+      "id": "s010",
+      "sectionId": "insight-framing",
+      "sourceBlockIds": [
+        "b036",
+        "b037"
+      ],
+      "summary": "The nine-dot problem shows that insight depends on disrupting framing and changing attention, salience, relevance, importance, and realness.",
+      "focusConcepts": [
+        {
+          "id": "framing-disruption",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "insight",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "knowing-beyond-belief",
+          "weight": 0.84,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r025",
+          "weight": 0.9
+        },
+        {
+          "id": "r026",
+          "weight": 0.82
+        }
+      ]
+    },
+    {
+      "id": "s011",
+      "sectionId": "participatory-knowing",
+      "sourceBlockIds": [
+        "b038",
+        "b039",
+        "b040"
+      ],
+      "summary": "Participatory knowing connects the shamanic example back to meaning and wisdom: knowing by becoming, seeing, healing, and enhancing contact with the world.",
+      "focusConcepts": [
+        {
+          "id": "participatory-knowing",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "enhanced-contact-with-world",
+          "weight": 0.88,
+          "mode": "explicit"
+        },
+        {
+          "id": "wisdom",
+          "weight": 0.86,
+          "mode": "explicit"
+        },
+        {
+          "id": "meaning-making",
+          "weight": 0.84,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r027",
+          "weight": 0.88
+        },
+        {
+          "id": "r028",
+          "weight": 0.84
+        },
+        {
+          "id": "r029",
+          "weight": 0.78
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "series-frame",
+      "title": "A Unified Argument",
+      "summary": "Vervaeke starts by saying the series will draw his work together into one unified argument.",
+      "readerStepIds": [
+        "s001"
+      ]
+    },
+    {
+      "id": "light-convergence",
+      "title": "The Positive Search For Meaning",
+      "summary": "Buddhism, cognitive science, mindfulness, wisdom, Stoicism, psychedelics, happiness, and meaning in life converge as signs of a shared hunger.",
+      "readerStepIds": [
+        "s002"
+      ]
+    },
+    {
+      "id": "dark-convergence",
+      "title": "The Dark Symptoms Of Crisis",
+      "summary": "Mental health crisis, nihilism, institutional distrust, virtuality, and apocalyptic imagery are presented as the dark side of the same condition.",
+      "readerStepIds": [
+        "s003"
+      ]
+    },
+    {
+      "id": "core-questions",
+      "title": "Meaning, Wisdom, And Self-Transcendence",
+      "summary": "The series will ask what meaning is, why humans hunger for it, and how wisdom realizes it through self-transcendence and altered states.",
+      "readerStepIds": [
+        "s004"
+      ]
+    },
+    {
+      "id": "dark-side",
+      "title": "The Shadow Of Meaning-Making",
+      "summary": "Meaning-making is tied to self-deception, foolishness, absurdity, alienation, horror, despair, and loss of grip on reality.",
+      "readerStepIds": [
+        "s005"
+      ]
+    },
+    {
+      "id": "knowing",
+      "title": "Beyond Belief-Centered Knowing",
+      "summary": "The method expands knowing beyond belief and pairs historical explanation with cognitive mechanisms.",
+      "readerStepIds": [
+        "s006"
+      ]
+    },
+    {
+      "id": "upper-paleolithic",
+      "title": "The Upper Paleolithic Origin Story",
+      "summary": "The first origin story links human meaning-making to symbolic cognition, projectiles, calendrics, trading networks, and distributed cognition.",
+      "readerStepIds": [
+        "s007"
+      ]
+    },
+    {
+      "id": "ritual-training",
+      "title": "Rituals That Train The Social Mind",
+      "summary": "Trade and initiation rituals train mindsight, self-awareness, emotion regulation, decentering, trust, and group commitment.",
+      "readerStepIds": [
+        "s008"
+      ]
+    },
+    {
+      "id": "exaptation-shamanism",
+      "title": "Shamanism As Psychotechnology",
+      "summary": "Shamanism exapts ritual-trained capacities into a psychotechnology for altered states and cognitive enhancement.",
+      "readerStepIds": [
+        "s009"
+      ]
+    },
+    {
+      "id": "insight-framing",
+      "title": "Insight As Frame Disruption",
+      "summary": "The nine-dot problem shows why insight requires changing framing rather than merely acquiring a belief.",
+      "readerStepIds": [
+        "s010"
+      ]
+    },
+    {
+      "id": "participatory-knowing",
+      "title": "Knowing By Becoming",
+      "summary": "Participatory knowing ties shamanic practice to meaning-making, enhanced contact with the world, and wisdom.",
+      "readerStepIds": [
+        "s011"
+      ]
+    }
+  ],
+  "concepts": {
+    "atomic": [
+      {
+        "id": "john-vervaeke-project",
+        "label": "John Vervaeke's Project",
+        "aliases": [],
+        "parentIds": [
+          "series-frame-cluster"
+        ],
+        "firstSeenBlockId": "b001"
+      },
+      {
+        "id": "unified-argument",
+        "label": "Unified Argument",
+        "aliases": [],
+        "parentIds": [
+          "series-frame-cluster"
+        ],
+        "firstSeenBlockId": "b002"
+      },
+      {
+        "id": "cultural-convergence",
+        "label": "Cultural Convergence",
+        "aliases": [],
+        "parentIds": [
+          "symptoms-of-crisis"
+        ],
+        "firstSeenBlockId": "b003"
+      },
+      {
+        "id": "mindfulness-revolution",
+        "label": "Mindfulness Revolution",
+        "aliases": [],
+        "parentIds": [
+          "symptoms-of-crisis"
+        ],
+        "firstSeenBlockId": "b003"
+      },
+      {
+        "id": "wisdom-hunger",
+        "label": "Hunger For Wisdom",
+        "aliases": [],
+        "parentIds": [
+          "symptoms-of-crisis"
+        ],
+        "firstSeenBlockId": "b005"
+      },
+      {
+        "id": "meaning-hunger",
+        "label": "Meaning Hunger",
+        "aliases": [],
+        "parentIds": [
+          "core-thesis"
+        ],
+        "firstSeenBlockId": "b006"
+      },
+      {
+        "id": "dark-convergence",
+        "label": "Dark Convergence",
+        "aliases": [],
+        "parentIds": [
+          "symptoms-of-crisis"
+        ],
+        "firstSeenBlockId": "b008"
+      },
+      {
+        "id": "institutional-distrust",
+        "label": "Institutional Distrust",
+        "aliases": [],
+        "parentIds": [
+          "symptoms-of-crisis"
+        ],
+        "firstSeenBlockId": "b008"
+      },
+      {
+        "id": "apocalyptic-imagery",
+        "label": "Apocalyptic Imagery",
+        "aliases": [],
+        "parentIds": [
+          "symptoms-of-crisis"
+        ],
+        "firstSeenBlockId": "b009"
+      },
+      {
+        "id": "meaning-crisis",
+        "label": "Meaning Crisis",
+        "aliases": [],
+        "parentIds": [
+          "core-thesis"
+        ],
+        "firstSeenBlockId": "b010"
+      },
+      {
+        "id": "other-crises",
+        "label": "Other Crises",
+        "aliases": [],
+        "parentIds": [
+          "core-thesis"
+        ],
+        "firstSeenBlockId": "b011"
+      },
+      {
+        "id": "wisdom-realizes-meaning",
+        "label": "Wisdom Realizes Meaning",
+        "aliases": [],
+        "parentIds": [
+          "core-thesis"
+        ],
+        "firstSeenBlockId": "b012"
+      },
+      {
+        "id": "self-transcendence",
+        "label": "Self-Transcendence",
+        "aliases": [],
+        "parentIds": [
+          "core-thesis"
+        ],
+        "firstSeenBlockId": "b014"
+      },
+      {
+        "id": "altered-states",
+        "label": "Altered States",
+        "aliases": [],
+        "parentIds": [
+          "altered-state-practices"
+        ],
+        "firstSeenBlockId": "b015"
+      },
+      {
+        "id": "self-deception",
+        "label": "Self-Deception",
+        "aliases": [],
+        "parentIds": [
+          "dark-side-of-cognition"
+        ],
+        "firstSeenBlockId": "b016"
+      },
+      {
+        "id": "foolishness",
+        "label": "Foolishness",
+        "aliases": [],
+        "parentIds": [
+          "dark-side-of-cognition"
+        ],
+        "firstSeenBlockId": "b016"
+      },
+      {
+        "id": "adaptive-intelligence",
+        "label": "Adaptive Intelligence",
+        "aliases": [],
+        "parentIds": [
+          "dark-side-of-cognition"
+        ],
+        "firstSeenBlockId": "b017"
+      },
+      {
+        "id": "existential-disorientation",
+        "label": "Existential Disorientation",
+        "aliases": [],
+        "parentIds": [
+          "dark-side-of-cognition"
+        ],
+        "firstSeenBlockId": "b017"
+      },
+      {
+        "id": "knowing-beyond-belief",
+        "label": "Knowing Beyond Belief",
+        "aliases": [],
+        "parentIds": [
+          "method-and-knowing"
+        ],
+        "firstSeenBlockId": "b018"
+      },
+      {
+        "id": "historical-account",
+        "label": "Historical Account",
+        "aliases": [],
+        "parentIds": [
+          "method-and-knowing"
+        ],
+        "firstSeenBlockId": "b020"
+      },
+      {
+        "id": "structural-functional-account",
+        "label": "Structural-Functional Account",
+        "aliases": [],
+        "parentIds": [
+          "method-and-knowing"
+        ],
+        "firstSeenBlockId": "b020"
+      },
+      {
+        "id": "simplistic-answers",
+        "label": "Simplistic Answers",
+        "aliases": [],
+        "parentIds": [
+          "method-and-knowing"
+        ],
+        "firstSeenBlockId": "b021"
+      },
+      {
+        "id": "upper-paleolithic-transition",
+        "label": "Upper Paleolithic Transition",
+        "aliases": [],
+        "parentIds": [
+          "origins-of-meaning"
+        ],
+        "firstSeenBlockId": "b023"
+      },
+      {
+        "id": "symbolic-cognition",
+        "label": "Symbolic Cognition",
+        "aliases": [],
+        "parentIds": [
+          "origins-of-meaning"
+        ],
+        "firstSeenBlockId": "b024"
+      },
+      {
+        "id": "sociocognitive-response",
+        "label": "Sociocognitive Response",
+        "aliases": [],
+        "parentIds": [
+          "origins-of-meaning"
+        ],
+        "firstSeenBlockId": "b025"
+      },
+      {
+        "id": "distributed-cognition",
+        "label": "Distributed Cognition",
+        "aliases": [],
+        "parentIds": [
+          "origins-of-meaning"
+        ],
+        "firstSeenBlockId": "b026"
+      },
+      {
+        "id": "trade-rituals",
+        "label": "Trade Rituals",
+        "aliases": [],
+        "parentIds": [
+          "ritual-and-social-mind"
+        ],
+        "firstSeenBlockId": "b027"
+      },
+      {
+        "id": "mindsight",
+        "label": "Mindsight",
+        "aliases": [],
+        "parentIds": [
+          "ritual-and-social-mind"
+        ],
+        "firstSeenBlockId": "b028"
+      },
+      {
+        "id": "self-awareness",
+        "label": "Self-Awareness",
+        "aliases": [],
+        "parentIds": [
+          "ritual-and-social-mind"
+        ],
+        "firstSeenBlockId": "b028"
+      },
+      {
+        "id": "initiation-rituals",
+        "label": "Initiation Rituals",
+        "aliases": [],
+        "parentIds": [
+          "ritual-and-social-mind"
+        ],
+        "firstSeenBlockId": "b029"
+      },
+      {
+        "id": "decentering",
+        "label": "Decentering",
+        "aliases": [],
+        "parentIds": [
+          "ritual-and-social-mind"
+        ],
+        "firstSeenBlockId": "b029"
+      },
+      {
+        "id": "exaptation",
+        "label": "Exaptation",
+        "aliases": [],
+        "parentIds": [
+          "shamanic-cognition"
+        ],
+        "firstSeenBlockId": "b030"
+      },
+      {
+        "id": "shamanism",
+        "label": "Shamanism",
+        "aliases": [],
+        "parentIds": [
+          "shamanic-cognition"
+        ],
+        "firstSeenBlockId": "b031"
+      },
+      {
+        "id": "psychotechnology",
+        "label": "Psychotechnology",
+        "aliases": [],
+        "parentIds": [
+          "shamanic-cognition"
+        ],
+        "firstSeenBlockId": "b034"
+      },
+      {
+        "id": "cognition-enhancement",
+        "label": "Cognition Enhancement",
+        "aliases": [],
+        "parentIds": [
+          "shamanic-cognition"
+        ],
+        "firstSeenBlockId": "b033"
+      },
+      {
+        "id": "framing-disruption",
+        "label": "Framing Disruption",
+        "aliases": [],
+        "parentIds": [
+          "insight-and-participation"
+        ],
+        "firstSeenBlockId": "b036"
+      },
+      {
+        "id": "insight",
+        "label": "Insight",
+        "aliases": [],
+        "parentIds": [
+          "insight-and-participation"
+        ],
+        "firstSeenBlockId": "b037"
+      },
+      {
+        "id": "participatory-knowing",
+        "label": "Participatory Knowing",
+        "aliases": [],
+        "parentIds": [
+          "insight-and-participation"
+        ],
+        "firstSeenBlockId": "b038"
+      },
+      {
+        "id": "enhanced-contact-with-world",
+        "label": "Enhanced Contact With The World",
+        "aliases": [],
+        "parentIds": [
+          "insight-and-participation"
+        ],
+        "firstSeenBlockId": "b040"
+      },
+      {
+        "id": "wisdom",
+        "label": "Wisdom",
+        "aliases": [],
+        "parentIds": [
+          "core-thesis"
+        ],
+        "firstSeenBlockId": "b040"
+      },
+      {
+        "id": "meaning-making",
+        "label": "Meaning-Making",
+        "aliases": [],
+        "parentIds": [
+          "core-thesis"
+        ],
+        "firstSeenBlockId": "b040"
+      }
+    ],
+    "clustered": [
+      {
+        "id": "series-frame-cluster",
+        "label": "Series Frame",
+        "childIds": [
+          "john-vervaeke-project",
+          "unified-argument"
+        ]
+      },
+      {
+        "id": "symptoms-of-crisis",
+        "label": "Symptoms Of Crisis",
+        "childIds": [
+          "cultural-convergence",
+          "mindfulness-revolution",
+          "wisdom-hunger",
+          "dark-convergence",
+          "institutional-distrust",
+          "apocalyptic-imagery"
+        ]
+      },
+      {
+        "id": "core-thesis",
+        "label": "Core Thesis",
+        "childIds": [
+          "meaning-hunger",
+          "meaning-crisis",
+          "other-crises",
+          "wisdom-realizes-meaning",
+          "self-transcendence",
+          "wisdom",
+          "meaning-making"
+        ]
+      },
+      {
+        "id": "altered-state-practices",
+        "label": "Altered-State Practices",
+        "childIds": [
+          "altered-states"
+        ]
+      },
+      {
+        "id": "dark-side-of-cognition",
+        "label": "Dark Side Of Cognition",
+        "childIds": [
+          "self-deception",
+          "foolishness",
+          "adaptive-intelligence",
+          "existential-disorientation"
+        ]
+      },
+      {
+        "id": "method-and-knowing",
+        "label": "Method And Knowing",
+        "childIds": [
+          "knowing-beyond-belief",
+          "historical-account",
+          "structural-functional-account",
+          "simplistic-answers"
+        ]
+      },
+      {
+        "id": "origins-of-meaning",
+        "label": "Origins Of Meaning",
+        "childIds": [
+          "upper-paleolithic-transition",
+          "symbolic-cognition",
+          "sociocognitive-response",
+          "distributed-cognition"
+        ]
+      },
+      {
+        "id": "ritual-and-social-mind",
+        "label": "Ritual And Social Mind",
+        "childIds": [
+          "trade-rituals",
+          "mindsight",
+          "self-awareness",
+          "initiation-rituals",
+          "decentering"
+        ]
+      },
+      {
+        "id": "shamanic-cognition",
+        "label": "Shamanic Cognition",
+        "childIds": [
+          "exaptation",
+          "shamanism",
+          "psychotechnology",
+          "cognition-enhancement"
+        ]
+      },
+      {
+        "id": "insight-and-participation",
+        "label": "Insight And Participation",
+        "childIds": [
+          "framing-disruption",
+          "insight",
+          "participatory-knowing",
+          "enhanced-contact-with-world"
+        ]
+      }
+    ]
+  },
+  "relations": [
+    {
+      "id": "r001",
+      "from": "john-vervaeke-project",
+      "to": "unified-argument",
+      "type": "aims_at",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b001",
+        "b002"
+      ]
+    },
+    {
+      "id": "r002",
+      "from": "cultural-convergence",
+      "to": "meaning-crisis",
+      "type": "signals",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b003",
+        "b004",
+        "b005",
+        "b006",
+        "b007"
+      ]
+    },
+    {
+      "id": "r003",
+      "from": "mindfulness-revolution",
+      "to": "cultural-convergence",
+      "type": "exemplifies",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b003",
+        "b004"
+      ]
+    },
+    {
+      "id": "r004",
+      "from": "wisdom-hunger",
+      "to": "meaning-hunger",
+      "type": "expresses",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b005",
+        "b006"
+      ]
+    },
+    {
+      "id": "r005",
+      "from": "dark-convergence",
+      "to": "meaning-crisis",
+      "type": "signals",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b008",
+        "b009",
+        "b010"
+      ]
+    },
+    {
+      "id": "r006",
+      "from": "meaning-crisis",
+      "to": "other-crises",
+      "type": "interdepends_with",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b011"
+      ]
+    },
+    {
+      "id": "r007",
+      "from": "wisdom-realizes-meaning",
+      "to": "meaning-crisis",
+      "type": "responds_to",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b012",
+        "b013"
+      ]
+    },
+    {
+      "id": "r008",
+      "from": "self-transcendence",
+      "to": "meaning-hunger",
+      "type": "addresses",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b014"
+      ]
+    },
+    {
+      "id": "r009",
+      "from": "altered-states",
+      "to": "self-transcendence",
+      "type": "supports",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b015"
+      ]
+    },
+    {
+      "id": "r010",
+      "from": "adaptive-intelligence",
+      "to": "self-deception",
+      "type": "enables",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b016",
+        "b017"
+      ]
+    },
+    {
+      "id": "r011",
+      "from": "self-deception",
+      "to": "foolishness",
+      "type": "causes",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b016"
+      ]
+    },
+    {
+      "id": "r012",
+      "from": "existential-disorientation",
+      "to": "meaning-crisis",
+      "type": "manifests",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b017"
+      ]
+    },
+    {
+      "id": "r013",
+      "from": "historical-account",
+      "to": "structural-functional-account",
+      "type": "constrains",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b020"
+      ]
+    },
+    {
+      "id": "r014",
+      "from": "structural-functional-account",
+      "to": "meaning-crisis",
+      "type": "explains",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b020"
+      ]
+    },
+    {
+      "id": "r015",
+      "from": "simplistic-answers",
+      "to": "meaning-crisis",
+      "type": "distorts",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b021"
+      ]
+    },
+    {
+      "id": "r016",
+      "from": "upper-paleolithic-transition",
+      "to": "symbolic-cognition",
+      "type": "manifests",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b023",
+        "b024"
+      ]
+    },
+    {
+      "id": "r017",
+      "from": "sociocognitive-response",
+      "to": "distributed-cognition",
+      "type": "enables",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b025",
+        "b026"
+      ]
+    },
+    {
+      "id": "r018",
+      "from": "distributed-cognition",
+      "to": "symbolic-cognition",
+      "type": "amplifies",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b026"
+      ]
+    },
+    {
+      "id": "r019",
+      "from": "trade-rituals",
+      "to": "mindsight",
+      "type": "trains",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b027",
+        "b028"
+      ]
+    },
+    {
+      "id": "r020",
+      "from": "mindsight",
+      "to": "self-awareness",
+      "type": "enhances",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b028"
+      ]
+    },
+    {
+      "id": "r021",
+      "from": "initiation-rituals",
+      "to": "decentering",
+      "type": "trains",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b029"
+      ]
+    },
+    {
+      "id": "r022",
+      "from": "exaptation",
+      "to": "shamanism",
+      "type": "explains",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b030",
+        "b031"
+      ]
+    },
+    {
+      "id": "r023",
+      "from": "shamanism",
+      "to": "psychotechnology",
+      "type": "exemplifies",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b031",
+        "b034",
+        "b035"
+      ]
+    },
+    {
+      "id": "r024",
+      "from": "psychotechnology",
+      "to": "cognition-enhancement",
+      "type": "enables",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b034"
+      ]
+    },
+    {
+      "id": "r025",
+      "from": "framing-disruption",
+      "to": "insight",
+      "type": "enables",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b036",
+        "b037"
+      ]
+    },
+    {
+      "id": "r026",
+      "from": "knowing-beyond-belief",
+      "to": "insight",
+      "type": "constrains",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b037"
+      ]
+    },
+    {
+      "id": "r027",
+      "from": "participatory-knowing",
+      "to": "enhanced-contact-with-world",
+      "type": "enables",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b038",
+        "b040"
+      ]
+    },
+    {
+      "id": "r028",
+      "from": "shamanism",
+      "to": "wisdom",
+      "type": "embodies",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b040"
+      ]
+    },
+    {
+      "id": "r029",
+      "from": "meaning-making",
+      "to": "wisdom",
+      "type": "supports",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b040"
+      ]
+    }
+  ],
+  "intakes": [],
+  "revisions": [],
+  "meta": {
+    "authoring": {
+      "kind": "mindgraph.authoring",
+      "runtime": "awakening-meaning-crisis-introduction-reading.mindgraph.json",
+      "filePath": "graphs/awakening-meaning-crisis-introduction-reading.mindgraph.md"
+    }
+  }
+}

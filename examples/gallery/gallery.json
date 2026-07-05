@@ -1,0 +1,23 @@
+[
+  {
+    "slug": "adolescence-of-technology",
+    "file": "adolescence-of-technology.mindgraph.json",
+    "title": "The Adolescence of Technology",
+    "domain": "technology & society",
+    "blurb": "44 concepts on how a maturing tech industry grows into its responsibilities."
+  },
+  {
+    "slug": "anthropic-safety",
+    "file": "anthropic-safety.mindgraph.json",
+    "title": "Anthropic's Safety Superpower",
+    "domain": "AI & safety",
+    "blurb": "39 concepts arguing that safety work is a competitive advantage, not a tax."
+  },
+  {
+    "slug": "meaning-crisis",
+    "file": "meaning-crisis.mindgraph.json",
+    "title": "Awakening from the Meaning Crisis",
+    "domain": "philosophy & meaning",
+    "blurb": "41 concepts mapping Vervaeke's introduction to the modern crisis of meaning."
+  }
+]

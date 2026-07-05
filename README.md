@@ -46,6 +46,13 @@ mindgraph completions zsh > /opt/homebrew/share/zsh/site-functions/_mindgraph
 
 `mindgraph <TAB>` then lists subcommands with descriptions, and `mindgraph open <TAB>` offers only `*.mindgraph.json|md` documents. Regenerate the file after upgrading the CLI. (If completions don't appear, clear the cache: `rm ~/.zcompdump*` and restart the shell.)
 
+**Browse the samples.** The package ships a small gallery of finished graphs — no setup, no API key:
+
+```bash
+mindgraph gallery              # list the bundled sample graphs
+mindgraph view meaning-crisis  # read one in your browser (any gallery <slug>)
+```
+
 **Read a graph.** Two ways to open the reading UI:
 
 ```bash

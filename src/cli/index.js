@@ -19,6 +19,7 @@ import { evaluateSourceFirstReading } from '../view-model/evaluateSourceFirstRea
 import { registry } from '../operations/index.js';
 import { buildZshCompletion } from './completions.js';
 import { describeProduceState, produceGuidanceLines } from '../core/produceState.js';
+import { loadGallery, resolveGallerySlug } from './gallery.js';
 
 const pkg = createRequire(import.meta.url)('../../package.json');
 
@@ -35,6 +36,7 @@ function printHelp() {
 Usage:
   mindgraph --help
   mindgraph init <output-file>
+  mindgraph gallery
   mindgraph validate <input-file>
   mindgraph inspect <input-file>
   mindgraph authoring validate <input-file.md> [--json]
@@ -88,7 +90,8 @@ Commands:
   stats recompute        Recompute concept recurrence and activation stats
   digest apply           Apply a batch digest plan: concepts, relations, activations, macro frames, ignored spans
   digest evaluate        Report digest quality signals: empty frames, unused concepts, inactive relations, top activations
-  view                   Open the read-only reading UI for a document in the browser
+  gallery                List the bundled sample graphs; read one with mindgraph view <slug>
+  view                   Open the read-only reading UI for a document in the browser (accepts a gallery <slug>)
   open / ask             Launch the live UI (with the Ask agent) and open the browser; defaults to the newest graphs/*.mindgraph.md
   completions zsh        Print a zsh completion script (save into a $fpath dir as _mindgraph)
 
@@ -213,7 +216,33 @@ const args = process.argv.slice(2);
 const [command, subcommand, ...rest] = args;
 
 if (!command || command === '--help' || command === '-h') {
+  if (!command) {
+    console.log('👋 New here? Run  mindgraph gallery  to browse sample graphs, then');
+    console.log('   mindgraph view <slug>  to read one in your browser — no setup, no API key.');
+    console.log('');
+  }
   printHelp();
+  process.exit(0);
+}
+
+if (command === 'gallery') {
+  const entries = loadGallery();
+  if (!entries.length) {
+    console.error('No bundled gallery found.');
+    process.exit(1);
+  }
+  if (subcommand === '--json' || rest.includes('--json')) {
+    console.log(JSON.stringify(entries.map(({ slug, title, domain, blurb }) => ({ slug, title, domain, blurb })), null, 2));
+    process.exit(0);
+  }
+  console.log('Sample graphs (read with  mindgraph view <slug>  — no API key needed):');
+  console.log('');
+  for (const entry of entries) {
+    console.log(`  ${entry.slug}`);
+    console.log(`    ${entry.title} — ${entry.domain}`);
+    console.log(`    ${entry.blurb}`);
+    console.log('');
+  }
   process.exit(0);
 }
 
@@ -956,10 +985,17 @@ if (command === 'view') {
 
   const serverArgs = [serverScript, '--port', port, '--host', host];
   if (target) {
-    const docPath = path.resolve(target);
+    // Resolve, in order: an existing path, then a bundled gallery <slug>.
+    let docPath = path.resolve(target);
     if (!fs.existsSync(docPath)) {
-      console.error(`Document not found: ${docPath}`);
-      process.exit(1);
+      const gallery = resolveGallerySlug(target);
+      if (gallery) {
+        docPath = gallery;
+      } else {
+        console.error(`Document not found: ${target}`);
+        console.error('Pass a path, or run  mindgraph gallery  to see sample <slug>s.');
+        process.exit(1);
+      }
     }
     serverArgs.push('--doc', docPath);
   }

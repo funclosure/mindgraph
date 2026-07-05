@@ -1,0 +1,1814 @@
+{
+  "kind": "mindgraph.source-first",
+  "version": 1,
+  "title": "Anthropic's Safety Superpower",
+  "sources": [
+    {
+      "id": "anthropic-safety-superpower",
+      "type": "article",
+      "title": "Anthropic's Safety Superpower",
+      "path": "/Users/victor/.codex/attachments/9affd853-b279-45c7-aa57-39cdcd68f01c/pasted-text.txt"
+    }
+  ],
+  "sourceBlocks": [
+    {
+      "id": "b001",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Listen to this post:",
+      "order": 0
+    },
+    {
+      "id": "b002",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Log in to listen I’m sympathetic to the cynics who consistently characterize Anthropic’s public statements, particularly those surrounding their model releases, as scare-mongering for the sake of marketing. It was only two months ago that Anthropic announced Mythos Preview, a model that they said was too dangerous to make publicly available, thanks in particular to its advanced cybersecurity capabilities. Then, two months later, the company publicly released Fable, a version of Mythos with various safety guardrails.",
+      "order": 1
+    },
+    {
+      "id": "b003",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Fable is, in my limited experience, a very impressive model. It’s increasingly difficult to objectively evaluate models for anything other than coding performance, but there is subjective feel, and I found my interactions with Fable to be extremely impressive; it made other models, including GPT 5.5 and Opus 4.8, feel small and dumb. The two times I felt that way previously were with GPT-4 and Grok 4, both of which represented new generations in terms of base model size and complexity; my sense is that Fable is downstream of a new pre-train and the first of a new generation.",
+      "order": 2
+    },
+    {
+      "id": "b004",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "To that end, I can certainly buy the case that Fable/Mythos is in fact more capable when it comes to identifying and exploiting security issues, and that Anthropic’s cautious roll-out was justified. The problem with publicly releasing models, however, is that guardrails can be jailbroken, and apparently that is exactly what happened shortly after the release.",
+      "order": 3
+    },
+    {
+      "id": "b005",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Anthropic vs. the U.S. Government, Again What happened next is somewhat unclear. Anthropic wrote in a blog post:",
+      "order": 4
+    },
+    {
+      "id": "b006",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "The US government, citing national security authorities, has issued an export control directive to suspend all access to Fable 5 and Mythos 5 by any foreign national, whether inside or outside the United States, including foreign national Anthropic employees. The net effect of this order is that we must abruptly disable Fable 5 and Mythos 5 for all our customers to ensure compliance. Access to all other Anthropic models will not be affected.",
+      "order": 5
+    },
+    {
+      "id": "b007",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "We received the directive from the government today at 5:21pm (ET). The letter did not provide specific details of its national security concern. Our understanding is that the government believes it has become aware of a method of bypassing, or “jailbreaking” Fable 5. We reviewed a demonstration of this specific technique being used to identify a small number of previously known, minor vulnerabilities. These vulnerabilities all appear relatively simple, and we have found that other publicly-available models are able to discover them as well without requiring a bypass.",
+      "order": 6
+    },
+    {
+      "id": "b008",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Anthropic went on to make the case that non-universal jailbreaks were inevitable and also narrow, and that there was no evidence of a universal jailbreak; the jailbreak that was found, meanwhile, appears to have been reported by Amazon, which is notable given Amazon is both an investor in Anthropic and a major provider of inference to the company. As I write this, senior Anthropic staff are in Washington D.C. seeking to resolve what they insist is a misunderstanding, and which White House officials are suggesting is insouciance by the company’s leadership to legitimate national security concerns.",
+      "order": 7
+    },
+    {
+      "id": "b009",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "I don’t actually have much to add to the current conflict given how many facts are in dispute; what I am not surprised about is the fact that the conflict is happening: I already explained in Anthropic and Alignment why conflict between the U.S. government and Anthropic was inevitable. To that end, people who are arguing that Mythos isn’t powerful enough to warrant the government’s drastic action are missing the point: if it’s not powerful enough now, the next one will be, or the one after that, particularly now that models are increasingly useful in creating their successors.",
+      "order": 8
+    },
+    {
+      "id": "b010",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "That, however, raises another question — one that seems to validate the cynics’ viewpoint: if Mythos is so dangerous, why even release Fable in the first place, and why fight with the government doing exactly what you claim to want? In fact, I think that Anthropic’s actions are quite understandable; what makes the company unique is how it justifies them, and it is those justifications that both give the cynics their fuel and Anthropic its magic.",
+      "order": 9
+    },
+    {
+      "id": "b011",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "The Economic Imperative For the first few years of AI the most economic value has flown to compute, for obvious reasons: we don’t have enough supply to meet demand, which has meant skyrocketing prices; the biggest beneficiaries have been Nvidia, TSMC, and the memory makers (SK hynix, Samsung, and Micron). Anthropic and OpenAI, meanwhile, have collectively lost tens of billions of dollars building leading-edge models that, once released, are distilled and commoditized by open source models, primarily from China.",
+      "order": 10
+    },
+    {
+      "id": "b012",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "This represents the bear case for the labs — they never cover their costs because their differentiation is fleeting, while free alternatives become “good enough” — and I think it’s a legitimate one. A world where models are interchangeable is one where models are commodities, while most of the value flows elsewhere. Right now that’s compute, but in the fullness of time, whenever we have enough compute, the most valuable place to be in the value chain will be the place that has always been the most valuable: owning the user touchpoint.",
+      "order": 11
+    },
+    {
+      "id": "b013",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "To that end, it has long been clear to me that the frontier labs have the economic imperative to move closer to the user. If you own the user touchpoint, then you have meaningful lock-in, and the best way to own the user touchpoint is to be the canvas for everything they need to do. This, by extension, means that the frontier labs are on a collision course with software companies: it’s software that owns the user touchpoint, and it’s in the frontier labs’ long-term interest to not simply be a commodity input into software but to simply replace software outright.",
+      "order": 12
+    },
+    {
+      "id": "b014",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Software companies, meanwhile, are working to do the opposite. Satya Nadella laid out his vision for how companies should build on models in an essay on X:",
+      "order": 13
+    },
+    {
+      "id": "b015",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Every company is going to have to build what I think of as human capital and token capital. Human capital comprises the knowledge, judgment, relationships, ingenuity, and pattern recognition of its people, while token capital is the firm’s AI capability it builds and owns. Importantly, human capital does not become less valuable as token capital grows. It only becomes more valuable! I believe human agency will be the driver of token capital growth. Humans will set ambitious goals, connect dots across domains, build relationships, and recognize patterns that matter most. Without human direction, you have compute running in circles.",
+      "order": 14
+    },
+    {
+      "id": "b016",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "This means the real opportunity is not in picking the best model but instead in building a learning loop on top of models where human capital and token capital compound. You can offload a task, or even a job, but you can never offload your learning. The future of the firm is the ability to compound that learning across people and AI. This requires a new architectural approach where every business is able to build agentic systems that improve over time, while still retaining control over their IP. A company should be able to switch out a “generalist” model without losing the “company veteran” expertise built into their learning system. This is the key “test” of your control and sovereignty in the era ahead.",
+      "order": 15
+    },
+    {
+      "id": "b017",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Nadella set this vision off with a warning:",
+      "order": 16
+    },
+    {
+      "id": "b018",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "The last thing any of us want is a world where every company across every sector is ceding value to a few models that eat everything they see. If all the value is accrued by only a few models, the political economy will simply not tolerate it. There is no societal permission for an AI future that hollows out entire industries.",
+      "order": 17
+    },
+    {
+      "id": "b019",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Think about what happened in the first phase of globalization where entire industrial economies were hollowed out by outsourcing. The GDP numbers looked fine on the surface, but the displacement was real and the consequences are still being felt. Let us not bring that dynamic into the AI era, with a small number of AI systems capturing all the economic returns, while entire industries find their knowledge commoditized right out from underneath them.",
+      "order": 18
+    },
+    {
+      "id": "b020",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Here’s the problem with that analogy: the globalization happened, and the industrial economies were hollowed out. There’s a possibility that this isn’t a warning but a prophecy; small wonder Nadella is raising the alarm given that Microsoft could be one of the casualties. And, by the same token, the economic imperative for the model makers is to accomplish exactly this.",
+      "order": 19
+    },
+    {
+      "id": "b021",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "The Data Imperative The models — not even Mythos — are not yet at this point. What they need, beyond more compute, is more and better data. Model improvements increasingly come from reinforcement learning; some of this can be generated synthetically, but the most powerful lever for a frontier lab is real world use.",
+      "order": 20
+    },
+    {
+      "id": "b022",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "This, I think, is a major reason why both OpenAI and Anthropic offer their heavily subsidized subscription plans. SemiAnalysis recently estimated that a $200 plan gets you $8,000 worth of Claude tokens and $14,000 worth of Codex tokens. Of course both are fighting for user and developer mindshare, but they’re also fighting to have access to actual usage data to make their models better.",
+      "order": 21
+    },
+    {
+      "id": "b023",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Anthropic upped the ante in a major way with Fable, announcing that they would retain the data for all usage for 30 days, even for their enterprise plans that previously promised zero data retention. The company said they would not train on this data, but they didn’t put in any sort of safeguards to guarantee they wouldn’t do so in the future (like storing the data with a third party). If this policy change (whenever Fable is restored) doesn’t lead to a significant loss of customers, I suspect it’s only a matter of time until they start using the data: it’s simply too valuable to their end goals.",
+      "order": 22
+    },
+    {
+      "id": "b024",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Note also the virtuous cycle with moving up into user touchpoints: the more workflows that are done directly with Claude or Codex, the more data each company gets to feed back into their training, which makes their products that much more capable and useful, expanding the number of workflows they can serve, expanding their access to data.",
+      "order": 23
+    },
+    {
+      "id": "b025",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Nadella, in his essay, highlights the importance of this data, but naturally thinks it should be independent from the model:",
+      "order": 24
+    },
+    {
+      "id": "b026",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Companies need to turn their workflows, domain knowledge, and accumulated judgment into AI systems that improve with each use. Private evals should capture whether a model is actually improving against outcomes that matter to the business (not just external benchmarks!). Private reinforcement learning environments should let models grow stronger on real traces from inside the organization. Its knowledge base makes institutional memory queryable and use of tokens more efficient.",
+      "order": 25
+    },
+    {
+      "id": "b027",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "This loop becomes the new IP of the firm. I think of it as a hill climbing machine. And unlike most assets, it compounds. Every improved workflow generates better training signal, which accelerates the accumulation of tacit knowledge unique to the firm. The companies that build this early will have an advantage that is hard to replicate, regardless of any new individual model capability.",
+      "order": 26
+    },
+    {
+      "id": "b028",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "What if, however, the companies that give in to Anthropic’s data policies get better results right now? Or what if existing companies resist, leaving the door open for new companies — or the model makers themselves — to outcompete them in the market? Anthropic is certainly putting the resolve Nadella is calling for to the test.",
+      "order": 27
+    },
+    {
+      "id": "b029",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "The Power Imperative The data retention policies around Fable/Mythos were, amazingly enough, not even the most controversial part of the launch. Rather, Anthropic said at launch that it would silently degrade Fable performance if it were used for LLM development; from the System Card:",
+      "order": 28
+    },
+    {
+      "id": "b030",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "We have also added safeguards related to frontier LLM development. As discussed in Section 6.1 of our February 2026 Risk Report, we are concerned about the risks of accelerating the overall pace of AI development, though we remain uncertain about the severity of these risks. In particular, our concern is with — as we wrote then — “accelerating other AI developers in building powerful AI systems that pose similar risks to the ones ours pose – without necessarily having commensurate safeguards.”",
+      "order": 29
+    },
+    {
+      "id": "b031",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "In light of the ability of recent models to accelerate their own development, we’ve implemented new interventions that limit Claude’s effectiveness for requests targeting frontier LLM development (for example, on building pretraining pipelines, distributed training infrastructure, or ML accelerator design). Using Claude to develop competing models already violates our Terms of Service, but enforcing this restriction through our safeguards avoids accelerating the actors most willing to violate these terms.",
+      "order": 30
+    },
+    {
+      "id": "b032",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Unlike our interventions for cybersecurity, biology and chemistry, and distillation attempts, these safeguards will not be visible to the user. Fable 5 will not fall back to a different model. Instead, the safeguards will limit effectiveness through methods such as prompt modification, steering vectors, or parameter-efficient fine-tuning (PEFT). These interventions will not affect the vast majority of coding work. We estimate they will impact ~0.03% of traffic, concentrated in fewer than 0.1% of organizations. When these interventions are active, we expect them to have minimal behavioral impact on the model except to limit its effectiveness in developing frontier LLMs. Claude will still respond helpfully to user requests. We’ll continue to improve the precision of our detection methods following the launch of this model.",
+      "order": 31
+    },
+    {
+      "id": "b033",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Anthropic walked back this change — Fable will simply hand off LLM-related requests to Opus 4.8, and disclose this hand off to the user — but I think the initial policy was very illuminating. On one hand, I actually don’t begrudge Anthropic not wanting to help its competitors; on the other hand, what should be blisteringly clear is that Anthropic does not think that anyone else other than them should even be making frontier LLMs.",
+      "order": 32
+    },
+    {
+      "id": "b034",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "What makes this policy all the more remarkable is the fact that it was enacted only two months after Anthropic had that dispute with the Department of War: the latter wanted to use Claude for any legal use, while the former wanted more stringent controls around surveillance and autonomous weapons. What this degradation represented was both the capability and willingness of Anthropic to silently alter its models to achieve its policy preferences. In other words, Anthropic willfully validated some of its critics’ worst fears in terms of being a supply chain risk.",
+      "order": 33
+    },
+    {
+      "id": "b035",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "The broader takeaway from that previous episode, however, is that Anthropic believes that they are the ones who should have final say over how Anthropic is used; given that they think only they should be developing leading edge AI, they by extension think that only they should have final say over AI generally. When you further combine this realization with the company’s pronouncements about AI’s ability to conduct all economic activity, you realize that Anthropic’s leadership effectively wants to have power over everything and everyone.",
+      "order": 34
+    },
+    {
+      "id": "b036",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "The Safety Story Of course Anthropic would never put things so baldly; the story, rather, is safety:",
+      "order": 35
+    },
+    {
+      "id": "b037",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "I expect Anthropic to increasingly expose their model’s capabilities to end users through endpoints increasingly tailored to different workflows, even as they start to restrict the API. This replacement of software and restriction of access will be done in the name of safety, even as Anthropic fulfills its economic imperative of getting closer to end users. Anthropic’s explanation for their dramatic change in their data retention policy was safety. Specifically, the company claims that retaining all user data for 30 days is necessary to prevent the jailbreaks the U.S. government is worried about. I can certainly imagine a future where safety compels them to train on this data as well, to better protect against malicious usage. The entire Anthropic origin story is rooted in the founders’ belief that OpenAI wasn’t taking safety seriously enough; the company believes that only they can control AI, and that because they uniquely care about safety, they are justified in trying to control everyone else, up to and including the U.S. government. Here’s the thing about these safety justifications: I think they work because, to Anthropic, they aren’t justifications. The company really believes that they are the only ones who believe in super intelligence, and thus are the only ones who are sufficiently concerned about the dangers. That excuses decision after decision, policy after policy, and confrontation after confrontation that, to people on the outside, look like a bizarre combination of cynicism and naiveté.",
+      "order": 36
+    },
+    {
+      "id": "b038",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "The contrast to OpenAI is massive: I think that one way to understand how and why OpenAI lost its lead is that, in the years following the release of ChatGPT, the company has been at war with itself internally as what used to be a research lab was suddenly seized with the burden of being the accidental consumer tech company; to the extent OpenAI solved that conflict, it was by bleeding huge amounts of talent to Anthropic in particular.",
+      "order": 37
+    },
+    {
+      "id": "b039",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "Anthropic, on the other hand, has perfect alignment between talent and mission and business. The company gets to sell to researchers the creation of a machine god, with the mantle of being the sort of person who cares about the dangers and is smart enough to navigate them on behalf of humanity; that every policy change that falls out of that happens to be great for business is the most beautiful coincidence in the world.",
+      "order": 38
+    },
+    {
+      "id": "b040",
+      "sourceId": "anthropic-safety-superpower",
+      "kind": "paragraph",
+      "text": "I respect this alignment, and I fear it. I respect it because it is so clearly effective; the closest analogy is probably Apple, which has always framed every self-serving action in the guise of doing right by users — and often they were. So it is with Anthropic. What I fear, however, is that it is one thing to have people convinced they know best building a smartphone that I can take or leave; it’s considerably more concerning to have them building superintelligence that has the potential to rival or exceed the power of nation states, or merely massive corporations. The history of brilliant people convinced they know what humanity needs is a sordid one, precisely because they have convinced themselves that their intentions are good, justifying actions that very much are not.\n\n# Reader Steps",
+      "order": 39
+    }
+  ],
+  "readerSteps": [
+    {
+      "id": "s001",
+      "sectionId": "model-release-crisis",
+      "sourceBlockIds": [
+        "b001",
+        "b002",
+        "b003",
+        "b004"
+      ],
+      "summary": "The article begins by granting the cynical reading of Anthropic while also accepting that Fable/Mythos may genuinely be a new, more dangerous capability tier.",
+      "focusConcepts": [
+        {
+          "id": "safety-marketing-cynicism",
+          "weight": 0.9,
+          "mode": "explicit"
+        },
+        {
+          "id": "fable-mythos-capability",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "jailbreakable-guardrails",
+          "weight": 0.82,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r001",
+          "weight": 0.82
+        },
+        {
+          "id": "r002",
+          "weight": 0.76
+        }
+      ]
+    },
+    {
+      "id": "s002",
+      "sectionId": "model-release-crisis",
+      "sourceBlockIds": [
+        "b005",
+        "b006",
+        "b007",
+        "b008"
+      ],
+      "summary": "The government intervention turns model safety into export-control conflict: Anthropic says the jailbreak is narrow, while officials treat it as a national-security concern.",
+      "focusConcepts": [
+        {
+          "id": "government-export-directive",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "non-universal-jailbreak",
+          "weight": 0.86,
+          "mode": "explicit"
+        },
+        {
+          "id": "national-security-concern",
+          "weight": 0.8,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r003",
+          "weight": 0.86
+        },
+        {
+          "id": "r004",
+          "weight": 0.78
+        }
+      ]
+    },
+    {
+      "id": "s003",
+      "sectionId": "model-release-crisis",
+      "sourceBlockIds": [
+        "b009",
+        "b010"
+      ],
+      "summary": "The author says the exact facts matter less than the recurring pattern: Anthropic will inevitably collide with the state because it wants control while claiming danger.",
+      "focusConcepts": [
+        {
+          "id": "inevitable-government-conflict",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "recursive-capability-acceleration",
+          "weight": 0.78,
+          "mode": "explicit"
+        },
+        {
+          "id": "release-control-paradox",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "safety-justification-magic",
+          "weight": 0.82,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r005",
+          "weight": 0.84
+        },
+        {
+          "id": "r005a",
+          "weight": 0.76
+        },
+        {
+          "id": "r006",
+          "weight": 0.78
+        }
+      ]
+    },
+    {
+      "id": "s004",
+      "sectionId": "economic-imperative",
+      "sourceBlockIds": [
+        "b011",
+        "b012",
+        "b013"
+      ],
+      "summary": "The economic problem for frontier labs is commoditization: if models become interchangeable, labs must move toward the user touchpoint to capture durable value.",
+      "focusConcepts": [
+        {
+          "id": "model-commoditization",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "user-touchpoint-control",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "software-replacement",
+          "weight": 0.82,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r007",
+          "weight": 0.9
+        },
+        {
+          "id": "r008",
+          "weight": 0.82
+        }
+      ]
+    },
+    {
+      "id": "s005",
+      "sectionId": "economic-imperative",
+      "sourceBlockIds": [
+        "b014",
+        "b015",
+        "b016"
+      ],
+      "summary": "Nadella's counter-vision is firm sovereignty: companies should compound human and token capital in their own learning systems rather than cede expertise to model makers.",
+      "focusConcepts": [
+        {
+          "id": "human-token-capital",
+          "weight": 0.9,
+          "mode": "explicit"
+        },
+        {
+          "id": "learning-loop-sovereignty",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "company-veteran-expertise",
+          "weight": 0.82,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r009",
+          "weight": 0.86
+        },
+        {
+          "id": "r010",
+          "weight": 0.82
+        }
+      ]
+    },
+    {
+      "id": "s006",
+      "sectionId": "economic-imperative",
+      "sourceBlockIds": [
+        "b017",
+        "b018",
+        "b019",
+        "b020"
+      ],
+      "summary": "Nadella warns against models eating whole industries, but the author argues this may be prophecy rather than warning because model makers are economically driven to do exactly that.",
+      "focusConcepts": [
+        {
+          "id": "hollowed-out-industries",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "model-makers-imperative",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "microsoft-casualty-risk",
+          "weight": 0.72,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r011",
+          "weight": 0.8
+        },
+        {
+          "id": "r012",
+          "weight": 0.72
+        }
+      ]
+    },
+    {
+      "id": "s007",
+      "sectionId": "data-imperative",
+      "sourceBlockIds": [
+        "b021",
+        "b022",
+        "b023",
+        "b024"
+      ],
+      "summary": "The data imperative extends the economic one: subsidized usage creates real-world traces, and Fable's retention policy tests whether customers will trade data control for better results.",
+      "focusConcepts": [
+        {
+          "id": "real-world-usage-data",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "user-touchpoint-control",
+          "weight": 0.76,
+          "mode": "explicit"
+        },
+        {
+          "id": "subsidized-subscription-data",
+          "weight": 0.84,
+          "mode": "explicit"
+        },
+        {
+          "id": "fable-data-retention",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "workflow-data-flywheel",
+          "weight": 0.84,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r013",
+          "weight": 0.78
+        },
+        {
+          "id": "r014a",
+          "weight": 0.82
+        },
+        {
+          "id": "r014",
+          "weight": 0.82
+        }
+      ]
+    },
+    {
+      "id": "s008",
+      "sectionId": "data-imperative",
+      "sourceBlockIds": [
+        "b025",
+        "b026",
+        "b027",
+        "b028"
+      ],
+      "summary": "Nadella's data loop becomes the firm’s new IP, but the author asks whether firms will resist if centralized model providers produce better immediate outcomes.",
+      "focusConcepts": [
+        {
+          "id": "private-learning-loop",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "new-ip-of-firm",
+          "weight": 0.88,
+          "mode": "explicit"
+        },
+        {
+          "id": "anthropic-policy-pressure",
+          "weight": 0.86,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r015",
+          "weight": 0.88
+        },
+        {
+          "id": "r016",
+          "weight": 0.82
+        }
+      ]
+    },
+    {
+      "id": "s009",
+      "sectionId": "power-imperative",
+      "sourceBlockIds": [
+        "b029",
+        "b030",
+        "b031",
+        "b032"
+      ],
+      "summary": "The power imperative appears in the attempted silent degradation of Fable for frontier LLM work: Anthropic can alter capability invisibly to enforce its policy preferences.",
+      "focusConcepts": [
+        {
+          "id": "silent-model-degradation",
+          "weight": 0.95,
+          "mode": "explicit"
+        },
+        {
+          "id": "frontier-llm-restriction",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "recursive-capability-acceleration",
+          "weight": 0.8,
+          "mode": "explicit"
+        },
+        {
+          "id": "invisible-policy-enforcement",
+          "weight": 0.88,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r017",
+          "weight": 0.84
+        },
+        {
+          "id": "r017a",
+          "weight": 0.84
+        },
+        {
+          "id": "r018",
+          "weight": 0.86
+        }
+      ]
+    },
+    {
+      "id": "s010",
+      "sectionId": "power-imperative",
+      "sourceBlockIds": [
+        "b033",
+        "b034",
+        "b035"
+      ],
+      "summary": "Even after walking back the policy, Anthropic reveals a broader claim: it believes competitors, governments, and users should not have final say over frontier AI use.",
+      "focusConcepts": [
+        {
+          "id": "final-say-over-ai",
+          "weight": 0.95,
+          "mode": "explicit"
+        },
+        {
+          "id": "invisible-policy-enforcement",
+          "weight": 0.78,
+          "mode": "explicit"
+        },
+        {
+          "id": "supply-chain-risk",
+          "weight": 0.86,
+          "mode": "explicit"
+        },
+        {
+          "id": "power-over-everything",
+          "weight": 0.84,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r019",
+          "weight": 0.82
+        },
+        {
+          "id": "r020",
+          "weight": 0.86
+        }
+      ]
+    },
+    {
+      "id": "s011",
+      "sectionId": "safety-story",
+      "sourceBlockIds": [
+        "b036",
+        "b037",
+        "b038"
+      ],
+      "summary": "The safety story converts business expansion and access restriction into moral necessity because Anthropic sincerely believes it uniquely understands superintelligence risk.",
+      "focusConcepts": [
+        {
+          "id": "safety-story",
+          "weight": 0.95,
+          "mode": "explicit"
+        },
+        {
+          "id": "sincere-safety-belief",
+          "weight": 0.94,
+          "mode": "explicit"
+        },
+        {
+          "id": "safety-as-control-justification",
+          "weight": 0.92,
+          "mode": "explicit"
+        },
+        {
+          "id": "user-touchpoint-control",
+          "weight": 0.76,
+          "mode": "explicit"
+        },
+        {
+          "id": "fable-data-retention",
+          "weight": 0.76,
+          "mode": "explicit"
+        },
+        {
+          "id": "frontier-llm-restriction",
+          "weight": 0.74,
+          "mode": "explicit"
+        },
+        {
+          "id": "openai-organizational-conflict",
+          "weight": 0.72,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r021",
+          "weight": 0.9
+        },
+        {
+          "id": "r022a",
+          "weight": 0.78
+        },
+        {
+          "id": "r022b",
+          "weight": 0.78
+        },
+        {
+          "id": "r022c",
+          "weight": 0.76
+        }
+      ]
+    },
+    {
+      "id": "s012",
+      "sectionId": "safety-story",
+      "sourceBlockIds": [
+        "b039",
+        "b040"
+      ],
+      "summary": "The conclusion is ambivalent: Anthropic's alignment between talent, mission, and business is effective like Apple, but dangerous when attached to superintelligence-scale power.",
+      "focusConcepts": [
+        {
+          "id": "mission-business-alignment",
+          "weight": 0.96,
+          "mode": "explicit"
+        },
+        {
+          "id": "openai-organizational-conflict",
+          "weight": 0.72,
+          "mode": "explicit"
+        },
+        {
+          "id": "apple-analogy",
+          "weight": 0.82,
+          "mode": "explicit"
+        },
+        {
+          "id": "benevolent-control-risk",
+          "weight": 0.96,
+          "mode": "explicit"
+        }
+      ],
+      "focusRelations": [
+        {
+          "id": "r022",
+          "weight": 0.72
+        },
+        {
+          "id": "r023",
+          "weight": 0.78
+        },
+        {
+          "id": "r024",
+          "weight": 0.9
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "model-release-crisis",
+      "title": "Release, jailbreak, and state conflict",
+      "summary": "Fable/Mythos creates the immediate case: Anthropic may be both sincere about danger and economically compelled to release, producing conflict with the U.S. government.",
+      "readerStepIds": [
+        "s001",
+        "s002",
+        "s003"
+      ]
+    },
+    {
+      "id": "economic-imperative",
+      "title": "The economic imperative",
+      "summary": "If models commoditize, frontier labs must move up the stack toward user touchpoints, while software companies try to keep learning and IP inside the firm.",
+      "readerStepIds": [
+        "s004",
+        "s005",
+        "s006"
+      ]
+    },
+    {
+      "id": "data-imperative",
+      "title": "The data imperative",
+      "summary": "Real-world usage data becomes the training flywheel, creating a direct conflict between model-provider compounding and firm sovereignty.",
+      "readerStepIds": [
+        "s007",
+        "s008"
+      ]
+    },
+    {
+      "id": "power-imperative",
+      "title": "The power imperative",
+      "summary": "Anthropic's willingness to degrade or restrict model behavior shows the capability and desire to enforce policy preferences through the model supply chain.",
+      "readerStepIds": [
+        "s009",
+        "s010"
+      ]
+    },
+    {
+      "id": "safety-story",
+      "title": "The safety story",
+      "summary": "Safety is not merely a cover story; it is the sincere internal logic that aligns mission, business, and control, which is why it is both effective and frightening.",
+      "readerStepIds": [
+        "s011",
+        "s012"
+      ]
+    }
+  ],
+  "concepts": {
+    "atomic": [
+      {
+        "id": "safety-marketing-cynicism",
+        "label": "Safety Marketing Cynicism",
+        "aliases": [
+          "scare-mongering for the sake of marketing",
+          "cynics",
+          "public statements"
+        ],
+        "parentIds": [
+          "release-crisis-concepts"
+        ],
+        "firstSeenBlockId": "b002"
+      },
+      {
+        "id": "fable-mythos-capability",
+        "label": "Fable / Mythos Capability",
+        "aliases": [
+          "Fable",
+          "Mythos",
+          "Mythos Preview",
+          "impressive model",
+          "advanced cybersecurity capabilities",
+          "new generation"
+        ],
+        "parentIds": [
+          "release-crisis-concepts"
+        ],
+        "firstSeenBlockId": "b002"
+      },
+      {
+        "id": "jailbreakable-guardrails",
+        "label": "Jailbreakable Guardrails",
+        "aliases": [
+          "guardrails can be jailbroken",
+          "jailbroken",
+          "safety guardrails"
+        ],
+        "parentIds": [
+          "release-crisis-concepts"
+        ],
+        "firstSeenBlockId": "b004"
+      },
+      {
+        "id": "government-export-directive",
+        "label": "Government Export Directive",
+        "aliases": [
+          "export control directive",
+          "suspend all access",
+          "abruptly disable Fable 5 and Mythos 5",
+          "U.S. Government"
+        ],
+        "parentIds": [
+          "release-crisis-concepts"
+        ],
+        "firstSeenBlockId": "b006"
+      },
+      {
+        "id": "non-universal-jailbreak",
+        "label": "Non-universal Jailbreak",
+        "aliases": [
+          "non-universal jailbreaks",
+          "no evidence of a universal jailbreak",
+          "method of bypassing",
+          "jailbreaking Fable 5"
+        ],
+        "parentIds": [
+          "release-crisis-concepts"
+        ],
+        "firstSeenBlockId": "b007"
+      },
+      {
+        "id": "national-security-concern",
+        "label": "National Security Concern",
+        "aliases": [
+          "national security authorities",
+          "national security concern",
+          "legitimate national security concerns"
+        ],
+        "parentIds": [
+          "release-crisis-concepts"
+        ],
+        "firstSeenBlockId": "b006"
+      },
+      {
+        "id": "inevitable-government-conflict",
+        "label": "Inevitable Government Conflict",
+        "aliases": [
+          "conflict between the U.S. government and Anthropic was inevitable",
+          "conflict is happening"
+        ],
+        "parentIds": [
+          "release-crisis-concepts"
+        ],
+        "firstSeenBlockId": "b009"
+      },
+      {
+        "id": "recursive-capability-acceleration",
+        "label": "Recursive Capability Acceleration",
+        "aliases": [
+          "creating their successors",
+          "accelerate their own development",
+          "accelerating the overall pace of AI development",
+          "accelerate other AI developers"
+        ],
+        "parentIds": [
+          "release-crisis-concepts"
+        ],
+        "firstSeenBlockId": "b009"
+      },
+      {
+        "id": "release-control-paradox",
+        "label": "Release / Control Paradox",
+        "aliases": [
+          "why even release Fable",
+          "why fight with the government",
+          "if Mythos is so dangerous"
+        ],
+        "parentIds": [
+          "release-crisis-concepts"
+        ],
+        "firstSeenBlockId": "b010"
+      },
+      {
+        "id": "safety-justification-magic",
+        "label": "Safety Justification Magic",
+        "aliases": [
+          "how it justifies them",
+          "justifications",
+          "cynics their fuel",
+          "Anthropic its magic"
+        ],
+        "parentIds": [
+          "safety-story-concepts"
+        ],
+        "firstSeenBlockId": "b010"
+      },
+      {
+        "id": "model-commoditization",
+        "label": "Model Commoditization",
+        "aliases": [
+          "models are interchangeable",
+          "models are commodities",
+          "differentiation is fleeting",
+          "distilled and commoditized"
+        ],
+        "parentIds": [
+          "economic-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b011"
+      },
+      {
+        "id": "user-touchpoint-control",
+        "label": "User Touchpoint Control",
+        "aliases": [
+          "owning the user touchpoint",
+          "own the user touchpoint",
+          "canvas for everything",
+          "move closer to the user",
+          "moving up into user touchpoints",
+          "end users",
+          "endpoints increasingly tailored to different workflows"
+        ],
+        "parentIds": [
+          "economic-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b012"
+      },
+      {
+        "id": "software-replacement",
+        "label": "Software Replacement",
+        "aliases": [
+          "replace software outright",
+          "collision course with software companies",
+          "commodity input into software"
+        ],
+        "parentIds": [
+          "economic-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b013"
+      },
+      {
+        "id": "human-token-capital",
+        "label": "Human and Token Capital",
+        "aliases": [
+          "human capital and token capital",
+          "human agency",
+          "token capital"
+        ],
+        "parentIds": [
+          "economic-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b015"
+      },
+      {
+        "id": "learning-loop-sovereignty",
+        "label": "Learning Loop Sovereignty",
+        "aliases": [
+          "learning loop on top of models",
+          "retaining control over their IP",
+          "control and sovereignty",
+          "switch out a generalist model"
+        ],
+        "parentIds": [
+          "economic-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b016"
+      },
+      {
+        "id": "company-veteran-expertise",
+        "label": "Company Veteran Expertise",
+        "aliases": [
+          "company veteran",
+          "expertise",
+          "accumulated judgment",
+          "institutional memory"
+        ],
+        "parentIds": [
+          "economic-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b016"
+      },
+      {
+        "id": "hollowed-out-industries",
+        "label": "Hollowed-out Industries",
+        "aliases": [
+          "hollows out entire industries",
+          "hollowed out",
+          "knowledge commoditized",
+          "ceding value"
+        ],
+        "parentIds": [
+          "economic-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b018"
+      },
+      {
+        "id": "model-makers-imperative",
+        "label": "Model Makers' Imperative",
+        "aliases": [
+          "economic imperative for the model makers",
+          "accomplish exactly this",
+          "model makers"
+        ],
+        "parentIds": [
+          "economic-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b020"
+      },
+      {
+        "id": "microsoft-casualty-risk",
+        "label": "Microsoft Casualty Risk",
+        "aliases": [
+          "Microsoft could be one of the casualties",
+          "casualties"
+        ],
+        "parentIds": [
+          "economic-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b020"
+      },
+      {
+        "id": "real-world-usage-data",
+        "label": "Real-world Usage Data",
+        "aliases": [
+          "real world use",
+          "actual usage data",
+          "usage data",
+          "more and better data"
+        ],
+        "parentIds": [
+          "data-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b021"
+      },
+      {
+        "id": "subsidized-subscription-data",
+        "label": "Subsidized Subscription Data",
+        "aliases": [
+          "subsidized subscription plans",
+          "$200 plan",
+          "user and developer mindshare"
+        ],
+        "parentIds": [
+          "data-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b022"
+      },
+      {
+        "id": "fable-data-retention",
+        "label": "Fable Data Retention",
+        "aliases": [
+          "retain the data for all usage for 30 days",
+          "zero data retention",
+          "data retention policy",
+          "start using the data"
+        ],
+        "parentIds": [
+          "data-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b023"
+      },
+      {
+        "id": "workflow-data-flywheel",
+        "label": "Workflow Data Flywheel",
+        "aliases": [
+          "virtuous cycle",
+          "workflows",
+          "feed back into their training",
+          "expanding their access to data"
+        ],
+        "parentIds": [
+          "data-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b024"
+      },
+      {
+        "id": "private-learning-loop",
+        "label": "Private Learning Loop",
+        "aliases": [
+          "Private evals",
+          "Private reinforcement learning environments",
+          "real traces",
+          "inside the organization",
+          "hill climbing machine"
+        ],
+        "parentIds": [
+          "data-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b026"
+      },
+      {
+        "id": "new-ip-of-firm",
+        "label": "New IP of the Firm",
+        "aliases": [
+          "new IP of the firm",
+          "tacit knowledge unique to the firm",
+          "advantage that is hard to replicate"
+        ],
+        "parentIds": [
+          "data-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b027"
+      },
+      {
+        "id": "anthropic-policy-pressure",
+        "label": "Anthropic Policy Pressure",
+        "aliases": [
+          "give in to Anthropic's data policies",
+          "better results right now",
+          "putting the resolve Nadella is calling for to the test"
+        ],
+        "parentIds": [
+          "data-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b028"
+      },
+      {
+        "id": "silent-model-degradation",
+        "label": "Silent Model Degradation",
+        "aliases": [
+          "silently degrade Fable performance",
+          "silently alter its models",
+          "silent",
+          "degradation"
+        ],
+        "parentIds": [
+          "power-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b029"
+      },
+      {
+        "id": "frontier-llm-restriction",
+        "label": "Frontier LLM Restriction",
+        "aliases": [
+          "frontier LLM development",
+          "competing models",
+          "building pretraining pipelines",
+          "ML accelerator design",
+          "restrict the API",
+          "restriction of access"
+        ],
+        "parentIds": [
+          "power-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b030"
+      },
+      {
+        "id": "invisible-policy-enforcement",
+        "label": "Invisible Policy Enforcement",
+        "aliases": [
+          "will not be visible to the user",
+          "limit effectiveness",
+          "policy preferences",
+          "safeguards will limit effectiveness"
+        ],
+        "parentIds": [
+          "power-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b032"
+      },
+      {
+        "id": "final-say-over-ai",
+        "label": "Final Say over AI",
+        "aliases": [
+          "final say over how Anthropic is used",
+          "final say over AI generally",
+          "only they should be developing leading edge AI"
+        ],
+        "parentIds": [
+          "power-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b035"
+      },
+      {
+        "id": "supply-chain-risk",
+        "label": "Supply Chain Risk",
+        "aliases": [
+          "supply chain risk",
+          "critics' worst fears",
+          "capability and willingness",
+          "Department of War"
+        ],
+        "parentIds": [
+          "power-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b034"
+      },
+      {
+        "id": "power-over-everything",
+        "label": "Power over Everything",
+        "aliases": [
+          "power over everything and everyone",
+          "all economic activity"
+        ],
+        "parentIds": [
+          "power-imperative-concepts"
+        ],
+        "firstSeenBlockId": "b035"
+      },
+      {
+        "id": "safety-story",
+        "label": "Safety Story",
+        "aliases": [
+          "The Safety Story",
+          "safety",
+          "name of safety"
+        ],
+        "parentIds": [
+          "safety-story-concepts"
+        ],
+        "firstSeenBlockId": "b036"
+      },
+      {
+        "id": "sincere-safety-belief",
+        "label": "Sincere Safety Belief",
+        "aliases": [
+          "they aren't justifications",
+          "really believes",
+          "only ones who believe in super intelligence",
+          "sufficiently concerned about the dangers"
+        ],
+        "parentIds": [
+          "safety-story-concepts"
+        ],
+        "firstSeenBlockId": "b037"
+      },
+      {
+        "id": "safety-as-control-justification",
+        "label": "Safety as Control Justification",
+        "aliases": [
+          "justified in trying to control everyone else",
+          "decision after decision",
+          "policy after policy",
+          "confrontation after confrontation"
+        ],
+        "parentIds": [
+          "safety-story-concepts"
+        ],
+        "firstSeenBlockId": "b037"
+      },
+      {
+        "id": "openai-organizational-conflict",
+        "label": "OpenAI Organizational Conflict",
+        "aliases": [
+          "war with itself internally",
+          "accidental consumer tech company",
+          "bleeding huge amounts of talent"
+        ],
+        "parentIds": [
+          "safety-story-concepts"
+        ],
+        "firstSeenBlockId": "b038"
+      },
+      {
+        "id": "mission-business-alignment",
+        "label": "Mission / Business Alignment",
+        "aliases": [
+          "perfect alignment between talent and mission and business",
+          "every policy change",
+          "great for business",
+          "beautiful coincidence"
+        ],
+        "parentIds": [
+          "safety-story-concepts"
+        ],
+        "firstSeenBlockId": "b039"
+      },
+      {
+        "id": "apple-analogy",
+        "label": "Apple Analogy",
+        "aliases": [
+          "closest analogy is probably Apple",
+          "framed every self-serving action",
+          "doing right by users"
+        ],
+        "parentIds": [
+          "safety-story-concepts"
+        ],
+        "firstSeenBlockId": "b040"
+      },
+      {
+        "id": "benevolent-control-risk",
+        "label": "Benevolent Control Risk",
+        "aliases": [
+          "I respect this alignment",
+          "and I fear it",
+          "convinced they know best",
+          "convinced themselves that their intentions are good",
+          "rival or exceed the power of nation states"
+        ],
+        "parentIds": [
+          "safety-story-concepts"
+        ],
+        "firstSeenBlockId": "b040"
+      }
+    ],
+    "clustered": [
+      {
+        "id": "release-crisis-concepts",
+        "label": "Release Crisis",
+        "childIds": [
+          "safety-marketing-cynicism",
+          "fable-mythos-capability",
+          "jailbreakable-guardrails",
+          "government-export-directive",
+          "non-universal-jailbreak",
+          "national-security-concern",
+          "inevitable-government-conflict",
+          "recursive-capability-acceleration",
+          "release-control-paradox"
+        ]
+      },
+      {
+        "id": "economic-imperative-concepts",
+        "label": "Economic Imperative",
+        "childIds": [
+          "model-commoditization",
+          "user-touchpoint-control",
+          "software-replacement",
+          "human-token-capital",
+          "learning-loop-sovereignty",
+          "company-veteran-expertise",
+          "hollowed-out-industries",
+          "model-makers-imperative",
+          "microsoft-casualty-risk"
+        ]
+      },
+      {
+        "id": "data-imperative-concepts",
+        "label": "Data Imperative",
+        "childIds": [
+          "real-world-usage-data",
+          "subsidized-subscription-data",
+          "fable-data-retention",
+          "workflow-data-flywheel",
+          "private-learning-loop",
+          "new-ip-of-firm",
+          "anthropic-policy-pressure"
+        ]
+      },
+      {
+        "id": "power-imperative-concepts",
+        "label": "Power Imperative",
+        "childIds": [
+          "silent-model-degradation",
+          "frontier-llm-restriction",
+          "invisible-policy-enforcement",
+          "final-say-over-ai",
+          "supply-chain-risk",
+          "power-over-everything"
+        ]
+      },
+      {
+        "id": "safety-story-concepts",
+        "label": "Safety Story",
+        "childIds": [
+          "safety-justification-magic",
+          "safety-story",
+          "sincere-safety-belief",
+          "safety-as-control-justification",
+          "openai-organizational-conflict",
+          "mission-business-alignment",
+          "apple-analogy",
+          "benevolent-control-risk"
+        ]
+      }
+    ]
+  },
+  "relations": [
+    {
+      "id": "r001",
+      "from": "jailbreakable-guardrails",
+      "to": "fable-mythos-capability",
+      "type": "undermines",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b002",
+        "b003",
+        "b004"
+      ]
+    },
+    {
+      "id": "r002",
+      "from": "fable-mythos-capability",
+      "to": "safety-marketing-cynicism",
+      "type": "complicates",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b002",
+        "b003",
+        "b004"
+      ]
+    },
+    {
+      "id": "r003",
+      "from": "non-universal-jailbreak",
+      "to": "government-export-directive",
+      "type": "triggers",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b006",
+        "b007",
+        "b008"
+      ]
+    },
+    {
+      "id": "r004",
+      "from": "government-export-directive",
+      "to": "national-security-concern",
+      "type": "expresses",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b006",
+        "b007",
+        "b008"
+      ]
+    },
+    {
+      "id": "r005",
+      "from": "inevitable-government-conflict",
+      "to": "release-control-paradox",
+      "type": "exposes",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b009",
+        "b010"
+      ]
+    },
+    {
+      "id": "r005a",
+      "from": "recursive-capability-acceleration",
+      "to": "inevitable-government-conflict",
+      "type": "intensifies",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b009"
+      ]
+    },
+    {
+      "id": "r006",
+      "from": "release-control-paradox",
+      "to": "safety-justification-magic",
+      "type": "motivates",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b010"
+      ]
+    },
+    {
+      "id": "r007",
+      "from": "model-commoditization",
+      "to": "user-touchpoint-control",
+      "type": "motivates",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b011",
+        "b012",
+        "b013"
+      ]
+    },
+    {
+      "id": "r008",
+      "from": "user-touchpoint-control",
+      "to": "software-replacement",
+      "type": "implies",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b013"
+      ]
+    },
+    {
+      "id": "r009",
+      "from": "human-token-capital",
+      "to": "learning-loop-sovereignty",
+      "type": "supports",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b015",
+        "b016"
+      ]
+    },
+    {
+      "id": "r010",
+      "from": "learning-loop-sovereignty",
+      "to": "company-veteran-expertise",
+      "type": "preserves",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b016"
+      ]
+    },
+    {
+      "id": "r011",
+      "from": "model-makers-imperative",
+      "to": "hollowed-out-industries",
+      "type": "produces",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b018",
+        "b019",
+        "b020"
+      ]
+    },
+    {
+      "id": "r012",
+      "from": "model-makers-imperative",
+      "to": "microsoft-casualty-risk",
+      "type": "threatens",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b020"
+      ]
+    },
+    {
+      "id": "r013",
+      "from": "subsidized-subscription-data",
+      "to": "real-world-usage-data",
+      "type": "buys",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b021",
+        "b022"
+      ]
+    },
+    {
+      "id": "r014",
+      "from": "fable-data-retention",
+      "to": "workflow-data-flywheel",
+      "type": "intensifies",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b023",
+        "b024"
+      ]
+    },
+    {
+      "id": "r014a",
+      "from": "user-touchpoint-control",
+      "to": "workflow-data-flywheel",
+      "type": "feeds",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b024"
+      ]
+    },
+    {
+      "id": "r015",
+      "from": "private-learning-loop",
+      "to": "new-ip-of-firm",
+      "type": "becomes",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b026",
+        "b027"
+      ]
+    },
+    {
+      "id": "r016",
+      "from": "anthropic-policy-pressure",
+      "to": "private-learning-loop",
+      "type": "tests",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b028"
+      ]
+    },
+    {
+      "id": "r017",
+      "from": "frontier-llm-restriction",
+      "to": "silent-model-degradation",
+      "type": "motivates",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b029",
+        "b030",
+        "b031",
+        "b032"
+      ]
+    },
+    {
+      "id": "r017a",
+      "from": "recursive-capability-acceleration",
+      "to": "frontier-llm-restriction",
+      "type": "motivates",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b030",
+        "b031"
+      ]
+    },
+    {
+      "id": "r018",
+      "from": "silent-model-degradation",
+      "to": "invisible-policy-enforcement",
+      "type": "enables",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b032",
+        "b034"
+      ]
+    },
+    {
+      "id": "r019",
+      "from": "invisible-policy-enforcement",
+      "to": "supply-chain-risk",
+      "type": "validates",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b034"
+      ]
+    },
+    {
+      "id": "r020",
+      "from": "final-say-over-ai",
+      "to": "power-over-everything",
+      "type": "expands_into",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b035"
+      ]
+    },
+    {
+      "id": "r021",
+      "from": "sincere-safety-belief",
+      "to": "safety-as-control-justification",
+      "type": "enables",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b037"
+      ]
+    },
+    {
+      "id": "r022",
+      "from": "mission-business-alignment",
+      "to": "openai-organizational-conflict",
+      "type": "contrasts_with",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b038",
+        "b039"
+      ]
+    },
+    {
+      "id": "r022a",
+      "from": "safety-story",
+      "to": "user-touchpoint-control",
+      "type": "rationalizes",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b037"
+      ]
+    },
+    {
+      "id": "r022b",
+      "from": "safety-story",
+      "to": "fable-data-retention",
+      "type": "rationalizes",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b037"
+      ]
+    },
+    {
+      "id": "r022c",
+      "from": "safety-story",
+      "to": "frontier-llm-restriction",
+      "type": "rationalizes",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b037"
+      ]
+    },
+    {
+      "id": "r023",
+      "from": "mission-business-alignment",
+      "to": "apple-analogy",
+      "type": "resembles",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b039",
+        "b040"
+      ]
+    },
+    {
+      "id": "r024",
+      "from": "mission-business-alignment",
+      "to": "benevolent-control-risk",
+      "type": "produces",
+      "provenance": "source",
+      "groundedInBlockIds": [
+        "b039",
+        "b040"
+      ]
+    }
+  ],
+  "intakes": [],
+  "revisions": [],
+  "meta": {
+    "authoring": {
+      "kind": "mindgraph.authoring",
+      "runtime": "anthropic-safety-superpower.mindgraph.json",
+      "filePath": "graphs/anthropic-safety-superpower.mindgraph.md"
+    }
+  }
+}
