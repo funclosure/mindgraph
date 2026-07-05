@@ -18,6 +18,7 @@ import { formatSourceFirstValidationErrors } from '../core/authoring/schema.js';
 import { evaluateSourceFirstReading } from '../view-model/evaluateSourceFirstReading.js';
 import { registry } from '../operations/index.js';
 import { buildZshCompletion } from './completions.js';
+import { describeProduceState, produceGuidanceLines } from '../core/produceState.js';
 
 const pkg = createRequire(import.meta.url)('../../package.json');
 
@@ -109,6 +110,17 @@ function readJson(filePath) {
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n', 'utf8');
+}
+
+// Print the honest next-step block when a produced document is still a
+// 0-concept skeleton. Returns true when it printed, so callers can skip their
+// low-level "Next:" list in that case.
+function printProduceGuidance(doc, docPath) {
+  const state = describeProduceState(doc, { docPath });
+  if (!state.skeleton) return false;
+  console.log('');
+  for (const line of state.guidance) console.log(line);
+  return true;
 }
 
 function formatRange(range) {
@@ -513,7 +525,7 @@ if (command === 'digest' && subcommand && subcommand !== 'apply' && subcommand !
       `Source: ${value.source.kind} (${value.source.preparedPath})`,
       `Frames: ${value.summary.frameCounts.micro} micro, ${value.summary.frameCounts.meso} meso`,
       formatWarnings(value.readiness?.ux?.warnings),
-      'Next: create a DigestPlan, then run mindgraph digest apply <document> --plan <plan-file>',
+      ...produceGuidanceLines(value.documentPath),
     ].filter(Boolean).join('\n'),
   });
 }
@@ -568,8 +580,10 @@ if (command === 'build' && subcommand === 'timeline') {
   console.log(`Format: ${doc.meta.transcriptFormat}`);
   console.log(`Frames (micro): ${doc.frames.micro.length}`);
   console.log(`Frames (meso): ${doc.frames.meso.length}`);
-  console.log('Next:');
-  for (const cmd of doc.meta.build?.suggestedNextCommands ?? []) console.log(`  ${cmd}`);
+  if (!printProduceGuidance(doc, outputFile)) {
+    console.log('Next:');
+    for (const cmd of doc.meta.build?.suggestedNextCommands ?? []) console.log(`  ${cmd}`);
+  }
   process.exit(0);
 }
 
@@ -619,6 +633,7 @@ if (command === 'ingest' && subcommand === 'transcript') {
   console.log(`Format: ${doc.meta.transcriptFormat}`);
   console.log(`Segments: ${doc.transcript.segments.length}`);
   console.log(`Frames (micro): ${doc.frames.micro.length}`);
+  printProduceGuidance(doc, outputFile);
   process.exit(0);
 }
 

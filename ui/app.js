@@ -14,6 +14,7 @@ import { renderTopbar } from './panels/topbar.js';
 import { renderGraphFocus } from './panels/graph-focus.js';
 import { nodeEmphasis } from './emphasis.js';
 import { renderDigestInspector } from './panels/digest-inspector.js';
+import { renderGraphEmpty } from './panels/graph-empty.js';
 import { attachScrollBinding } from './scroll-binding.js';
 import { createLayoutDebugPanel } from './layout-debug-panel.js';
 import { registry } from '../src/operations/index.js';
@@ -186,6 +187,7 @@ function render() {
   updateOverviewStrip();
   updateGraphFocus();
   updateDigestInspector();
+  updateGraphEmptyState();
   kickAnimationLoop();
   bindEvents(state, render, kickAnimationLoop);
 }
@@ -602,4 +604,12 @@ function updateDigestInspector() {
   const el = document.getElementById('digest-inspector');
   if (!el) return;
   el.innerHTML = renderDigestInspector(state.viewModel, state);
+}
+
+function updateGraphEmptyState() {
+  const el = document.getElementById('graph-empty');
+  if (!el) return;
+  const html = renderGraphEmpty(state.viewModel);
+  el.innerHTML = html;
+  el.hidden = html === '';
 }
