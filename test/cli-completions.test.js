@@ -6,7 +6,7 @@ import { buildZshCompletion, COMMAND_TREE } from '../src/cli/completions.js';
 test('COMMAND_TREE covers the dispatched CLI surface', () => {
   const names = COMMAND_TREE.map((command) => command.name);
   for (const expected of [
-    'gallery', 'init', 'validate', 'inspect', 'authoring', 'source', 'digest', 'mcp',
+    'gallery', 'author', 'init', 'validate', 'inspect', 'authoring', 'source', 'digest', 'mcp',
     'ingest', 'build', 'concept', 'relation', 'frame', 'stats', 'view', 'open', 'completions',
   ]) {
     assert.ok(names.includes(expected), `expected COMMAND_TREE to include '${expected}'`);

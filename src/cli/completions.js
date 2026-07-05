@@ -12,6 +12,7 @@
 
 export const COMMAND_TREE = [
   { name: 'gallery', summary: 'List the bundled sample graphs' },
+  { name: 'author', summary: 'Digest a source into a finished graph with an LLM agent', arg: 'file' },
   { name: 'init', summary: 'Create an empty starter mindgraph document', arg: 'file' },
   { name: 'validate', summary: 'Validate a mindgraph JSON document', arg: 'doc' },
   { name: 'inspect', summary: 'Print a concise summary of a document', arg: 'doc' },

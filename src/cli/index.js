@@ -20,6 +20,7 @@ import { registry } from '../operations/index.js';
 import { buildZshCompletion } from './completions.js';
 import { describeProduceState, produceGuidanceLines } from '../core/produceState.js';
 import { loadGallery, resolveGallerySlug } from './gallery.js';
+import { authorGraph } from '../produce/authorGraph.js';
 
 const pkg = createRequire(import.meta.url)('../../package.json');
 
@@ -44,6 +45,7 @@ Usage:
   mindgraph authoring draft <input-file.txt> -o <output-file.md> [--title <title>] [--source-id <id>] [--compile <output-file.json>] [--json]
   mindgraph authoring qa <input-file.md> [--json]
   mindgraph source import <source> [--workspace <dir>] [--title <title>] [--json]
+  mindgraph author <source-file> [-o <output.mindgraph.md>] [--title <title>] [--stub] [--open]
   mindgraph digest <source> [-o <output-file>] [--workspace <dir>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>] [--meso-size <n>] [--json]
   mindgraph mcp [--workspace <dir>]
   mindgraph ingest transcript <transcript-file> [-o <output-file>] [--title <title>] [--mode auto|timed-lines|captions|untimed] [--speaker <name>] [--wpm <number>]
@@ -91,6 +93,7 @@ Commands:
   digest apply           Apply a batch digest plan: concepts, relations, activations, macro frames, ignored spans
   digest evaluate        Report digest quality signals: empty frames, unused concepts, inactive relations, top activations
   gallery                List the bundled sample graphs; read one with mindgraph view <slug>
+  author                 One command: digest a source into a finished graph with an LLM agent (needs Claude credentials; --stub for a no-API dry run)
   view                   Open the read-only reading UI for a document in the browser (accepts a gallery <slug>)
   open / ask             Launch the live UI (with the Ask agent) and open the browser; defaults to the newest graphs/*.mindgraph.md
   completions zsh        Print a zsh completion script (save into a $fpath dir as _mindgraph)
@@ -244,6 +247,79 @@ if (command === 'gallery') {
     console.log('');
   }
   process.exit(0);
+}
+
+if (command === 'author') {
+  const sourceFile = subcommand;
+  const flagArgs = rest;
+  if (!sourceFile) {
+    console.error('Missing source file. Usage: mindgraph author <source-file> [-o <out.mindgraph.md>] [--stub] [--open]');
+    process.exit(1);
+  }
+  if (!fs.existsSync(sourceFile)) {
+    console.error(`Source not found: ${sourceFile}`);
+    process.exit(1);
+  }
+  const flags = parseFlags(flagArgs);
+  const stub = Boolean(flags['--stub']);
+  const openAfter = Boolean(flags['--open']);
+  const title = flags['--title'] ? String(flags['--title']) : undefined;
+  const sourceText = fs.readFileSync(sourceFile, 'utf8');
+
+  const slug = slugify(title ?? path.basename(sourceFile).replace(/\.[^.]+$/, ''));
+  const defaultDir = fs.existsSync(path.resolve(process.cwd(), 'graphs')) ? 'graphs' : '.';
+  const outputMd = flags['-o'] ? String(flags['-o']) : path.join(defaultDir, `${slug}.mindgraph.md`);
+
+  let result;
+  try {
+    result = await authorGraph({
+      sourceText,
+      title,
+      outputMd,
+      stub,
+      onProgress: (msg) => console.log(`  ${msg}`),
+    });
+  } catch (error) {
+    const message = String(error?.message ?? error);
+    if (/Agent SDK not installed/i.test(message)) {
+      console.error('The author agent needs the Claude Agent SDK and credentials.');
+      console.error('Either install/authenticate the SDK, run with --stub for a no-API dry run,');
+      console.error('or load the mindgraph skill in Claude Code and say "digest this".');
+      process.exit(1);
+    }
+    console.error(`author failed: ${message}`);
+    process.exit(1);
+  }
+
+  if (!result.validation.ok) {
+    console.error(`Authored markdown did not validate (${result.mdPath}):`);
+    console.error(formatSourceFirstValidationErrors(result.validation));
+    process.exit(1);
+  }
+  const conceptCount = result.document.concepts?.atomic?.length ?? 0;
+  const relationCount = result.document.relations?.length ?? 0;
+  console.log(`Authored ${result.jsonPath} — ${conceptCount} concepts, ${relationCount} relations${stub ? ' (stub)' : ''}`);
+  if (result.qa && !result.qa.ok) {
+    console.log(`QA: ${result.qa.unboundFocusActivations} unbound focus concept(s) — run  mindgraph authoring qa ${result.mdPath}`);
+  }
+  console.log(openAfter ? 'Opening in your browser…' : `Read it:  mindgraph view ${result.jsonPath}`);
+
+  if (openAfter) {
+    // Detached so the reader server outlives this one-shot command.
+    const serverScript = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'ui', 'dev-server.js');
+    const child = spawn(process.execPath, [serverScript, '--doc', path.resolve(result.jsonPath)], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+    const url = 'http://127.0.0.1:4173';
+    const openCmd = process.platform === 'darwin' ? `open ${JSON.stringify(url)}`
+      : process.platform === 'win32' ? `start "" ${JSON.stringify(url)}`
+      : `xdg-open ${JSON.stringify(url)}`;
+    exec(openCmd, () => process.exit(0));
+  } else {
+    process.exit(0);
+  }
 }
 
 if (command === 'init') {

@@ -69,7 +69,14 @@ mindgraph open my-episode          # name fragment or path; resolves under ./gra
 
 Both boot a small server (default `http://127.0.0.1:4173`) and open your browser. Ctrl+C to stop; `--port <n>` if 4173 is taken. Re-running `open` on a busy port reuses the server already running there instead of failing.
 
-**Produce a graph.** The fastest path is the [Claude skill](#use-as-a-claude--superpowers-skill): tell the agent *"build a mindgraph for this article,"* and it drives the source-first pipeline for you. To do it by hand, see [Source-first authoring](#source-first-authoring).
+**Produce a graph.** Producing a graph needs an LLM agent for the semantic pass (choosing concepts, grounding relations) — the deterministic CLI on its own only yields a transcript skeleton. Three ways, easiest first:
+
+```bash
+mindgraph author article.txt          # one command; needs Claude credentials
+mindgraph author article.txt --stub   # no-API dry run (canned graph) to see the pipeline
+```
+
+Or drive the [Claude skill](#use-as-a-claude--superpowers-skill) (*"build a mindgraph for this article"*), or hand-author — see [Source-first authoring](#source-first-authoring). If you run `ingest`/`digest` directly, they'll tell you the result is a skeleton and how to finish it.
 
 Requires Node 18+ (or Bun). Runtime deps: `@anthropic-ai/claude-agent-sdk` and `zod` (used by the Ask agent); no other system dependencies.
 
