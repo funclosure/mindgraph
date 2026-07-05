@@ -4,11 +4,15 @@
 // The tree mirrors the dispatch branches in src/cli/index.js; when a command
 // is added there, add it here so `mindgraph completions zsh` stays in sync.
 // `arg` names the kind of first positional argument a (sub)command takes:
-//   'doc'   → *.mindgraph.json          (runtime documents)
-//   'graph' → *.mindgraph.(json|md)     (anything the reader UI can load)
-//   'md'    → *.mindgraph.md            (authoring markdown)
-//   'file'  → any file
+//   'doc'       → *.mindgraph.json      (runtime documents)
+//   'md'        → *.mindgraph.md        (authoring markdown)
+//   'file'      → any file
+//   'opengraph' → open: source-first .md only (open edits the .md in place),
+//                 listed by basename for the bare case, path-completed otherwise
+//   'viewgraph' → view: any .json|.md document, plus the shipped gallery slugs
 // ---------------------------------------------------------------------------
+
+import { loadGallery } from './gallery.js';
 
 export const COMMAND_TREE = [
   { name: 'gallery', summary: 'List the bundled sample graphs' },
@@ -81,8 +85,8 @@ export const COMMAND_TREE = [
     summary: 'Document statistics',
     sub: [{ name: 'recompute', summary: 'Recompute concept stats', arg: 'doc' }],
   },
-  { name: 'view', summary: 'Open the read-only reading UI', arg: 'graph' },
-  { name: 'open', summary: 'Launch the live UI with the Ask agent', arg: 'graph' },
+  { name: 'view', summary: 'Open the read-only reading UI', arg: 'viewgraph' },
+  { name: 'open', summary: 'Launch the live UI with the Ask agent', arg: 'opengraph' },
   {
     name: 'completions',
     summary: 'Print a shell completion script',
@@ -92,9 +96,38 @@ export const COMMAND_TREE = [
 
 const ARG_GLOBS = {
   doc: '*.mindgraph.json',
-  graph: '*.mindgraph.(json|md)',
   md: '*.mindgraph.md',
 };
+
+// `open` edits the source .md in place and resolves a bare name by substring
+// against graphs/, so complete .md only: bare basenames when nothing is typed,
+// path completion once a "/" appears — never a duplicate, never a .json.
+function openCompletion(indent) {
+  return (
+    `${indent}if [[ $PREFIX == */* ]]; then\n` +
+    `${indent}  _files -g "*.mindgraph.md"\n` +
+    `${indent}else\n` +
+    `${indent}  local -a open_docs\n` +
+    `${indent}  open_docs=( graphs/*.mindgraph.md(N:t) )\n` +
+    `${indent}  if (( \${#open_docs} )); then\n` +
+    `${indent}    compadd -a open_docs\n` +
+    `${indent}  else\n` +
+    `${indent}    _files -g "*.mindgraph.md"\n` +
+    `${indent}  fi\n` +
+    `${indent}fi`
+  );
+}
+
+// `view` reads any compiled/authored document or a bundled gallery slug. Gallery
+// slugs are baked in at generation time (regenerate the script after upgrades).
+function viewCompletion(indent) {
+  const slugs = loadGallery().map((e) => e.slug).join(' ');
+  return (
+    `${indent}_alternative \\\n` +
+    `${indent}  'files:document:_files -g "*.mindgraph.(json|md)"' \\\n` +
+    `${indent}  'gallery:gallery slug:(${slugs})'`
+  );
+}
 
 function describeLines(entries, indent) {
   return entries
@@ -104,22 +137,8 @@ function describeLines(entries, indent) {
 
 function fileAction(arg, indent) {
   if (!arg) return `${indent}return`;
-  if (arg === 'graph') {
-    // `open` resolves name fragments against ./graphs, so list those
-    // documents directly (from any directory that has a graphs/ folder)
-    // alongside ordinary path completion.
-    return (
-      `${indent}local -a graph_docs\n` +
-      `${indent}graph_docs=( graphs/*.mindgraph.(json|md)(N) )\n` +
-      `${indent}if (( \${#graph_docs} )); then\n` +
-      `${indent}  _alternative \\\n` +
-      `${indent}    'graphs:mindgraph document under ./graphs:compadd -f -a graph_docs' \\\n` +
-      `${indent}    'files:file:_files -g "${ARG_GLOBS.graph}"'\n` +
-      `${indent}else\n` +
-      `${indent}  _files -g "${ARG_GLOBS.graph}"\n` +
-      `${indent}fi`
-    );
-  }
+  if (arg === 'opengraph') return openCompletion(indent);
+  if (arg === 'viewgraph') return viewCompletion(indent);
   const glob = ARG_GLOBS[arg];
   return glob ? `${indent}_files -g "${glob}"` : `${indent}_files`;
 }

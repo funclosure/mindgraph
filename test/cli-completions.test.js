@@ -15,17 +15,32 @@ test('COMMAND_TREE covers the dispatched CLI surface', () => {
   assert.deepEqual(authoring.sub.map((s) => s.name), ['validate', 'compile', 'draft', 'qa']);
 });
 
-test('buildZshCompletion generates a compdef script with commands and file globs', () => {
+function caseBranch(script, name) {
+  const start = script.indexOf(`\n    ${name})`);
+  const end = script.indexOf(';;', start);
+  return script.slice(start, end);
+}
+
+test('buildZshCompletion generates a compdef script with per-command file rules', () => {
   const script = buildZshCompletion();
   assert.match(script, /^#compdef mindgraph/);
   assert.match(script, /'open:/, 'expected open in top-level command descriptions');
   assert.match(script, /'authoring:/, 'expected authoring in top-level command descriptions');
-  // open/view offer only mindgraph documents…
-  assert.match(script, /(?:open\|view|view\|open)\)[\s\S]*?\*\.mindgraph\.\(json\|md\)/);
-  // …and list documents under ./graphs directly, since `open` resolves name
-  // fragments against that directory (typing from the repo root must show them).
-  assert.match(script, /(?:open\|view|view\|open)\)[\s\S]*?graphs\/\*\.mindgraph\.\(json\|md\)\(N\)/);
+
+  // open completes source-first markdown ONLY — it edits the .md in place, so
+  // offering the .json is wrong and doubled the menu.
+  const openBranch = caseBranch(script, 'open');
+  assert.match(openBranch, /\*\.mindgraph\.md/);
+  assert.doesNotMatch(openBranch, /json/, 'open must not offer .json documents');
+  // and lists graphs/ documents by basename for the bare (nothing-typed) case
+  assert.match(openBranch, /graphs\/\*\.mindgraph\.md\(N:t\)/);
+
+  // view completes json|md documents plus the shipped gallery slugs
+  const viewBranch = caseBranch(script, 'view');
+  assert.match(viewBranch, /\*\.mindgraph\.\(json\|md\)/);
+  assert.match(viewBranch, /meaning-crisis/, 'view offers gallery slugs');
   assert.match(script, /_alternative/);
+
   // authoring markdown subcommands offer only authoring markdown
   assert.match(script, /\*\.mindgraph\.md/);
   // nested subcommands complete at position 3
