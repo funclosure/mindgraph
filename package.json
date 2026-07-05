@@ -1,6 +1,6 @@
 {
   "name": "mindgraph",
-  "version": "0.9.7",
+  "version": "0.10.0",
   "description": "LLM-native concept timeline CLI and schema",
   "type": "module",
   "packageManager": "bun@1.3.13",
