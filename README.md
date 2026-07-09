@@ -6,13 +6,20 @@
 
 An LLM-native CLI and data model for turning transcripts into evolving concept timelines, plus a reading-driven UI for re-entering them.
 
+<p align="center">
+  <img src="docs/screenshots/reading-ui.png" alt="The mindgraph reading UI: a concept graph on the left, the source essay in the middle with a link back to the original, and the Ask panel answering a question about a concept on the right." width="100%" />
+</p>
+<p align="center">
+  <em>The reading UI on the bundled <code>global-workspace</code> sample — graph, source, and the <strong>Ask</strong> panel. Try it with <code>mindgraph view global-workspace</code>.</em>
+</p>
+
 ## How to think about it
 
 mindgraph has two sides, with a JSON document between them.
 
 **Producer side — agent + CLI.** The CLI is built for an LLM agent to operate end-to-end. For new graphs the preferred path is **source-first authoring**: the agent reads the material, writes an editable `.mindgraph.md`, then validates and compiles it to runtime JSON (an older transcript → micro/meso/macro pipeline remains for existing fixtures). Ergonomics target an AI user, not a human typist — idempotent upserts, JSON in / JSON out, parseable errors. You don't drive the CLI; you bring source material and review the output.
 
-**Consumer side — human + UI.** The UI presents the digested mindgraph as a reading surface: a graph that fills the window plus a **Source** panel that reads like an essay — scroll the prose and the graph reveals and spotlights concepts as they appear in the text. A **focus** control (Whole map / Section / Current step) sets how tightly the view tracks your reading, and a **Chat** panel lets you ask the source about whatever's in focus. Reading drives time. The point is to re-enter dense source material at your own pace, with conceptual and temporal structure visible.
+**Consumer side — human + UI.** The UI presents the digested mindgraph as a reading surface: a graph that fills the window plus a **Source** panel that reads like an essay — scroll the prose and the graph reveals and spotlights concepts as they appear in the text. The source keeps a link back to where it came from, so the original is one click away. A **focus** control (Whole map / Section / Current step) sets how tightly the view tracks your reading, and a **Chat** panel lets you ask the source about whatever's in focus. Reading drives time. The point is to re-enter dense source material at your own pace, with conceptual and temporal structure visible.
 
 **The document is the contract.** A `.mindgraph.json` file is the boundary. CLI writes it. UI reads it. Either side can change as long as the schema holds. The document is the durable artifact.
 
@@ -49,9 +56,11 @@ mindgraph completions zsh > /opt/homebrew/share/zsh/site-functions/_mindgraph
 **Browse the samples.** The package ships a small gallery of finished graphs — no setup, no API key:
 
 ```bash
-mindgraph gallery              # list the bundled sample graphs
-mindgraph view meaning-crisis  # read one in your browser (any gallery <slug>)
+mindgraph gallery                # list the bundled sample graphs
+mindgraph view global-workspace  # read one in your browser (any gallery <slug>)
 ```
+
+The `global-workspace` sample (pictured above) is Anthropic's interpretability write-up digested into 30 concepts; the `↗` under the source title links back to the original article.
 
 **Read a graph.** Two ways to open the reading UI:
 
@@ -148,7 +157,7 @@ mindgraph authoring validate examples/authoring/recursive-self-improvement.mindg
 mindgraph authoring compile examples/authoring/recursive-self-improvement.mindgraph.md -o graphs/recursive-self-improvement.mindgraph.json
 ```
 
-The Markdown file is the editing surface. The compiled JSON is the runtime artifact for validation, view-model construction, and future reader/workbench UI work.
+The Markdown file is the editing surface. The compiled JSON is the runtime artifact for validation, view-model construction, and future reader/workbench UI work. For a full worked example — sources, blocks, reader steps, concepts, clusters, and grounded relations — see [`examples/authoring/global-workspace.mindgraph.md`](examples/authoring/global-workspace.mindgraph.md), the source the gallery sample above is compiled from. A `@source` can carry an optional `url:` (the link surfaced in the reader).
 
 For a plain article or pasted text file, draft the editable Markdown and compiled JSON in one pass:
 
@@ -185,7 +194,7 @@ The MCP server is an adapter over the same journey operations as the CLI. It doe
 - Canonical `.mindgraph.json` document with atomic + clustered concepts, typed relations, and a frame timeline
 - CLI covering the full producer pipeline: bootstrap, validate, inspect, source-first authoring, transcript ingest + staged build timeline, upsert concepts and relations, set frame activations, merge/backfill across levels, recompute stats
 - Timestamped and untimed transcript parsing (timed lines, captions, untimed paragraphs)
-- Reading UI: continuous-physics force-directed graph, screen-space labels, Source panel with click-bidirectional linking, Whole map / Section / Current step focus with selection spotlight, and a conversational **Ask** panel (streamed Markdown answers, clickable citations, "Add to graph")
+- Reading UI: continuous-physics force-directed graph, screen-space labels, Source panel with click-bidirectional linking and a link back to the original source, Whole map / Section / Current step focus with selection spotlight, and a conversational **Ask** panel (streamed Markdown answers, clickable citations, "Add to graph")
 
 ## Transcript formats currently supported
 
