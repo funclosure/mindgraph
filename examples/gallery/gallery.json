@@ -14,6 +14,13 @@
     "blurb": "39 concepts arguing that safety work is a competitive advantage, not a tax."
   },
   {
+    "slug": "global-workspace",
+    "file": "global-workspace.mindgraph.json",
+    "title": "A Global Workspace in Language Models",
+    "domain": "AI & interpretability",
+    "blurb": "30 concepts on the J-space — Claude's emergent inner workspace for deliberate reasoning."
+  },
+  {
     "slug": "meaning-crisis",
     "file": "meaning-crisis.mindgraph.json",
     "title": "Awakening from the Meaning Crisis",
