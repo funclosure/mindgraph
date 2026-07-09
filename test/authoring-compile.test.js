@@ -99,6 +99,40 @@ first_seen: b001
   assert.equal(document.readerSteps[0].focusRelations[0].id, 'recursive-self-improvement-depends_on-feedback-loop');
 });
 
+test('compileAuthoringMarkdown carries the source url into the compiled document', () => {
+  const markdown = `---
+kind: mindgraph.authoring
+version: 1
+title: With URL
+---
+
+@source src
+type: article
+title: Source
+url: https://example.com/article
+
+@block b001 source=src kind=paragraph
+Text.
+
+@step s001 section=setup blocks=b001
+summary: Sourced.
+focus:
+  - sourced-idea 1 explicit
+
+@section setup
+title: Setup
+steps: s001
+
+@concept sourced-idea
+label: Sourced Idea
+first_seen: b001
+`;
+
+  const { document, validation } = compileAuthoringMarkdown(markdown);
+  assert.equal(validation.ok, true, validation.errors.join('\n'));
+  assert.equal(document.sources[0].url, 'https://example.com/article');
+});
+
 test('compileAuthoringMarkdown carries source duration metadata', () => {
   const markdown = `---
 kind: mindgraph.authoring

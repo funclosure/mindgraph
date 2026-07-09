@@ -42,7 +42,7 @@ Usage:
   mindgraph inspect <input-file>
   mindgraph authoring validate <input-file.md> [--json]
   mindgraph authoring compile <input-file.md> -o <output-file.json> [--json]
-  mindgraph authoring draft <input-file.txt> -o <output-file.md> [--title <title>] [--source-id <id>] [--compile <output-file.json>] [--json]
+  mindgraph authoring draft <input-file.txt> -o <output-file.md> [--title <title>] [--source-id <id>] [--url <url>] [--compile <output-file.json>] [--json]
   mindgraph authoring qa <input-file.md> [--json]
   mindgraph source import <source> [--workspace <dir>] [--title <title>] [--json]
   mindgraph author <source-file> [-o <output.mindgraph.md>] [--title <title>] [--stub] [--open]
@@ -533,6 +533,7 @@ if (command === 'authoring' && subcommand === 'draft') {
       title: requireFlag(flags, '--title'),
       sourceId: requireFlag(flags, '--source-id'),
       sourcePath: inputFile,
+      sourceUrl: requireFlag(flags, '--url'),
       runtime,
     });
   } catch (error) {

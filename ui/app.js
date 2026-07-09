@@ -182,6 +182,7 @@ function render() {
   state.graphRenderState = computeGraphRenderState();
   updateTopbar();
   renderSourceSwitcher();
+  renderSourceReference();
   updateProsePanel();
   updateAskPanel();
   updateOverviewStrip();
@@ -354,6 +355,40 @@ function renderSourceSwitcher() {
       render();
     });
   });
+}
+
+// Shorten a URL for display: drop the scheme and any "www.", keep host + path.
+function displayUrl(url) {
+  try {
+    const u = new URL(url);
+    const tail = (u.pathname + u.search).replace(/\/$/, '');
+    return u.host.replace(/^www\./, '') + tail;
+  } catch {
+    return url.replace(/^https?:\/\//i, '');
+  }
+}
+
+// Provenance line under the source head: a clickable link to the original when
+// the active source has a url, a muted filename when it only has a local path,
+// nothing otherwise (e.g. Ask-woven discussions). Reflects the active source.
+function renderSourceReference() {
+  const el = document.getElementById('source-reference');
+  if (!el) return;
+  const sources = state.viewModel?.documentMeta?.sources ?? [];
+  const active = sources.find((s) => s.id === state.activeSourceId) ?? sources[0];
+  if (!active) { el.innerHTML = ''; return; }
+
+  if (active.url) {
+    el.innerHTML =
+      `<a class="source-reference__link" href="${escapeHtml(active.url)}" target="_blank" rel="noopener">` +
+        `<span class="source-reference__arrow">↗</span>${escapeHtml(displayUrl(active.url))}` +
+      `</a>`;
+  } else if (active.path) {
+    const base = active.path.split(/[\\/]/).pop() || active.path;
+    el.innerHTML = `<span class="source-reference__file" title="${escapeHtml(active.path)}">${escapeHtml(base)}</span>`;
+  } else {
+    el.innerHTML = '';
+  }
 }
 
 // ---------------------------------------------------------------------------

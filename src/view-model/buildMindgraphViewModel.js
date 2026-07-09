@@ -616,7 +616,13 @@ function buildDocumentMetaVM(document, conceptsVM, relationsVM, timelineVM, tran
     title: document.transcript?.title ?? 'Untitled Transcript',
     source: document.transcript?.source ?? '',
     speakers: document.transcript?.speakers ?? [],
-    sources: (document.sources ?? []).map((s) => ({ id: s.id, title: s.title ?? '', type: s.type ?? 'source' })),
+    sources: (document.sources ?? []).map((s) => ({
+      id: s.id,
+      title: s.title ?? '',
+      type: s.type ?? 'source',
+      ...(s.url ? { url: s.url } : {}),
+      ...(s.path ? { path: s.path } : {}),
+    })),
     durationSeconds,
     ...(document.sourceFirstTiming ? { timing: document.sourceFirstTiming } : {}),
     counts: {

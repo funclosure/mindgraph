@@ -58,6 +58,29 @@ test('validateSourceFirstDocument accepts a minimal source-first graph', () => {
   assert.deepEqual(result.errors, []);
 });
 
+test('validateSourceFirstDocument accepts an http(s) source url', () => {
+  const result = validateSourceFirstDocument(validDoc({
+    sources: [{ id: 'rsi-note', type: 'article', title: 'RSI Note', url: 'https://example.com/x' }],
+  }));
+  assert.equal(result.ok, true, result.errors.join('\n'));
+});
+
+test('validateSourceFirstDocument rejects a non-http source url', () => {
+  const result = validateSourceFirstDocument(validDoc({
+    sources: [{ id: 'rsi-note', type: 'article', title: 'RSI Note', url: 'ftp://example.com/x' }],
+  }));
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /rsi-note url/);
+});
+
+test('validateSourceFirstDocument rejects a non-string source url', () => {
+  const result = validateSourceFirstDocument(validDoc({
+    sources: [{ id: 'rsi-note', type: 'article', title: 'RSI Note', url: 42 }],
+  }));
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /rsi-note url/);
+});
+
 test('validateSourceFirstDocument rejects missing top-level identity', () => {
   const result = validateSourceFirstDocument({ ...validDoc(), kind: 'mindgraph.document' });
   assert.equal(result.ok, false);

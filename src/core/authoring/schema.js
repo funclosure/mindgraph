@@ -78,6 +78,10 @@ export function validateSourceFirstDocument(doc) {
     if (!hasText(source.id)) errors.push('sources entry id is required');
     if (!hasText(source.type)) errors.push(`sources.${source.id ?? '?'} type is required`);
     if (!hasText(source.title)) errors.push(`sources.${source.id ?? '?'} title is required`);
+    // url is optional, but when present it exists to be clicked — require http(s).
+    if (source.url != null && !(hasText(source.url) && /^https?:\/\//i.test(source.url))) {
+      errors.push(`sources.${source.id ?? '?'} url must be an http(s) URL`);
+    }
   }
 
   // Block timing in the view model is derived by sorting on `order`, so the

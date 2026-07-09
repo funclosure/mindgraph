@@ -16,6 +16,7 @@ duration_seconds: 600
 type: article
 title: The Essay
 path: /tmp/essay.txt
+url: https://example.com/the-essay
 
 @source disc-1
 type: discussion
@@ -79,6 +80,20 @@ test('view-model exposes documentMeta.sources and tags segments with sourceId', 
 
   const seg = vm.transcript.segments.find((s) => s.id === 'd1');
   assert.equal(seg.sourceId, 'disc-1');
+});
+
+test('documentMeta.sources carries url and path provenance', () => {
+  const doc = registry.run('compile', { markdown: MD }).value.document;
+  const vm = registry.run('view_model', { document: doc }).value.viewModel;
+
+  const essay = vm.documentMeta.sources.find((s) => s.id === 'essay');
+  assert.equal(essay.url, 'https://example.com/the-essay');
+  assert.equal(essay.path, '/tmp/essay.txt');
+
+  // A crystallized discussion has neither; the fields stay absent.
+  const disc = vm.documentMeta.sources.find((s) => s.id === 'disc-1');
+  assert.equal(disc.url, undefined);
+  assert.equal(disc.path, undefined);
 });
 
 import { buildProseChunks } from '../src/view-model/buildProseChunks.js';

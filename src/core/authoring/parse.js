@@ -11,7 +11,7 @@ const DIRECTIVE_COLLECTIONS = {
 };
 
 const DIRECTIVE_FIELDS = {
-  source: new Set(['type', 'title', 'path']),
+  source: new Set(['type', 'title', 'path', 'url']),
   block: new Set(),
   step: new Set(['section', 'blocks', 'summary', 'focus', 'relations']),
   section: new Set(['title', 'summary', 'steps']),

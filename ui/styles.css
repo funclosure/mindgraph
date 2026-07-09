@@ -412,6 +412,28 @@ button { cursor: pointer; color: inherit; }
   padding: 10px 18px 16px;
 }
 
+/* Provenance line under the source head: pinned, quiet, updates with the
+   active source. Collapses to nothing when the source carries no reference. */
+.source-reference {
+  flex: 0 0 auto;
+  padding: 0 18px 4px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+.source-reference:empty { display: none; }
+.source-reference__link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  max-width: 100%;
+  color: var(--gold-soft);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.source-reference__link:hover { color: var(--gold-bright); text-decoration: underline; }
+.source-reference__arrow { flex: 0 0 auto; opacity: 0.85; }
+.source-reference__file { color: var(--quiet); overflow-wrap: anywhere; }
+
 #prose-ask { display: flex; flex-direction: column; padding: 8px 14px 14px; }
 .ask-empty { color: rgba(232, 226, 211, 0.55); font: 13px/1.5 system-ui, sans-serif; padding: 8px 4px; }
 .ask-head { display: block; width: 100%; text-align: left; color: rgba(232, 226, 211, 0.95); font: 13px/1.5 system-ui, sans-serif; margin-bottom: 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 4px 6px; cursor: pointer; }

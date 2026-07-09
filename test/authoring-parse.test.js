@@ -27,6 +27,22 @@ test('parseAuthoringMarkdown parses frontmatter and directives', () => {
   ]);
 });
 
+test('parseAuthoringMarkdown keeps the optional source url field', () => {
+  const markdown = `---
+kind: mindgraph.authoring
+version: 1
+title: With URL
+---
+
+@source src
+type: article
+title: Source
+url: https://example.com/article
+`;
+  const model = parseAuthoringMarkdown(markdown);
+  assert.equal(model.sources[0].fields.url, 'https://example.com/article');
+});
+
 test('parseAuthoringMarkdown rejects documents without frontmatter', () => {
   assert.throws(
     () => parseAuthoringMarkdown('@source x\n type: text\n'),

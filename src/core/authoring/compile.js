@@ -19,6 +19,7 @@ function sourceFrom(entry) {
     type: String(entry.fields.type ?? 'text'),
     title: String(entry.fields.title ?? entry.id),
     ...(entry.fields.path ? { path: String(entry.fields.path) } : {}),
+    ...(entry.fields.url ? { url: String(entry.fields.url) } : {}),
   };
 }
 

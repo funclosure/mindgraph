@@ -42,6 +42,30 @@ test('createAuthoringDraftFromText emits valid authoring markdown from article t
   assert.ok(document.relations.length >= 2);
 });
 
+test('createAuthoringDraftFromText writes a url line when sourceUrl is given', () => {
+  const { markdown } = createAuthoringDraftFromText(article, {
+    title: 'Policy on Fast Systems',
+    sourceId: 'fast-systems',
+    sourcePath: 'article.txt',
+    sourceUrl: 'https://example.com/policy',
+  });
+
+  assert.match(markdown, /^url: https:\/\/example\.com\/policy$/m);
+
+  const { document, validation } = compileAuthoringMarkdown(markdown);
+  assert.equal(validation.ok, true, validation.errors.join('\n'));
+  assert.equal(document.sources[0].url, 'https://example.com/policy');
+});
+
+test('createAuthoringDraftFromText omits the url line when sourceUrl is absent', () => {
+  const { markdown } = createAuthoringDraftFromText(article, {
+    title: 'Policy on Fast Systems',
+    sourceId: 'fast-systems',
+    sourcePath: 'article.txt',
+  });
+  assert.doesNotMatch(markdown, /^url:/m);
+});
+
 test('createAuthoringDraftFromText separates numbered heading lines from following paragraphs', () => {
   const compactArticle = `Policy on Fast Systems
 1. Regulation

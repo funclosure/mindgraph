@@ -305,6 +305,7 @@ export function createAuthoringDraftFromText(text, opts = {}) {
   ];
 
   if (opts.sourcePath) lines.push(`path: ${yamlScalar(opts.sourcePath)}`);
+  if (opts.sourceUrl) lines.push(`url: ${yamlScalar(opts.sourceUrl)}`);
 
   lines.push('', '# Source Blocks', '');
   for (const block of blockEntries) {
